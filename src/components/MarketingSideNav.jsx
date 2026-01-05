@@ -4,7 +4,7 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
 
-// Icons
+// --- EXISTING ICONS ---
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
@@ -21,6 +21,12 @@ import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
+
+// --- NEW ICONS FOR TECHNICAL TEAM ---
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"; // Customer Visit
+import EditCalendarOutlinedIcon from "@mui/icons-material/EditCalendarOutlined"; // Visit Planner
+import PostAddOutlinedIcon from "@mui/icons-material/PostAddOutlined"; // Report Maker
+import SnippetFolderOutlinedIcon from "@mui/icons-material/SnippetFolderOutlined"; // Saved Reports
 
 import logoUrl from "../assets/logo.png";
 
@@ -216,6 +222,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     setOpenPayTeam((prev) => prev || payTeamActive);
   }, [anyAllActive, teleActive, fieldActive, assocActive, corpActive, techActive, solActive, qTeamActive, payTeamActive]);
 
+  // --- STANDARD ITEMS (Dashboard, Leads, Followups) ---
   const mkTeamItems = (includeMyTeam) => {
     const items = [
       { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
@@ -227,7 +234,20 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     }
     return items;
   };
+  
   const stdItemsForUser = mkTeamItems(userIsHead);
+
+  // --- CUSTOM TECHNICAL TEAM ITEMS ---
+  // This combines the standard items (Dashboard, Leads, My Team...) with your NEW requested items
+  const techTeamItems = [
+    ...mkTeamItems(userIsHead || userSlug === "technical"), // Preserves existing buttons
+    { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" },
+    { path: "/customer-visit", icon: <FactCheckOutlinedIcon />, label: "Customer Visit" },
+    { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" },
+    { path: "/report-maker", icon: <PostAddOutlinedIcon />, label: "Report Maker" },
+    { path: "/saved-reports", icon: <SnippetFolderOutlinedIcon />, label: "Saved Reports" },
+    { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" },
+  ];
 
   /* ----------- NEW: Role based nav restriction ----------- */
   const hideQuotationBuilder =
@@ -295,9 +315,12 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
               <Group title="Corporate Marketing" icon={<CorporateFareOutlinedIcon />} basePath="/marketing/corporate"
                      open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
                      onNavigate={onNavigate} items={mkTeamItems(true)} />
+              
+              {/* UPDATED: TECHNICAL TEAM (Admin View) uses 'techTeamItems' */}
               <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
-                     onNavigate={onNavigate} items={mkTeamItems(true)} />
+                     onNavigate={onNavigate} items={techTeamItems} />
+              
               <Group title="Solution Team" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
                      open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
                      onNavigate={onNavigate} items={mkTeamItems(true)} />
@@ -343,11 +366,14 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
                      onNavigate={onNavigate} items={stdItemsForUser} />
             )}
+            
+            {/* UPDATED: TECHNICAL TEAM (User View) uses 'techTeamItems' */}
             {userSlug === "technical" && (
               <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
-                     onNavigate={onNavigate} items={stdItemsForUser} />
+                     onNavigate={onNavigate} items={techTeamItems} />
             )}
+            
             {userSlug === "solution" && (
               <Group title="Solution Team" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
                      open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}

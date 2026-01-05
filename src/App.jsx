@@ -8,6 +8,7 @@ import TwoStepVerification from "./pages/TwoStepVerification.jsx";
 import Lock from "./pages/LockScreen.jsx";
 import Logout from "./pages/Logout.jsx";
 
+
 // Super Admin
 import SuperAdminLayout from "./layouts/SuperAdminLayout.jsx";
 import SaDashboard from "./pages/superadmin/SaDashboard.jsx";
@@ -21,8 +22,14 @@ import Contacts from "./pages/marketing/Contacts.jsx";
 import Companies from "./pages/marketing/Companies.jsx";
 import Leads from "./pages/marketing/Leads.jsx";
 import QuotationBuilder from "./pages/employee/QuotationBuilder.jsx";
-import SavedQuotations from "./pages/marketing/SavedQuotations.jsx"
+import SavedQuotations from "./pages/marketing/SavedQuotations.jsx";
 import LeadDetail from "./pages/marketing/LeadDetail.jsx";
+import TechnicalCustomerProfile from "./pages/marketing/TechnicalCustomerProfile.jsx";
+import TechnicalVisitPlanner from "./pages/marketing/TechnicalVisitPlanner.jsx";
+import TechnicalReimbursement from "./pages/marketing/TechnicalReimbursement.jsx"; 
+
+// --- NEW IMPORT FOR TEAM MANAGER ---
+import TeamInfo from "./pages/marketing/TeamInfo.jsx";
 
 // Tele
 import TeleDashboard from "./pages/marketing/TeleDashboard.jsx";
@@ -53,6 +60,7 @@ import TechnicalDashboard from "./pages/marketing/TechnicalDashboard.jsx";
 import TechnicalLeads from "./pages/marketing/TechnicalLeads.jsx";
 import TechnicalMyTeam from "./pages/marketing/TechnicalMyTeam.jsx";
 import TechnicalFollowUps from "./pages/marketing/TechnicalFollowUps.jsx";
+import TechnicalCustomerVisit from "./pages/marketing/TechnicalCustomerVisit.jsx"; 
 
 // Solution
 import SolutionDashboard from "./pages/marketing/SolutionDashboard.jsx";
@@ -318,6 +326,14 @@ export default function App() {
               {/* Technical */}
               <Route element={<RequireDeptAccess slug="technical" />}>
                 <Route path="technical/dashboard" element={<TechnicalDashboard />} />
+                
+                <Route path="technical/customer-profile" element={<TechnicalCustomerProfile />} />
+                <Route path="technical/customer-visit" element={<TechnicalCustomerVisit />} />
+                <Route path="technical/visit-planner" element={<TechnicalVisitPlanner />} />
+                
+                <Route path="technical/team-manager" element={<TeamInfo />} />
+                <Route path="technical/reimbursement" element={<TechnicalReimbursement />} />
+
                 <Route path="technical/leads" element={<TechnicalLeads />} />
                 <Route element={<RequireHead redirectTo="/marketing/technical/dashboard" />}>
                   <Route path="technical/my-team" element={<TechnicalMyTeam />} />
