@@ -217,13 +217,6 @@ const TechnicalVisitPlanner = () => {
                 >
                     Specific Time
                 </Button>
-                <Button 
-                    fullWidth 
-                    sx={assignmentType === 'flexible' ? activeToggle : inactiveToggle}
-                    onClick={() => setAssignmentType('flexible')}
-                >
-                    Flexible Bucket
-                </Button>
             </Stack>
 
             {/* Date / Time Selection */}
