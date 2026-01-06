@@ -14,17 +14,14 @@ import {
   useTheme,
   useMediaQuery,
   TextField,
-  MenuItem
+  MenuItem,
+  Popover
 } from "@mui/material";
 import {
   ChevronLeft,
   ChevronRight,
-  FilterList,
-  SwapVert,
   LocationOn,
-  Search,
-  AccessTime,
-  CalendarMonth
+  Search
 } from "@mui/icons-material";
 
 /* ================= ANIMATION ================= */
@@ -45,7 +42,24 @@ const TechnicalVisitPlanner = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  /* ---------- CALENDAR & SCHEDULING STATE ---------- */
+  /* ---------- LOGGED IN EMPLOYEE ---------- */
+  const [loggedInEmployeeId, setLoggedInEmployeeId] = useState(null);
+
+  /* ---------- SELECTION ---------- */
+  const [selectedLeadId, setSelectedLeadId] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  /* ---------- SCHEDULE VIEW ---------- */
+  const [scheduleView, setScheduleView] = useState("my"); // my | team
+
+  /* ---------- CALENDAR VISITS ---------- */
+  const [calendarVisits, setCalendarVisits] = useState({ my: {}, team: {} });
+
+  /* ---------- POPOVER ---------- */
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [popoverVisits, setPopoverVisits] = useState([]);
+
+  /* ---------- CALENDAR ---------- */
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const [selectedDate, setSelectedDate] = useState(dayjs().format("YYYY-MM-DD"));
   const [selectedTime, setSelectedTime] = useState("09:00");
@@ -53,23 +67,44 @@ const TechnicalVisitPlanner = () => {
   /* ---------- ASSIGN STATE ---------- */
   const [search, setSearch] = useState("");
   const [priority, setPriority] = useState("medium");
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [assignmentType, setAssignmentType] = useState("specific");
 
   /* ================= API ================= */
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("auth_token");
+        const myEmpId = localStorage.getItem("employee_id");
+        setLoggedInEmployeeId(myEmpId);
+
         const res = await axios.get(
           "https://bcrm.ipqspl.com/api/tleads/technicalteam/all-leads",
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
 
         setUnassignedLeads(res.data.unassigned_leads || []);
         setEmployees(res.data.employees || []);
+
+        /* ---------- BUILD CALENDAR MAPS ---------- */
+        const visitMap = {};
+
+        res.data.employees.forEach((emp) => {
+          emp.leads.forEach((lead) => {
+            if (!lead.technical_visit_date) return;
+
+            const dateKey = dayjs(lead.technical_visit_date).format("YYYY-MM-DD");
+
+            if (!visitMap[dateKey]) visitMap[dateKey] = [];
+
+            visitMap[dateKey].push({
+              lead_name: lead.company_name,
+              employee: emp.username,
+              time: lead.technical_visit_time,
+              priority: lead.technical_visit_priority
+            });
+          });
+        });
+
+        setCalendarVisits(visitMap);
       } catch (err) {
         console.error(err);
       } finally {
@@ -80,28 +115,61 @@ const TechnicalVisitPlanner = () => {
     fetchData();
   }, []);
 
-  /* ================= HELPERS ================= */
-  const getLoad = (count) => {
-    if (count <= 1) return { text: "Low", bg: "#bbf7d0", color: "#065f46" };
-    if (count <= 3) return { text: "Medium", bg: "#fde047", color: "#713f12" };
-    return { text: "High", bg: "#fca5a5", color: "#7f1d1d" };
+  /* ================= ASSIGN API ================= */
+  const handleAssignVisit = async () => {
+    if (!selectedLeadId || !selectedEmployee) {
+      alert("Please select lead and technician");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("auth_token");
+
+      await axios.patch(
+        "https://bcrm.ipqspl.com/api/tleads/assign",
+        {
+          lead_id: selectedLeadId,
+          assigned_employee: selectedEmployee,
+          technical_visit_date: selectedDate,
+          technical_visit_time: selectedTime,
+          technical_visit_priority:
+            priority.charAt(0).toUpperCase() + priority.slice(1),
+          technical_visit_type: "Specific",
+          reason: "Technical Visit Scheduled"
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      alert("Visit assigned successfully");
+
+      setUnassignedLeads((prev) =>
+        prev.filter((l) => l.lead_id !== selectedLeadId)
+      );
+      setSelectedLeadId(null);
+      setSelectedEmployee(null);
+    } catch (err) {
+      console.error(err);
+      alert("Assignment failed");
+    }
   };
 
-  const filteredEmployees = employees.filter((e) =>
-    e.username.toLowerCase().includes(search.toLowerCase())
-  );
-
   /* ================= CALENDAR LOGIC ================= */
-  const startOfMonth = currentMonth.startOf("month");
+ const startOfMonth = currentMonth.startOf("month");
   const daysInMonth = currentMonth.daysInMonth();
   const startDay = startOfMonth.day();
 
-  const isDateSelectedInCalendar = (day) =>
-    selectedDate === currentMonth.date(day).format("YYYY-MM-DD");
+  const handleDateClick = (e, date) => {
+    setSelectedDate(date);
+
+    if (calendarVisits[date]) {
+      setPopoverVisits(calendarVisits[date]);
+      setAnchorEl(e.currentTarget);
+    }
+  };
 
   if (loading) {
     return (
-      <Box sx={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#0f0c29" }}>
+      <Box sx={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
         <Typography color="white">Loading...</Typography>
       </Box>
     );
@@ -109,243 +177,157 @@ const TechnicalVisitPlanner = () => {
 
   return (
     <Box sx={pageStyle}>
-      {/* Background Orbs */}
-      <Box sx={{ ...orbStyle, width: 420, height: 420, background: "rgba(139,92,246,0.15)", top: -80, left: -120 }} />
-      <Box sx={{ ...orbStyle, width: 320, height: 320, background: "rgba(59,130,246,0.15)", bottom: 40, right: -80 }} />
+      <Typography variant="h4" sx={headingStyle}>
+        Visit Planner & Team Manager
+      </Typography>
 
-      <Box sx={{ maxWidth: 1300, width: "100%", zIndex: 1, margin: "0 auto" }}>
-        <Typography variant="h4" sx={headingStyle}>
-          Visit Planner & Team Manager
-        </Typography>
-
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1.8fr 1.2fr",
-            gap: 3
-          }}
-        >
-          {/* ================= LEFT COLUMN ================= */}
-          <Stack spacing={3}>
-            {/* -------- CALENDAR -------- */}
-            <Box sx={glassCard}>
-                <Stack direction="row" spacing={1} mb={2}>
-                    <Button size="small" variant="contained" sx={toggleBtn(true)}>My Schedule</Button>
-                    <Button size="small" variant="text" sx={toggleBtn(false)}>Team Schedule</Button>
-                </Stack>
-              <Box sx={calendarHeader}>
-                <IconButton onClick={() => setCurrentMonth(currentMonth.subtract(1, "month"))} sx={{ color: "#fff" }}>
-                  <ChevronLeft />
-                </IconButton>
-                <Typography fontWeight={600} sx={{ fontSize: "1.1rem" }}>
-                  {currentMonth.format("MMMM YYYY")}
-                </Typography>
-                <IconButton onClick={() => setCurrentMonth(currentMonth.add(1, "month"))} sx={{ color: "#fff" }}>
-                  <ChevronRight />
-                </IconButton>
-              </Box>
-
-              <Box sx={daysRow}>
-                {daysShort.map((d, idx) => (
-                  <Typography key={idx} sx={dayLabel}>{d}</Typography>
-                ))}
-              </Box>
-
-              <Box sx={datesGrid}>
-                {[...Array(startDay)].map((_, i) => (
-                  <Box key={`e-${i}`} />
-                ))}
-
-                {[...Array(daysInMonth)].map((_, i) => {
-                  const day = i + 1;
-                  const fullDate = currentMonth.date(day).format("YYYY-MM-DD");
-                  return (
-                    <Box
-                      key={day}
-                      onClick={() => setSelectedDate(fullDate)}
-                      sx={{
-                        ...dateCell,
-                        ...(isDateSelectedInCalendar(day) ? dateSelected : {})
-                      }}
-                    >
-                      {day}
-                    </Box>
-                  );
-                })}
-              </Box>
-
-              <Box sx={legend}>
-                <Legend color="#3b82f6" label="You" />
-                <Legend color="#9ca3af" label="Others" />
-                <Legend color="#ef4444" label="Conflict" />
-              </Box>
+      <Box sx={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.8fr 1.2fr", gap: 3 }}>
+        {/* ================= LEFT ================= */}
+        <Stack spacing={3}>
+          {/* -------- CALENDAR -------- */}
+          <Box sx={glassCard}>
+            <Box sx={calendarHeader}>
+              <IconButton onClick={() => setCurrentMonth(currentMonth.subtract(1, "month"))}>
+                <ChevronLeft />
+              </IconButton>
+              <Typography>{currentMonth.format("MMMM YYYY")}</Typography>
+              <IconButton onClick={() => setCurrentMonth(currentMonth.add(1, "month"))}>
+                <ChevronRight />
+              </IconButton>
             </Box>
 
-            {/* -------- PENDING VISITS -------- */}
-            <Box sx={glassCard}>
-              <Box sx={queueHeader}>
-                <Typography fontWeight={600}>Pending Visits Queue</Typography>
-                <Stack direction="row" spacing={1}>
-                  <IconButton size="small" sx={{ color: "#fff" }}><FilterList /></IconButton>
-                  <IconButton size="small" sx={{ color: "#fff" }}><SwapVert /></IconButton>
-                </Stack>
-              </Box>
-
-              <Stack spacing={1.5} sx={{ maxHeight: "300px", overflowY: "auto", pr: 1 }}>
-                {unassignedLeads.map((lead) => (
-                  <QueueItem
-                    key={lead.lead_id}
-                    title={lead.company_name}
-                    subtitle={lead.company_city}
-                    tag={lead.industry_type || "Standard"}
-                  />
-                ))}
-              </Stack>
+            <Box sx={daysRow}>
+              {daysShort.map((d) => (
+                <Typography key={d} sx={dayLabel}>{d}</Typography>
+              ))}
             </Box>
+
+            <Box sx={datesGrid}>
+              {[...Array(startDay)].map((_, i) => <Box key={i} />)}
+
+              {[...Array(daysInMonth)].map((_, i) => {
+                const day = i + 1;
+                const date = currentMonth.date(day).format("YYYY-MM-DD");
+                const hasVisit = calendarVisits[date];
+
+                return (
+                  <Box
+                    key={day}
+                    sx={{ ...dateCell, position: "relative" }}
+                    onClick={(e) => handleDateClick(e, date)}
+                  >
+                    {day}
+                    {hasVisit && (
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          bottom: 5,
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: "#4f7df3"
+                        }}
+                      />
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
+
+          {/* -------- UNASSIGNED LEADS -------- */}
+          <Box sx={glassCard}>
+            <Typography fontWeight={600} mb={2}>Pending Visits Queue</Typography>
+            <Stack spacing={1.5}>
+              {unassignedLeads.map((lead) => (
+                <QueueItem
+                  key={lead.lead_id}
+                  title={lead.company_name}
+                  subtitle={lead.company_city}
+                  checked={selectedLeadId === lead.lead_id}
+                  onCheck={() => setSelectedLeadId(lead.lead_id)}
+                />
+              ))}
+            </Stack>
+          </Box>
+        </Stack>
+
+        {/* ================= RIGHT ================= */}
+        <Box sx={glassCard}>
+          <Typography fontWeight={600} mb={3}>Assign Visit</Typography>
+
+          <Stack direction="row" spacing={2}>
+            <TextField type="date" fullWidth value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+            <TextField type="time" fullWidth value={selectedTime} onChange={(e) => setSelectedTime(e.target.value)} />
           </Stack>
 
-          {/* ================= RIGHT COLUMN ================= */}
-          <Box sx={glassCard}>
-            <Typography fontWeight={600} mb={3}>Assign Visit</Typography>
-
-            {/* Selection Toggles */}
-            <Stack direction="row" spacing={1} sx={tabContainer}>
-                <Button 
-                    fullWidth 
-                    sx={assignmentType === 'specific' ? activeToggle : inactiveToggle}
-                    onClick={() => setAssignmentType('specific')}
-                >
-                    Specific Time
+          <Box mt={3}>
+            <Typography sx={label}>Priority</Typography>
+            <Stack direction="row" spacing={1}>
+              {["high", "medium", "low"].map((p) => (
+                <Button key={p} sx={priorityBtn(priority === p, p)} onClick={() => setPriority(p)}>
+                  {p}
                 </Button>
+              ))}
             </Stack>
-
-            {/* Date / Time Selection */}
-            <Stack direction="row" spacing={2} mt={3}>
-              <Box sx={inputWrapper}>
-                <Typography sx={label}>Date</Typography>
-                <TextField
-                  type="date"
-                  fullWidth
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  sx={dateTimeInput}
-                  InputProps={{ disableUnderline: true }}
-                />
-              </Box>
-              <Box sx={inputWrapper}>
-                <Typography sx={label}>Time</Typography>
-                <TextField
-                  type="time"
-                  fullWidth
-                  value={selectedTime}
-                  onChange={(e) => setSelectedTime(e.target.value)}
-                  sx={dateTimeInput}
-                  InputProps={{ disableUnderline: true }}
-                />
-              </Box>
-            </Stack>
-
-            {/* Priority */}
-            <Box mt={3}>
-              <Typography sx={label}>Priority</Typography>
-              <Stack direction="row" spacing={1}>
-                {["high", "medium", "low"].map((p) => (
-                  <Button
-                    key={p}
-                    onClick={() => setPriority(p)}
-                    sx={priorityBtn(priority === p, p)}
-                  >
-                    {p.charAt(0).toUpperCase() + p.slice(1)}
-                  </Button>
-                ))}
-              </Stack>
-            </Box>
-
-            {/* Assign Technician */}
-            <Box mt={4}>
-              <Typography sx={label}>Assign Technical Person</Typography>
-
-              <Box sx={assignBox}>
-                <Box sx={searchBox}>
-                  <Search fontSize="small" sx={{ color: "rgba(255,255,255,0.5)" }} />
-                  <InputBase
-                    placeholder="Search other technicians..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    sx={{ color: "#fff", fontSize: 13, width: "100%" }}
-                  />
-                </Box>
-
-                <Stack spacing={0.5} p={1} sx={{ maxHeight: "220px", overflowY: "auto" }}>
-                  <TechItem 
-                    name="Assign to Me (Self)" 
-                    initials={<Avatar sx={{ width: 24, height: 24, bgcolor: 'orange' }}><Typography fontSize={10}>★</Typography></Avatar>}
-                    load={null}
-                    isSpecial
-                  />
-                  {filteredEmployees.map((emp) => {
-                    const load = getLoad(emp.total_leads);
-                    return (
-                      <TechItem
-                        key={emp.employee_id}
-                        name={emp.username}
-                        initials={emp.username.slice(0, 2).toUpperCase()}
-                        load={load}
-                        selected={selectedEmployee === emp.employee_id}
-                        onClick={() => setSelectedEmployee(emp.employee_id)}
-                      />
-                    );
-                  })}
-                </Stack>
-              </Box>
-            </Box>
-
-            <Button fullWidth sx={actionBtn} mt={4}>
-              Complete Action
-            </Button>
           </Box>
+
+          <Box mt={4}>
+            <Typography sx={label}>Assign Technical Person</Typography>
+            <Stack spacing={1}>
+              {employees.map((emp) => (
+                <TechItem
+                  key={emp.employee_id}
+                  name={emp.username}
+                  initials={emp.username.slice(0, 2).toUpperCase()}
+                  selected={selectedEmployee === emp.employee_id}
+                  onClick={() => setSelectedEmployee(emp.employee_id)}
+                />
+              ))}
+            </Stack>
+          </Box>
+
+          <Button fullWidth sx={actionBtn} onClick={handleAssignVisit}>
+            Complete Action
+          </Button>
         </Box>
       </Box>
+
+      {/* -------- POPUP -------- */}
+      <Popover open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={() => setAnchorEl(null)}>
+        <Box sx={{ p: 2 }}>
+          {popoverVisits.map((v, i) => (
+            <Box key={i} mb={1}>
+              <Typography fontWeight={600}>{v.lead_name}</Typography>
+              <Typography fontSize={12}>{v.employee}</Typography>
+              <Typography fontSize={12}>{v.time} | {v.priority}</Typography>
+            </Box>
+          ))}
+        </Box>
+      </Popover>
     </Box>
   );
 };
 
 /* ================= SUB COMPONENTS ================= */
-const QueueItem = ({ title, subtitle, tag }) => (
+const QueueItem = ({ title, subtitle, checked, onCheck }) => (
   <Box sx={queueItem}>
-    <Checkbox sx={{ color: "rgba(255,255,255,0.3)", '&.Mui-checked': { color: '#4f7df3' } }} />
-    <Box flex={1}>
-      <Typography fontWeight={600} fontSize="14px">{title}</Typography>
-      <Typography fontSize="12px" color="rgba(255,255,255,0.5)" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <LocationOn sx={{ fontSize: 12 }} /> {subtitle}
-      </Typography>
-    </Box>
-    <Box sx={{ alignSelf: 'center' }}>
-        <Typography sx={tagStyle(tag)}>{tag}</Typography>
+    <Checkbox checked={checked} onChange={onCheck} />
+    <Box>
+      <Typography>{title}</Typography>
+      <Typography fontSize={12}>{subtitle}</Typography>
     </Box>
   </Box>
 );
 
-const TechItem = ({ name, initials, load, selected, onClick, isSpecial }) => (
-  <Box
-    onClick={onClick}
-    sx={{
-      ...techItem,
-      background: selected ? "rgba(59,130,246,0.2)" : "transparent",
-      border: selected ? "1px solid rgba(59,130,246,0.4)" : "1px solid transparent"
-    }}
-  >
-    <Stack direction="row" spacing={1.5} alignItems="center">
-      {typeof initials === 'string' ? <Avatar sx={{ width: 32, height: 32, fontSize: 12, bgcolor: 'rgba(255,255,255,0.1)' }}>{initials}</Avatar> : initials}
-      <Typography fontSize="13px" fontWeight={isSpecial ? 600 : 400}>{name}</Typography>
-    </Stack>
-    {load && (
-        <Box sx={{ fontSize: 10, px: 1, py: 0.2, borderRadius: 12, bgcolor: load.bg, color: load.color, fontWeight: 700 }}>
-            Load: {load.text}
-        </Box>
-    )}
+const TechItem = ({ name, initials, selected, onClick }) => (
+  <Box sx={{ ...techItem, background: selected ? "rgba(59,130,246,0.2)" : "transparent" }} onClick={onClick}>
+    <Avatar>{initials}</Avatar>
+    <Typography>{name}</Typography>
   </Box>
 );
+
+
 
 const Legend = ({ color, label }) => (
   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
