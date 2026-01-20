@@ -21,12 +21,13 @@ import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'; // Added for Lead Manager
 
 // --- NEW ICONS FOR TECHNICAL TEAM ---
-import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"; // Customer Visit
-import EditCalendarOutlinedIcon from "@mui/icons-material/EditCalendarOutlined"; // Visit Planner
-import PostAddOutlinedIcon from "@mui/icons-material/PostAddOutlined"; // Report Maker
-import SnippetFolderOutlinedIcon from "@mui/icons-material/SnippetFolderOutlined"; // Saved Reports
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"; 
+import EditCalendarOutlinedIcon from "@mui/icons-material/EditCalendarOutlined"; 
+import PostAddOutlinedIcon from "@mui/icons-material/PostAddOutlined"; 
+import SnippetFolderOutlinedIcon from "@mui/icons-material/SnippetFolderOutlined"; 
 
 import logoUrl from "../assets/logo.png";
 
@@ -238,15 +239,26 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const stdItemsForUser = mkTeamItems(userIsHead);
 
   // --- CUSTOM TECHNICAL TEAM ITEMS ---
-  // This combines the standard items (Dashboard, Leads, My Team...) with your NEW requested items
   const techTeamItems = [
-    ...mkTeamItems(userIsHead || userSlug === "technical"), // Preserves existing buttons
+    ...mkTeamItems(userIsHead || userSlug === "technical"), 
     { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" },
     { path: "/customer-visit", icon: <FactCheckOutlinedIcon />, label: "Customer Visit" },
     { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" },
     { path: "/report-maker", icon: <PostAddOutlinedIcon />, label: "Report Maker" },
     { path: "/saved-reports", icon: <SnippetFolderOutlinedIcon />, label: "Saved Reports" },
     { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" },
+  ];
+
+  // --- CUSTOM FIELD MARKETING ITEMS ---
+  const fieldTeamItems = (isHeadView) => [
+    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
+    { path: "/leadinfo", icon: <DescriptionOutlinedIcon />, label: "My Leads" },
+    { path: "/my-activity", icon: <DescriptionOutlinedIcon />, label: "My Activity" },
+    { path: "/pending-followup", icon: <AssignmentTurnedInOutlinedIcon />, label: "Pending Follow-up" },
+    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" }, // <--- ADDED HERE
+
+    // Append standard items but remove Dashboard (already added)
+    ...mkTeamItems(isHeadView).filter(i => i.path !== "/dashboard" && i.path !== "/follow-ups")
   ];
 
   /* ----------- NEW: Role based nav restriction ----------- */
@@ -306,9 +318,12 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
               <Group title="Tele Marketing" icon={<SupportAgentOutlinedIcon />} basePath="/marketing/tele"
                      open={openTele} setOpen={setOpenTele} selected={/\/marketing\/tele\//.test(pathname)}
                      onNavigate={onNavigate} items={mkTeamItems(true)} />
+              
+              {/* FIELD MARKETING (Admin View) - UPDATED ITEMS */}
               <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
                      open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
-                     onNavigate={onNavigate} items={mkTeamItems(true)} />
+                     onNavigate={onNavigate} items={fieldTeamItems(true)} />
+
               <Group title="Associate Marketing" icon={<GroupsOutlinedIcon />} basePath="/marketing/associate"
                      open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
                      onNavigate={onNavigate} items={mkTeamItems(true)} />
@@ -316,7 +331,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
                      onNavigate={onNavigate} items={mkTeamItems(true)} />
               
-              {/* UPDATED: TECHNICAL TEAM (Admin View) uses 'techTeamItems' */}
+              {/* TECHNICAL TEAM (Admin View) */}
               <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
                      onNavigate={onNavigate} items={techTeamItems} />
@@ -351,11 +366,14 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      open={openTele} setOpen={setOpenTele} selected={/\/marketing\/tele\//.test(pathname)}
                      onNavigate={onNavigate} items={stdItemsForUser} />
             )}
+
+            {/* FIELD MARKETING (User View) - UPDATED ITEMS */}
             {userSlug === "field" && (
               <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
                      open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
-                     onNavigate={onNavigate} items={stdItemsForUser} />
+                     onNavigate={onNavigate} items={fieldTeamItems(userIsHead)} />
             )}
+
             {userSlug === "associate" && (
               <Group title="Associate Marketing" icon={<GroupsOutlinedIcon />} basePath="/marketing/associate"
                      open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
@@ -367,7 +385,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      onNavigate={onNavigate} items={stdItemsForUser} />
             )}
             
-            {/* UPDATED: TECHNICAL TEAM (User View) uses 'techTeamItems' */}
             {userSlug === "technical" && (
               <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
