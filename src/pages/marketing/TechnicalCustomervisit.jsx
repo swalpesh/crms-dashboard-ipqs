@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box, 
   Typography,
@@ -12,13 +12,11 @@ import {
   TableRow,
   Paper,
   keyframes,
-  Badge, 
-  useMediaQuery,
   useTheme
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // Imported for Completed status
 import { Link } from 'react-router-dom';
 
 // --- Data  ---
@@ -55,8 +53,20 @@ const glassPanelStyle = {
 
 const TechnicalCustomervisit = () => {
   const [activeTab, setActiveTab] = useState(0); // 0: New, 1: Pending, 2: Completed
+  const [searchQuery, setSearchQuery] = useState(""); // State for search functionality
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // --- Filtering Logic ---
+  const filteredData = useMemo(() => {
+    return VISIT_DATA.filter((item) => {
+      const lowerQuery = searchQuery.toLowerCase();
+      return (
+        item.name.toLowerCase().includes(lowerQuery) ||
+        item.id.toLowerCase().includes(lowerQuery) ||
+        item.email.toLowerCase().includes(lowerQuery)
+      );
+    });
+  }, [searchQuery]);
 
   return (
     <Box
@@ -65,7 +75,6 @@ const TechnicalCustomervisit = () => {
         width: '100%',
         position: 'relative',
         overflow: 'hidden',
-        // Deep rich background
         background: 'linear-gradient(to right, #24243e, #302b63, #0f0c29)',
         color: '#fff',
         fontFamily: "'Inter', sans-serif",
@@ -112,13 +121,12 @@ const TechnicalCustomervisit = () => {
               Customer Visits Dashboard
             </Typography>
             <Typography sx={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '1.1rem' }}>
-              Manage and view all customer accounts
+              Manage and view all visits
             </Typography>
           </Box>
 
-          {/* Search & Filter */}
+          {/* Search Only (Create Lead Button Removed) */}
           <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', md: 'auto' } }}>
-            {/* Search Bar */}
             <Box sx={{ 
               position: 'relative', 
               flexGrow: 1,
@@ -128,7 +136,9 @@ const TechnicalCustomervisit = () => {
                 <SearchIcon fontSize="small" />
               </Box>
               <InputBase
-                placeholder="Search..."
+                placeholder="Search visits..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 sx={{
                   width: '100%',
                   padding: '10px 16px 10px 48px',
@@ -147,31 +157,6 @@ const TechnicalCustomervisit = () => {
                 }}
               />
             </Box>
-
-            {/* Filter Button */}
-            <Button
-              endIcon={<ArrowDropDownIcon sx={{ color: 'rgba(255,255,255,0.6)' }} />}
-              sx={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderTop: '1px solid rgba(255, 255, 255, 0.4)',
-                borderRadius: '16px',
-                color: '#fff',
-                px: 3,
-                textTransform: 'none',
-                fontWeight: 600,
-                fontSize: '0.95rem',
-                whiteSpace: 'nowrap',
-                '&:hover': {
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 8px 25px rgba(0,0,0,0.2)'
-                }
-              }}
-            >
-              Filter
-            </Button>
           </Box>
         </Box>
 
@@ -263,58 +248,84 @@ const TechnicalCustomervisit = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {VISIT_DATA.map((row) => (
-                <TableRow
-                  key={row.id}
-                  sx={{
-                    borderBottom: '1px solid rgba(255,255,255,0.05)',
-                    transition: 'background-color 0.3s ease',
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                      boxShadow: 'inset 0 0 20px rgba(255, 255, 255, 0.05)'
-                    },
-                    '&:last-child': { borderBottom: 'none' }
-                  }}
-                >
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.9)', borderBottom: 'none' }}>{row.id}</TableCell>
-                  <TableCell sx={{ color: '#fff', fontWeight: 700, textShadow: '0 2px 4px rgba(0,0,0,0.2)', borderBottom: 'none' }}>{row.name}</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.6)', borderBottom: 'none' }}>{row.address}</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.9)', borderBottom: 'none' }}>{row.email}</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.9)', borderBottom: 'none' }}>{row.phone}</TableCell>
-                  <TableCell sx={{ borderBottom: 'none' }}>
-                    <Button
-                      variant="text"
-                      component={Link} /* This line is crucial for navigation */
-                      endIcon={<ArrowForwardIcon sx={{ transition: 'transform 0.3s' }} />}
-                      to="/marketing/technical/customer-profile"
-                      sx={{
-                        background: 'rgba(0, 255, 170, 0.1)',
-                        color: '#00ffaa',
-                        borderRadius: '999px',
-                        border: '1px solid rgba(0, 255, 170, 0.3)',
-                        px: 2.5,
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          background: '#00ffaa',
-                          color: '#0f0c29',
-                          boxShadow: '0 0 20px rgba(0, 255, 170, 0.6)',
-                          transform: 'scale(1.05)',
-                          borderColor: '#00ffaa',
-                          '& .MuiButton-endIcon': { transform: 'translateX(3px)' }
-                        }
-                      }}
-                    >
-                      View
-                    </Button>
+              {filteredData.length > 0 ? (
+                filteredData.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    sx={{
+                      borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      transition: 'background-color 0.3s ease',
+                      '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        boxShadow: 'inset 0 0 20px rgba(255, 255, 255, 0.05)'
+                      },
+                      '&:last-child': { borderBottom: 'none' }
+                    }}
+                  >
+                    <TableCell sx={{ color: 'rgba(255,255,255,0.9)', borderBottom: 'none' }}>{row.id}</TableCell>
+                    <TableCell sx={{ color: '#fff', fontWeight: 700, textShadow: '0 2px 4px rgba(0,0,0,0.2)', borderBottom: 'none' }}>{row.name}</TableCell>
+                    <TableCell sx={{ color: 'rgba(255,255,255,0.6)', borderBottom: 'none' }}>{row.address}</TableCell>
+                    <TableCell sx={{ color: 'rgba(255,255,255,0.9)', borderBottom: 'none' }}>{row.email}</TableCell>
+                    <TableCell sx={{ color: 'rgba(255,255,255,0.9)', borderBottom: 'none' }}>{row.phone}</TableCell>
+                    <TableCell sx={{ borderBottom: 'none' }}>
+                      
+                      {/* CONDITIONAL ACTION BUTTONS BASED ON TAB */}
+                      {activeTab === 2 ? (
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1, 
+                          color: '#00ffaa', 
+                          fontWeight: 700,
+                          fontSize: '0.95rem',
+                          textShadow: '0 0 12px rgba(0, 255, 170, 0.4)'
+                        }}>
+                          <CheckCircleOutlineIcon fontSize="small" />
+                          Completed
+                        </Box>
+                      ) : (
+                        <Button
+                          variant="text"
+                          component={Link}
+                          endIcon={<ArrowForwardIcon sx={{ transition: 'transform 0.3s' }} />}
+                          to="/marketing/technical/customer-profile"
+                          sx={{
+                            background: 'rgba(0, 255, 170, 0.1)',
+                            color: '#00ffaa',
+                            borderRadius: '999px',
+                            border: '1px solid rgba(0, 255, 170, 0.3)',
+                            px: 2.5,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              background: '#00ffaa',
+                              color: '#0f0c29',
+                              boxShadow: '0 0 20px rgba(0, 255, 170, 0.6)',
+                              transform: 'scale(1.05)',
+                              borderColor: '#00ffaa',
+                              '& .MuiButton-endIcon': { transform: 'translateX(3px)' }
+                            }
+                          }}
+                        >
+                          View
+                        </Button>
+                      )}
+
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6, color: 'rgba(255,255,255,0.5)', borderBottom: 'none' }}>
+                    <SearchIcon sx={{ fontSize: 40, mb: 1, opacity: 0.5 }} />
+                    <Typography>No visits found matching "{searchQuery}"</Typography>
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </TableContainer>
-
       </Box>
     </Box>
   );

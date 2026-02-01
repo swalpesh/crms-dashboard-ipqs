@@ -21,7 +21,7 @@ import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
-import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'; // Added for Lead Manager
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'; 
 
 // --- NEW ICONS FOR TECHNICAL TEAM ---
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"; 
@@ -199,6 +199,8 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const [openTech, setOpenTech] = useState(() => getLSBool(LS_KEYS.tech, techActive));
   const [openSol, setOpenSol] = useState(() => getLSBool(LS_KEYS.sol, solActive));
   const [openQTeam, setOpenQTeam] = useState(() => getLSBool(LS_KEYS.qteam, qTeamActive));
+  
+  // FIX: changed `openPayTeam` to `payTeamActive` here to prevent ReferenceError
   const [openPayTeam, setOpenPayTeam] = useState(() => getLSBool(LS_KEYS.payteam, payTeamActive));
 
   useEffect(() => setLSBool(LS_KEYS.all, openAll), [openAll]);
@@ -223,7 +225,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     setOpenPayTeam((prev) => prev || payTeamActive);
   }, [anyAllActive, teleActive, fieldActive, assocActive, corpActive, techActive, solActive, qTeamActive, payTeamActive]);
 
-  // --- STANDARD ITEMS (Dashboard, Leads, Followups) ---
+  // --- STANDARD ITEMS ---
   const mkTeamItems = (includeMyTeam) => {
     const items = [
       { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
@@ -239,13 +241,12 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const stdItemsForUser = mkTeamItems(userIsHead);
 
   // --- CUSTOM TECHNICAL TEAM ITEMS ---
-  const techTeamItems = [
-    ...mkTeamItems(userIsHead || userSlug === "technical"), 
-    { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" },
+  const techTeamItems = (isHeadView) => [
+    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
+    // Only show Team Manager to Heads
+    ...(isHeadView ? [{ path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" }] : []),
     { path: "/customer-visit", icon: <FactCheckOutlinedIcon />, label: "Customer Visit" },
     { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" },
-    { path: "/report-maker", icon: <PostAddOutlinedIcon />, label: "Report Maker" },
-    { path: "/saved-reports", icon: <SnippetFolderOutlinedIcon />, label: "Saved Reports" },
     { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" },
   ];
 
@@ -255,20 +256,18 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     { path: "/leadinfo", icon: <DescriptionOutlinedIcon />, label: "My Leads" },
     { path: "/my-activity", icon: <DescriptionOutlinedIcon />, label: "My Activity" },
     { path: "/pending-followup", icon: <AssignmentTurnedInOutlinedIcon />, label: "Pending Follow-up" },
-    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" }, // <--- ADDED HERE
-
-    // Append standard items but remove Dashboard (already added)
+    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" }, 
     ...mkTeamItems(isHeadView).filter(i => i.path !== "/dashboard" && i.path !== "/follow-ups")
   ];
 
-  /* ----------- NEW: Role based nav restriction ----------- */
+  /* ----------- Hide Quotations for Tech / Payments / Quote Team ----------- */
   const hideQuotationBuilder =
     norm(user?.role_id || "").includes("quotation-team-head") ||
-    norm(user?.role_id || "").includes("payments-team-head");
+    norm(user?.role_id || "").includes("payments-team-head") ||
+    userSlug === "technical";
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Brand */}
       <Box sx={{ px: 2.5, py: 2, display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
         <Box component={NavLink} to="/marketing" onClick={onNavigate}
              sx={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
@@ -284,7 +283,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
       </Box>
 
       <List sx={{ px: 1 }}>
-        {/* Payments-Team-Head Only */}
         {userSlug === "payments-team" && (
           <Group title="Payments Team" icon={<PaidOutlinedIcon />} basePath="/marketing/payments-team"
                  open={openPayTeam} setOpen={setOpenPayTeam} selected={pathname.startsWith("/marketing/payments-team/")}
@@ -294,7 +292,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                  ]} />
         )}
 
-        {/* Quotation-Team-Head Only */}
         {userSlug === "quotation-team" && (
           <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
                  open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
@@ -303,7 +300,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                  ]} />
         )}
 
-        {/* Everyone else */}
         {isIpqsHead(user) ? (
           <>
             <ListItemButton onClick={() => setOpenAll((p) => !p)} sx={{ borderRadius: 2 }}>
@@ -319,7 +315,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      open={openTele} setOpen={setOpenTele} selected={/\/marketing\/tele\//.test(pathname)}
                      onNavigate={onNavigate} items={mkTeamItems(true)} />
               
-              {/* FIELD MARKETING (Admin View) - UPDATED ITEMS */}
               <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
                      open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
                      onNavigate={onNavigate} items={fieldTeamItems(true)} />
@@ -331,10 +326,10 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
                      onNavigate={onNavigate} items={mkTeamItems(true)} />
               
-              {/* TECHNICAL TEAM (Admin View) */}
+              {/* Technical Team (Admin sees Head view items) */}
               <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
-                     onNavigate={onNavigate} items={techTeamItems} />
+                     onNavigate={onNavigate} items={techTeamItems(true)} />
               
               <Group title="Solution Team" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
                      open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
@@ -367,7 +362,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      onNavigate={onNavigate} items={stdItemsForUser} />
             )}
 
-            {/* FIELD MARKETING (User View) - UPDATED ITEMS */}
             {userSlug === "field" && (
               <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
                      open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
@@ -388,7 +382,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
             {userSlug === "technical" && (
               <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
-                     onNavigate={onNavigate} items={techTeamItems} />
+                     onNavigate={onNavigate} items={techTeamItems(userIsHead)} />
             )}
             
             {userSlug === "solution" && (
