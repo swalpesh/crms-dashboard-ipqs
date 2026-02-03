@@ -1,5 +1,4 @@
-// src/pages/marketing/QuotationBuilder.jsx
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Stack,
@@ -38,16 +37,92 @@ import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 
+/* ---------- THEME CONSTANTS ---------- */
+const theme = {
+  bgDark: '#0f0c29',
+  bgGradient: 'radial-gradient(circle at 10% 20%, rgba(91, 33, 182, 0.4) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(30, 58, 138, 0.4) 0%, transparent 40%)',
+  glassBg: 'rgba(255, 255, 255, 0.05)',
+  glassBorder: '1px solid rgba(255, 255, 255, 0.1)',
+  glassHighlight: 'rgba(255, 255, 255, 0.2)',
+  textPrimary: '#ffffff',
+  textSecondary: 'rgba(255, 255, 255, 0.7)',
+  accentBlue: '#3b82f6',
+};
+
+const glassStyles = {
+  container: {
+    minHeight: '100vh',
+    bgcolor: theme.bgDark,
+    background: `${theme.bgDark} ${theme.bgGradient}`,
+    color: theme.textPrimary,
+    fontFamily: "'Inter', sans-serif",
+    p: { xs: 2, md: 4 },
+    width: '100%',
+    overflowX: 'hidden',
+  },
+  glassCard: {
+    background: theme.glassBg,
+    backdropFilter: 'blur(16px)',
+    border: theme.glassBorder,
+    borderTop: `1px solid ${theme.glassHighlight}`,
+    borderRadius: '24px',
+    p: 3,
+    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+    color: '#fff',
+    mb: 2.5,
+  },
+  input: {
+    '& .MuiOutlinedInput-root': {
+      color: '#fff',
+      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+      borderRadius: '12px',
+      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.15)' },
+      '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+      '&.Mui-focused fieldset': { borderColor: theme.accentBlue },
+    },
+    '& .MuiInputLabel-root': { color: theme.textSecondary },
+    '& .MuiInputLabel-root.Mui-focused': { color: theme.accentBlue },
+    '& .MuiSelect-icon': { color: theme.textSecondary },
+    '& .MuiInputAdornment-root .MuiTypography-root': { color: theme.textSecondary },
+    '& .MuiAutocomplete-popupIndicator': { color: theme.textSecondary },
+    '& .MuiAutocomplete-clearIndicator': { color: theme.textSecondary },
+  },
+  // FIXED TABLE STYLING
+  table: {
+    '& th': {
+      bgcolor: '#1e1e38', // Solid dark color for header to prevent transparency issues
+      color: '#fff',
+      fontWeight: 700,
+      borderBottom: '2px solid rgba(255,255,255,0.1)',
+      whiteSpace: 'nowrap',
+      position: 'sticky', // Sticky header
+      top: 0,
+      zIndex: 10,
+    },
+    '& td': {
+      color: '#fff',
+      borderBottom: '1px solid rgba(255,255,255,0.05)',
+      whiteSpace: 'nowrap'
+    },
+  },
+  dialog: {
+    '& .MuiDialog-paper': {
+      bgcolor: '#1a1a2e',
+      color: '#fff',
+      backgroundImage: theme.bgGradient,
+      border: theme.glassBorder,
+      borderRadius: '16px'
+    }
+  }
+};
+
 /* ---------- API helpers ---------- */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const getToken = () =>
   localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-/* ---------- Assets (adjust paths for your app) ---------- */
-// const HEADER_BANNER_SRC = "/src/assets/ipqs-letter-header.png";
+/* ---------- Assets ---------- */
 const HEADER_BANNER_SRC = "/ipqs-letter-header.png";
-/** 👉 set to your actual certificate asset path */
-// const CERTIFICATE_IMG_SRC = "/src/assets/ipqs-iso9001.png";
 const CERTIFICATE_IMG_SRC = "/ipqs-iso9001.png";
 
 /* ---------- Dropdown helpers ---------- */
@@ -269,6 +344,20 @@ export default function QuotationBuilder() {
     kvaMD: 0,
     kwMD: 0,
   });
+
+  // --- AUTO DISMISS WARNINGS (10s) ---
+  useEffect(() => {
+    if (saveError || leadError || isSaved) {
+      const timer = setTimeout(() => {
+        setSaveError("");
+        setLeadError("");
+        // Optionally auto-hide success too, but sticking to error/warnings mostly
+        // If you want to auto-hide the "success" alert (if we had one separate), handle here.
+        // Alert logic below uses native alert(), but for UI Alerts:
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [saveError, leadError, isSaved]);
 
   /* ------------------- Derived totals ------------------- */
   const subtotal = useMemo(
@@ -504,9 +593,9 @@ export default function QuotationBuilder() {
     "Email: sales@ipqspl.com • Website: www.ipqspl.com • Cell: 9158418924";
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, pb: 6 }}>
+    <Box sx={glassStyles.container}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={800}>Quotation Builder</Typography>
+        <Typography variant="h4" fontWeight={900} sx={{ color: '#fff', letterSpacing: -1 }}>Quotation Builder</Typography>
 
         <Stack direction="row" spacing={1}>
           <Button
@@ -514,6 +603,7 @@ export default function QuotationBuilder() {
             startIcon={saving ? null : <SaveOutlinedIcon />}
             onClick={onSave}
             disabled={saving}
+            sx={{ borderRadius: '12px', bgcolor: theme.accentBlue }}
           >
             {saving ? "Saving..." : "Save"}
           </Button>
@@ -522,6 +612,13 @@ export default function QuotationBuilder() {
             startIcon={<SendOutlinedIcon />}
             onClick={openEmailDialog}
             disabled={!isSaved}
+            sx={{
+              borderRadius: '12px',
+              // FIXED VISIBILITY FOR DISABLED STATE
+              borderColor: isSaved ? theme.accentBlue : 'rgba(255,255,255,0.3)', 
+              color: isSaved ? '#fff' : 'rgba(255,255,255,0.5)',
+              '&.Mui-disabled': { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' }
+            }}
           >
             Send Email
           </Button>
@@ -529,6 +626,7 @@ export default function QuotationBuilder() {
             variant="outlined"
             startIcon={<PictureAsPdfOutlinedIcon />}
             onClick={onDownload}
+            sx={{ borderRadius: '12px', borderColor: 'rgba(255,255,255,0.3)', color: '#fff' }}
           >
             Download PDF
           </Button>
@@ -542,8 +640,8 @@ export default function QuotationBuilder() {
         {/* LEFT — FORM */}
         <Grid item xs={12} lg={7}>
           {/* ===== Customer ===== */}
-          <Paper sx={{ p: 2.5, borderRadius: 3, mb: 2.5 }}>
-            <Typography fontWeight={800} sx={{ mb: 2 }}>Customer</Typography>
+          <Paper sx={glassStyles.glassCard}>
+            <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Customer</Typography>
 
             {loadingLeads ? (
               <Box sx={{ py: 3, display: "flex", alignItems: "center", gap: 2 }}>
@@ -565,7 +663,7 @@ export default function QuotationBuilder() {
                     onChange={(_, val) => { setSelectedLead(val); setIsSaved(false); }}
                     getOptionLabel={(o) => (o?.lead_id || "")}
                     renderInput={(params) => (
-                      <TextField {...params} label="Lead Number" fullWidth />
+                      <TextField {...params} label="Lead Number" fullWidth sx={glassStyles.input} />
                     )}
                     isOptionEqualToValue={(o, v) => o?.lead_id === v?.lead_id}
                     clearOnEscape
@@ -578,6 +676,7 @@ export default function QuotationBuilder() {
                     value={recipient.company}
                     onChange={(e) => { setRecipient((f) => ({ ...f, company: e.target.value })); setIsSaved(false); }}
                     fullWidth
+                    sx={glassStyles.input}
                   />
 
                   {/* Attention */}
@@ -586,6 +685,7 @@ export default function QuotationBuilder() {
                     value={recipient.attention}
                     onChange={(e) => { setRecipient((f) => ({ ...f, attention: e.target.value })); setIsSaved(false); }}
                     fullWidth
+                    sx={glassStyles.input}
                   />
 
                   {/* Upload Cover Image */}
@@ -594,7 +694,7 @@ export default function QuotationBuilder() {
                     startIcon={<ImageOutlinedIcon />}
                     variant="outlined"
                     fullWidth
-                    sx={{ height: 56, justifySelf: "stretch" }}
+                    sx={{ height: 56, justifySelf: "stretch", borderColor: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: '12px' }}
                   >
                     {coverFile ? "Replace Cover Image" : "Upload Cover Image"}
                     <input type="file" accept="image/*" hidden onChange={onPickCover} />
@@ -613,6 +713,7 @@ export default function QuotationBuilder() {
                       setIsSaved(false);
                     }}
                     fullWidth
+                    sx={glassStyles.input}
                   />
                 </Box>
               </>
@@ -620,35 +721,35 @@ export default function QuotationBuilder() {
           </Paper>
 
           {/* ===== Quote details ===== */}
-          <Paper sx={{ p: 2.5, borderRadius: 3, mb: 2.5 }}>
-            <Typography fontWeight={800} sx={{ mb: 2 }}>Quote Details</Typography>
+          <Paper sx={glassStyles.glassCard}>
+            <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Quote Details</Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={3}>
                 <TextField label="Quote #" fullWidth value={quote.quoteNo}
-                  onChange={(e) => { setQuote((q) => ({ ...q, quoteNo: e.target.value })); setIsSaved(false); }} />
+                  onChange={(e) => { setQuote((q) => ({ ...q, quoteNo: e.target.value })); setIsSaved(false); }} sx={glassStyles.input} />
               </Grid>
               <Grid item xs={12} md={3}>
                 <TextField label="Reference #" fullWidth value={quote.refNo}
-                  onChange={(e) => { setQuote((q) => ({ ...q, refNo: e.target.value })); setIsSaved(false); }} />
+                  onChange={(e) => { setQuote((q) => ({ ...q, refNo: e.target.value })); setIsSaved(false); }} sx={glassStyles.input} />
               </Grid>
               <Grid item xs={12} md={3}>
                 <TextField label="Date" type="date" fullWidth InputLabelProps={{ shrink: true }} value={quote.date}
-                  onChange={(e) => { setQuote((q) => ({ ...q, date: e.target.value })); setIsSaved(false); }} />
+                  onChange={(e) => { setQuote((q) => ({ ...q, date: e.target.value })); setIsSaved(false); }} sx={glassStyles.input} />
               </Grid>
               <Grid item xs={12} md={3}>
                 <TextField label="Validity (days)" type="number" fullWidth value={quote.validityDays}
-                  onChange={(e) => { setQuote((q) => ({ ...q, validityDays: Number(e.target.value || 0) })); setIsSaved(false); }} />
+                  onChange={(e) => { setQuote((q) => ({ ...q, validityDays: Number(e.target.value || 0) })); setIsSaved(false); }} sx={glassStyles.input} />
               </Grid>
 
               <Grid item xs={12} md={3}>
                 <TextField label="Cur." select fullWidth value={quote.currency}
-                  onChange={(e) => { setQuote((q) => ({ ...q, currency: e.target.value })); setIsSaved(false); }}>
+                  onChange={(e) => { setQuote((q) => ({ ...q, currency: e.target.value })); setIsSaved(false); }} sx={glassStyles.input}>
                   {CURRENCIES.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
                 </TextField>
               </Grid>
               <Grid item xs={12} md={3}>
                 <TextField label="Tax %" type="number" fullWidth value={quote.taxRate}
-                  onChange={(e) => { setQuote((q) => ({ ...q, taxRate: Number(e.target.value || 0) })); setIsSaved(false); }} />
+                  onChange={(e) => { setQuote((q) => ({ ...q, taxRate: Number(e.target.value || 0) })); setIsSaved(false); }} sx={glassStyles.input} />
               </Grid>
 
               {/* Discount toggle + value */}
@@ -656,6 +757,7 @@ export default function QuotationBuilder() {
                 <FormControlLabel
                   control={
                     <Checkbox
+                      sx={{ color: theme.textSecondary, '&.Mui-checked': { color: theme.accentBlue } }}
                       checked={quote.discountEnabled}
                       onChange={(e) => {
                         const enabled = e.target.checked;
@@ -664,7 +766,7 @@ export default function QuotationBuilder() {
                       }}
                     />
                   }
-                  label="Add discount"
+                  label={<Typography color={theme.textSecondary}>Add discount</Typography>}
                 />
               </Grid>
 
@@ -682,11 +784,12 @@ export default function QuotationBuilder() {
                     }}
                     InputProps={{
                       startAdornment: (
-                        <InputAdornment position="start">{quote.currency}</InputAdornment>
+                        <InputAdornment position="start"><Typography color={theme.textSecondary}>{quote.currency}</Typography></InputAdornment>
                       ),
                       inputProps: { min: 0, step: "0.01" },
                     }}
                     helperText="Applied before tax"
+                    sx={glassStyles.input}
                   />
                 </Grid>
               )}
@@ -694,8 +797,8 @@ export default function QuotationBuilder() {
           </Paper>
 
           {/* ===== Cover Letter (Subject & Body) ===== */}
-          <Paper sx={{ p: 2.5, borderRadius: 3, mb: 2.5 }}>
-            <Typography fontWeight={800} sx={{ mb: 2 }}>
+          <Paper sx={glassStyles.glassCard}>
+            <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
               Cover Letter (Subject &amp; Body)
             </Typography>
 
@@ -716,6 +819,7 @@ export default function QuotationBuilder() {
                   setIsSaved(false);
                 }}
                 fullWidth
+                sx={glassStyles.input}
               />
 
               {/* Letter Body */}
@@ -729,23 +833,24 @@ export default function QuotationBuilder() {
                   setIsSaved(false);
                 }}
                 fullWidth
-                sx={{ "& .MuiInputBase-root": { overflow: "auto" } }}
+                sx={{ "& .MuiInputBase-root": { overflow: "auto", ...glassStyles.input['& .MuiOutlinedInput-root'] }, ...glassStyles.input }}
               />
             </Box>
           </Paper>
 
           {/* ===== Cost table ===== */}
-          <Paper sx={{ p: 2.5, borderRadius: 3, mb: 2.5 }}>
+          <Paper sx={glassStyles.glassCard}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-              <Typography fontWeight={800}>Cost Estimation</Typography>
+              <Typography variant="h6" fontWeight={800}>Cost Estimation</Typography>
               <Button startIcon={<AddIcon />} variant="outlined"
+                sx={{ borderColor: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: '12px' }}
                 onClick={() => { setItems((r) => [...r, { description: "", qty: 1, rate: 0 }]); setIsSaved(false); }}>
                 Add Item
               </Button>
             </Stack>
 
             <Box sx={{ width: "100%", overflowX: { xs: "auto", md: "visible" }, WebkitOverflowScrolling: "touch" }}>
-              <Table size="small" sx={{ minWidth: { xs: 720, sm: 760, md: 0 }, "& th": { bgcolor: "#fafafa", fontWeight: 700 }, "& td, & th": { whiteSpace: "nowrap" } }}>
+              <Table size="small" sx={{ minWidth: { xs: 720, sm: 760, md: 0 }, ...glassStyles.table }}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ width: { xs: 360, md: "45%" } }}>Particulars</TableCell>
@@ -767,6 +872,7 @@ export default function QuotationBuilder() {
                             setItems((rows) => rows.map((row, idx) => (idx === i ? { ...row, description: e.target.value } : row)));
                             setIsSaved(false);
                           }}
+                          sx={glassStyles.input}
                         />
                       </TableCell>
                       <TableCell>
@@ -779,6 +885,7 @@ export default function QuotationBuilder() {
                             setIsSaved(false);
                           }}
                           InputProps={{ inputProps: { min: 0 } }}
+                          sx={glassStyles.input}
                         />
                       </TableCell>
                       <TableCell>
@@ -790,7 +897,8 @@ export default function QuotationBuilder() {
                             setItems((rows) => rows.map((row, idx) => (idx === i ? { ...row, rate: +e.target.value } : row)));
                             setIsSaved(false);
                           }}
-                          InputProps={{ startAdornment: (<InputAdornment position="start">{quote.currency}</InputAdornment>) }}
+                          InputProps={{ startAdornment: (<InputAdornment position="start"><Typography color={theme.textSecondary}>{quote.currency}</Typography></InputAdornment>) }}
+                          sx={glassStyles.input}
                         />
                       </TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>
@@ -798,7 +906,7 @@ export default function QuotationBuilder() {
                       </TableCell>
                       <TableCell align="right">
                         <Tooltip title="Remove">
-                          <IconButton onClick={() => { setItems((rows) => rows.filter((_, idx) => idx !== i)); setIsSaved(false); }} size="small">
+                          <IconButton onClick={() => { setItems((rows) => rows.filter((_, idx) => idx !== i)); setIsSaved(false); }} size="small" sx={{ color: theme.textSecondary }}>
                             <DeleteOutlineIcon />
                           </IconButton>
                         </Tooltip>
@@ -839,8 +947,8 @@ export default function QuotationBuilder() {
               </Table>
             </Box>
 
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="body2" color="text.secondary">
+            <Divider sx={{ my: 2, bgcolor: 'rgba(255,255,255,0.1)' }} />
+            <Typography variant="body2" color={theme.textSecondary}>
               * Prices are exclusive of taxes. Validity of this quotation is {quote.validityDays} days from date of issue.
             </Typography>
           </Paper>
@@ -850,17 +958,18 @@ export default function QuotationBuilder() {
             sx={{ mb: 1 }}
             control={
               <Checkbox
+                sx={{ color: theme.textSecondary, '&.Mui-checked': { color: theme.accentBlue } }}
                 checked={energySectionEnabled}
                 onChange={(e) => { setEnergySectionEnabled(e.target.checked); setIsSaved(false); }}
               />
             }
-            label="Enable Energy & Cost Saving Calculations"
+            label={<Typography color={theme.textSecondary}>Enable Energy & Cost Saving Calculations</Typography>}
           />
 
           {/* ===== ENERGY & COST SAVING (inputs + computed) — Collapsible ===== */}
           <Collapse in={energySectionEnabled} timeout="auto" unmountOnExit>
-            <Paper sx={{ p: 2.5, borderRadius: 3 }}>
-              <Typography fontWeight={800} sx={{ mb: 1.5 }}>
+            <Paper sx={glassStyles.glassCard}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>
                 Energy &amp; Cost Saving Calculations (Inputs)
               </Typography>
 
@@ -873,6 +982,7 @@ export default function QuotationBuilder() {
                     fullWidth
                     value={customerType}
                     onChange={(e) => { setCustomerType(e.target.value); setIsSaved(false); }}
+                    sx={glassStyles.input}
                   >
                     <MenuItem value="LT Customer">LT Customer</MenuItem>
                     <MenuItem value="HT Customer">HT Customer</MenuItem>
@@ -887,6 +997,7 @@ export default function QuotationBuilder() {
                     fullWidth
                     value={billMonth}
                     onChange={(e) => { setBillMonth(e.target.value); setBillDuration(""); setIsSaved(false); }}
+                    sx={glassStyles.input}
                   >
                     {MONTHS.map((m) => (
                       <MenuItem key={m} value={m}>{m}</MenuItem>
@@ -903,6 +1014,7 @@ export default function QuotationBuilder() {
                       fullWidth
                       value={billDuration}
                       onChange={(e) => { setBillDuration(e.target.value); setIsSaved(false); }}
+                      sx={glassStyles.input}
                     >
                       <MenuItem value="6 months">6 months</MenuItem>
                       <MenuItem value="12 months">12 months</MenuItem>
@@ -913,61 +1025,61 @@ export default function QuotationBuilder() {
                 <Grid item xs={12} sm={6}>
                   <TextField label="Existing KWH Consumption" type="number" fullWidth
                     value={energyIn.kwh}
-                    onChange={(e) => { setEnergyIn((s) => ({ ...s, kwh: e.target.value })); setIsSaved(false); }} />
+                    onChange={(e) => { setEnergyIn((s) => ({ ...s, kwh: e.target.value })); setIsSaved(false); }} sx={glassStyles.input} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField label="Existing KVAH Consumption" type="number" fullWidth
                     value={energyIn.kvah}
-                    onChange={(e) => { setEnergyIn((s) => ({ ...s, kvah: e.target.value })); setIsSaved(false); }} />
+                    onChange={(e) => { setEnergyIn((s) => ({ ...s, kvah: e.target.value })); setIsSaved(false); }} sx={glassStyles.input} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField label="Effective Power Factor can be achieved at" fullWidth
-                    value={energyIn.pfTarget} disabled />
+                    value={energyIn.pfTarget} disabled sx={glassStyles.input} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField label="Per Unit rate" type="number" fullWidth
                     value={energyIn.perUnit}
                     onChange={(e) => { setEnergyIn((s) => ({ ...s, perUnit: e.target.value })); setIsSaved(false); }}
-                    InputProps={{ startAdornment: (<InputAdornment position="start">{quote.currency}</InputAdornment>) }} />
+                    InputProps={{ startAdornment: (<InputAdornment position="start"><Typography color={theme.textSecondary}>{quote.currency}</Typography></InputAdornment>) }} sx={glassStyles.input} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField label="Per Unit rate with taxes" type="number" fullWidth
                     value={energyIn.perUnitWithTax}
                     onChange={(e) => { setEnergyIn((s) => ({ ...s, perUnitWithTax: e.target.value })); setIsSaved(false); }}
-                    InputProps={{ startAdornment: (<InputAdornment position="start">{quote.currency}</InputAdornment>) }} />
+                    InputProps={{ startAdornment: (<InputAdornment position="start"><Typography color={theme.textSecondary}>{quote.currency}</Typography></InputAdornment>) }} sx={glassStyles.input} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField label="Demand Rate" type="number" fullWidth
                     value={energyIn.demandRate}
                     onChange={(e) => { setEnergyIn((s) => ({ ...s, demandRate: e.target.value })); setIsSaved(false); }}
-                    InputProps={{ startAdornment: (<InputAdornment position="start">{quote.currency}</InputAdornment>) }} />
+                    InputProps={{ startAdornment: (<InputAdornment position="start"><Typography color={theme.textSecondary}>{quote.currency}</Typography></InputAdornment>) }} sx={glassStyles.input} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField label="Existing KVA Demand (KVA (MD))" type="number" fullWidth
                     value={energyIn.kvaMD}
-                    onChange={(e) => { setEnergyIn((s) => ({ ...s, kvaMD: e.target.value })); setIsSaved(false); }} />
+                    onChange={(e) => { setEnergyIn((s) => ({ ...s, kvaMD: e.target.value })); setIsSaved(false); }} sx={glassStyles.input} />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField label="Existing KW Demand (KW MD)" type="number" fullWidth
                     value={energyIn.kwMD}
-                    onChange={(e) => { setEnergyIn((s) => ({ ...s, kwMD: e.target.value })); setIsSaved(false); }} />
+                    onChange={(e) => { setEnergyIn((s) => ({ ...s, kwMD: e.target.value })); setIsSaved(false); }} sx={glassStyles.input} />
                 </Grid>
               </Grid>
 
-              <Divider sx={{ my: 2 }} />
+              <Divider sx={{ my: 2, bgcolor: 'rgba(255,255,255,0.1)' }} />
 
               <Typography fontWeight={800} sx={{ mb: 1 }}>
                 Results (Auto-calculated)
               </Typography>
 
               {/* Info line showing the new selections */}
-              <Box className="info-line">
+              <Box className="info-line" sx={{ color: '#000' }}>
                 <b>Customer Type:</b> {customerType || "—"} &nbsp; | &nbsp;
                 <b>Bill Reference:</b> {billMonth ? `${billMonth} (${billDuration || "—"})` : "—"}
               </Box>
 
               <Box sx={{ overflowX: "auto" }}>
-                <Table size="small" className="energy-table" sx={{ minWidth: 720 }}>
+                <Table size="small" className="energy-table" sx={{ minWidth: 720, ...glassStyles.table }}>
                   <TableHead>
                     <TableRow>
                       <TableCell sx={{ fontWeight: 800 }}>Parameters from Electricity Bill</TableCell>
@@ -1005,8 +1117,8 @@ export default function QuotationBuilder() {
         {/* RIGHT — PREVIEW */}
         <Grid item xs={12} lg={5}>
           <Box sx={{ position: { lg: "sticky" }, top: { lg: 16 }, maxHeight: { lg: "calc(100vh - 32px)" }, overflow: { lg: "auto" } }}>
-            <Paper sx={{ p: 1.5, borderRadius: 3 }}>
-              <Typography fontWeight={800} sx={{ mb: 1.5 }}>Preview</Typography>
+            <Paper sx={glassStyles.glassCard}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>Preview</Typography>
               <Box className="preview-shell" sx={{ mt: 1 }}>
                 <PrintStyles />
                 <div className="doc doc--responsive">
@@ -1135,9 +1247,9 @@ export default function QuotationBuilder() {
       </Grid>
 
       {/* ===== Email Dialog ===== */}
-      <Dialog open={emailOpen} onClose={closeEmailDialog} fullWidth maxWidth="sm">
-        <DialogTitle>Send Quotation by Email</DialogTitle>
-        <DialogContent dividers>
+      <Dialog open={emailOpen} onClose={closeEmailDialog} fullWidth maxWidth="sm" sx={glassStyles.dialog}>
+        <DialogTitle sx={{ bgcolor: 'transparent' }}>Send Quotation by Email</DialogTitle>
+        <DialogContent dividers sx={{ borderColor: 'rgba(255,255,255,0.1)' }}>
           <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid item xs={12}>
               <TextField
@@ -1146,6 +1258,7 @@ export default function QuotationBuilder() {
                 fullWidth
                 value={emailTo}
                 onChange={(e) => setEmailTo(e.target.value)}
+                sx={glassStyles.input}
               />
             </Grid>
             <Grid item xs={12}>
@@ -1154,6 +1267,7 @@ export default function QuotationBuilder() {
                 fullWidth
                 value={emailSubject}
                 onChange={(e) => setEmailSubject(e.target.value)}
+                sx={glassStyles.input}
               />
             </Grid>
             <Grid item xs={12}>
@@ -1164,21 +1278,23 @@ export default function QuotationBuilder() {
                 minRows={8}
                 value={emailBody}
                 onChange={(e) => setEmailBody(e.target.value)}
+                sx={{ "& .MuiInputBase-root": { overflow: "auto", ...glassStyles.input['& .MuiOutlinedInput-root'] }, ...glassStyles.input }}
               />
             </Grid>
             <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+              <Typography variant="subtitle2" sx={{ mb: 0.5, color: theme.textSecondary }}>
                 Attachment
               </Typography>
               {attachmentUrl ? (
                 <Chip
-                  icon={<DownloadOutlinedIcon />}
+                  icon={<DownloadOutlinedIcon style={{ color: '#fff' }} />}
                   label={attachmentName || "Quotation.pdf"}
                   component="a"
                   href={attachmentUrl}
                   clickable
                   download={attachmentName || "Quotation.pdf"}
                   variant="outlined"
+                  sx={{ borderColor: theme.accentBlue, color: theme.accentBlue }}
                 />
               ) : (
                 <Typography variant="body2" color="text.secondary">
@@ -1188,13 +1304,14 @@ export default function QuotationBuilder() {
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={closeEmailDialog}>Cancel</Button>
+        <DialogActions sx={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          <Button onClick={closeEmailDialog} sx={{ color: theme.textSecondary }}>Cancel</Button>
           <Button
             variant="contained"
             startIcon={<SendOutlinedIcon />}
             onClick={onSendEmail}
             disabled={!emailTo.trim()}
+            sx={{ bgcolor: theme.accentBlue }}
           >
             Send
           </Button>

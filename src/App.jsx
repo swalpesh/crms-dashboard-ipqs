@@ -8,6 +8,7 @@ import TwoStepVerification from "./pages/TwoStepVerification.jsx";
 import Lock from "./pages/LockScreen.jsx";
 import Logout from "./pages/Logout.jsx";
 
+
 // Super Admin
 import SuperAdminLayout from "./layouts/SuperAdminLayout.jsx";
 import SaDashboard from "./pages/superadmin/SaDashboard.jsx";
@@ -21,8 +22,20 @@ import Contacts from "./pages/marketing/Contacts.jsx";
 import Companies from "./pages/marketing/Companies.jsx";
 import Leads from "./pages/marketing/Leads.jsx";
 import QuotationBuilder from "./pages/employee/QuotationBuilder.jsx";
-import SavedQuotations from "./pages/marketing/SavedQuotations.jsx"
+import SavedQuotations from "./pages/marketing/SavedQuotations.jsx";
 import LeadDetail from "./pages/marketing/LeadDetail.jsx";
+import TechnicalCustomerProfile from "./pages/marketing/TechnicalCustomerProfile.jsx";
+import TechnicalVisitPlanner from "./pages/marketing/TechnicalVisitPlanner.jsx";
+import TechnicalReimbursement from "./pages/marketing/TechnicalReimbursement.jsx"; 
+
+// --- NEW IMPORTS ---
+import TeamInfo from "./pages/marketing/TeamInfo.jsx";
+import LeadInfo from "./pages/marketing/LeadInfo.jsx";
+import CustomerInfo from "./pages/marketing/CustomerInfo.jsx";
+import MyActivity from "./pages/marketing/MyActivity.jsx";
+import PendingFollowup from "./pages/marketing/PendingFollowup.jsx"; 
+import FieldFollowUps from "./pages/marketing/FieldFollowUps.jsx";
+import LeadManager from "./pages/marketing/LeadManager.jsx"; 
 
 // Tele
 import TeleDashboard from "./pages/marketing/TeleDashboard.jsx";
@@ -34,7 +47,6 @@ import TeleFollowUps from "./pages/marketing/TeleFollowUps.jsx";
 import FieldDashboard from "./pages/marketing/FieldDashboard.jsx";
 import FieldLeads from "./pages/marketing/FieldLeads.jsx";
 import FieldMyTeam from "./pages/marketing/FieldMyTeam.jsx";
-import FieldFollowUps from "./pages/marketing/FieldFollowUps.jsx";
 
 // Corporate
 import CorporateDashboard from "./pages/marketing/CorporateDashboard.jsx";
@@ -53,6 +65,7 @@ import TechnicalDashboard from "./pages/marketing/TechnicalDashboard.jsx";
 import TechnicalLeads from "./pages/marketing/TechnicalLeads.jsx";
 import TechnicalMyTeam from "./pages/marketing/TechnicalMyTeam.jsx";
 import TechnicalFollowUps from "./pages/marketing/TechnicalFollowUps.jsx";
+import TechnicalCustomerVisit from "./pages/marketing/TechnicalCustomerVisit.jsx"; 
 
 // Solution
 import SolutionDashboard from "./pages/marketing/SolutionDashboard.jsx";
@@ -87,23 +100,16 @@ function readAuth() {
   return { token, role, user };
 }
 
-/** normalize: lowercase + collapse non-alphanum to single '-' and trim edges */
 const norm = (s) =>
   String(s || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-/** ✅ single source of truth: robust dept/role -> team slug
- * - Handles exacts
- * - Handles common typos (e.g., "Assoicate")
- * - Falls back to role if dept is unknown
- */
 function detectTeamSlug(dept, role) {
   const d = norm(dept);
   const r = norm(role);
 
-  // exact dept names
   const exact = {
     "ipqshead": "ipqshead",
     "tele-marketing": "tele",
@@ -118,9 +124,7 @@ function detectTeamSlug(dept, role) {
   };
   if (exact[d]) return exact[d];
 
-  // forgiving dept contains (order matters)
-  if (d.includes("assoicate") || d.includes("associate") || d.includes("assoc"))
-    return "associate";
+  if (d.includes("assoicate") || d.includes("associate") || d.includes("assoc")) return "associate";
   if (d.includes("field")) return "field";
   if (d.includes("corporate")) return "corporate";
   if (d.includes("technical")) return "technical";
@@ -129,7 +133,6 @@ function detectTeamSlug(dept, role) {
   if (d.includes("payment")) return "payments-team";
   if (d.includes("tele")) return "tele";
 
-  // fallback to role string if dept unknown / typo
   if (r.includes("associate")) return "associate";
   if (r.includes("field")) return "field";
   if (r.includes("corporate")) return "corporate";
@@ -139,7 +142,6 @@ function detectTeamSlug(dept, role) {
   if (r.includes("payment")) return "payments-team";
   if (r.includes("tele")) return "tele";
 
-  // final fallback
   return "tele";
 }
 
@@ -151,7 +153,6 @@ function isHead(user) {
   return norm(user?.role_id || user?.role_name).includes("-head");
 }
 
-/* JWT fallback if auth_user missing */
 function readUserFromToken() {
   const token =
     localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
@@ -189,14 +190,12 @@ function marketingHome() {
   return defaultDeptLanding(u);
 }
 
-/** Require any authenticated user; if missing token -> /logout */
 function RequireAuth() {
   const { token } = readAuth();
   if (!token) return <Navigate to="/logout" replace />;
   return <Outlet />;
 }
 
-/** Employee-only area (super admin blocked) */
 function RequireEmployee() {
   const { token, role, user } = readAuth();
   if (!token) return <Navigate to="/logout" replace />;
@@ -206,7 +205,6 @@ function RequireEmployee() {
   return <Outlet />;
 }
 
-/** Super-admin-only area */
 function RequireSuperAdmin() {
   const { token, role, user } = readAuth();
   if (!token) return <Navigate to="/logout" replace />;
@@ -219,12 +217,11 @@ function RequireSuperAdmin() {
   return <Outlet />;
 }
 
-/** Only allow the user's own department (IpqsHead can access all) */
 function RequireDeptAccess({ slug, redirectTo }) {
   const { token, user } = readAuth();
   if (!token) return <Navigate to="/logout" replace />;
   const u = user || readUserFromToken();
-  if (isIpqsHead(u)) return <Outlet />; // org head: all
+  if (isIpqsHead(u)) return <Outlet />;
   const userSlug = detectTeamSlug(u?.department_id || u?.department_name, u?.role_id || u?.role_name);
   if (userSlug !== slug) {
     return <Navigate to={redirectTo || defaultDeptLanding(u)} replace />;
@@ -232,7 +229,6 @@ function RequireDeptAccess({ slug, redirectTo }) {
   return <Outlet />;
 }
 
-/** Only allow heads (IpqsHead or role contains 'head') */
 function RequireHead({ redirectTo }) {
   const { token, user } = readAuth();
   if (!token) return <Navigate to="/logout" replace />;
@@ -241,10 +237,6 @@ function RequireHead({ redirectTo }) {
   return <Navigate to={redirectTo || defaultDeptLanding(u)} replace />;
 }
 
-/** /marketing index:
- * - IpqsHead stays at /marketing
- * - Others -> dept landing
- */
 function MarketingIndex() {
   const { token, user } = readAuth();
   if (!token) return <Navigate to="/logout" replace />;
@@ -257,7 +249,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* default -> login */}
         <Route index element={<Navigate to="/login" replace />} />
 
         {/* PUBLIC */}
@@ -270,10 +261,20 @@ export default function App() {
 
         {/* PROTECTED */}
         <Route element={<RequireAuth />}>
-          {/* MARKETING (employees only) */}
+          {/* MARKETING */}
           <Route element={<RequireEmployee />}>
             <Route path="/marketing" element={<MarketingLayout />}>
               <Route index element={<MarketingIndex />} />
+
+              {/* SHARED ROUTES */}
+              <Route path="customer-info" element={<CustomerInfo />} />
+              <Route path="my-activity" element={<MyActivity />} />
+              <Route path="lead/:id" element={<LeadDetail />} />
+              <Route path="masterleads" element={<Leads />} />
+              <Route path="contacts" element={<Contacts />} />
+              <Route path="companies" element={<Companies />} />
+              <Route path="quotation-builder" element={<QuotationBuilder />} />
+              <Route path="saved-quotations" element={<SavedQuotations />} />
 
               {/* Tele */}
               <Route element={<RequireDeptAccess slug="tele" />}>
@@ -289,10 +290,19 @@ export default function App() {
               <Route element={<RequireDeptAccess slug="field" />}>
                 <Route path="field/dashboard" element={<FieldDashboard />} />
                 <Route path="field/leads" element={<FieldLeads />} />
+                <Route path="field/leadinfo" element={<LeadInfo />} />
+                <Route path="field/my-activity" element={<MyActivity />} />
+                
+                {/* --- Routes for Follow ups --- */}
+                <Route path="field/pending-followup" element={<PendingFollowup />} /> 
+                <Route path="field/follow-ups" element={<FieldFollowUps />} />
+                
+                {/* --- New Lead Manager Route --- */}
+                <Route path="field/lead-manager" element={<LeadManager />} /> 
+                
                 <Route element={<RequireHead redirectTo="/marketing/field/dashboard" />}>
                   <Route path="field/my-team" element={<FieldMyTeam />} />
                 </Route>
-                <Route path="field/follow-ups" element={<FieldFollowUps />} />
               </Route>
 
               {/* Associate */}
@@ -318,6 +328,18 @@ export default function App() {
               {/* Technical */}
               <Route element={<RequireDeptAccess slug="technical" />}>
                 <Route path="technical/dashboard" element={<TechnicalDashboard />} />
+                
+                {/* UPDATED ROUTE: 
+                   Changed from exact path to allow optional :id parameter 
+                   so the View button navigation works correctly.
+                */}
+                <Route path="technical/customer-profile" element={<TechnicalCustomerProfile />} />
+                <Route path="technical/customer-profile/:id" element={<TechnicalCustomerProfile />} />
+
+                <Route path="technical/customer-visit" element={<TechnicalCustomerVisit />} />
+                <Route path="technical/visit-planner" element={<TechnicalVisitPlanner />} />
+                <Route path="technical/team-manager" element={<TeamInfo />} />
+                <Route path="technical/reimbursement" element={<TechnicalReimbursement />} />
                 <Route path="technical/leads" element={<TechnicalLeads />} />
                 <Route element={<RequireHead redirectTo="/marketing/technical/dashboard" />}>
                   <Route path="technical/my-team" element={<TechnicalMyTeam />} />
@@ -346,19 +368,10 @@ export default function App() {
                 <Route path="payments-team/q-invoices" element={<PaymentsTeamQInvoices />} />
               </Route>
 
-              {/* Tools (always accessible inside Marketing) */}
-              <Route path="contacts" element={<Contacts />} />
-              <Route path="companies" element={<Companies />} />
-              <Route path="quotation-builder" element={<QuotationBuilder />} />
-              <Route path="saved-quotations" element={<SavedQuotations />} />
-
-              {/* Shared */}
-              <Route path="lead/:id" element={<LeadDetail />} />
-              <Route path="masterleads" element={<Leads />} />
             </Route>
           </Route>
 
-          {/* EMPLOYEE legacy (optional) */}
+          {/* EMPLOYEE legacy */}
           <Route element={<RequireEmployee />}>
             <Route path="/employee" element={<EmployeeLayout />}>
               <Route index element={<Navigate to="dashboard" replace />} />
@@ -378,7 +391,7 @@ export default function App() {
             </Route>
           </Route>
 
-          {/* SUPER ADMIN (strictly) */}
+          {/* SUPER ADMIN */}
           <Route element={<RequireSuperAdmin />}>
             <Route path="/super-admin" element={<SuperAdminLayout />}>
               <Route index element={<Navigate to="dashboard" replace />} />
