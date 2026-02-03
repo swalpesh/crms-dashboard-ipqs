@@ -35,7 +35,7 @@ import CustomerInfo from "./pages/marketing/CustomerInfo.jsx";
 import MyActivity from "./pages/marketing/MyActivity.jsx";
 import PendingFollowup from "./pages/marketing/PendingFollowup.jsx"; 
 import FieldFollowUps from "./pages/marketing/FieldFollowUps.jsx";
-import LeadManager from "./pages/marketing/LeadManager.jsx"; // <--- ADDED
+import LeadManager from "./pages/marketing/LeadManager.jsx"; 
 
 // Tele
 import TeleDashboard from "./pages/marketing/TeleDashboard.jsx";
@@ -328,7 +328,14 @@ export default function App() {
               {/* Technical */}
               <Route element={<RequireDeptAccess slug="technical" />}>
                 <Route path="technical/dashboard" element={<TechnicalDashboard />} />
+                
+                {/* UPDATED ROUTE: 
+                   Changed from exact path to allow optional :id parameter 
+                   so the View button navigation works correctly.
+                */}
                 <Route path="technical/customer-profile" element={<TechnicalCustomerProfile />} />
+                <Route path="technical/customer-profile/:id" element={<TechnicalCustomerProfile />} />
+
                 <Route path="technical/customer-visit" element={<TechnicalCustomerVisit />} />
                 <Route path="technical/visit-planner" element={<TechnicalVisitPlanner />} />
                 <Route path="technical/team-manager" element={<TeamInfo />} />
