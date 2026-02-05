@@ -13,146 +13,141 @@ import {
   Popover,
   CircularProgress,
   Alert,
-  Snackbar
+  Snackbar,
+  Divider, // <--- Fixed: Added missing import
+  keyframes,
+  useTheme
 } from '@mui/material';
 
 // Icons
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import SearchIcon from '@mui/icons-material/Search';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CloseIcon from '@mui/icons-material/Close';
 import StarIcon from '@mui/icons-material/Star';
+import PersonIcon from '@mui/icons-material/Person';
 
 // --- API HELPERS ---
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
+// --- ANIMATIONS ---
+const liquidMove = keyframes`
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%; }
+  50% { transform: translate(20px, 20px) rotate(10deg) scale(1.1); border-radius: 50% 50% 20% 80% / 25% 80% 20% 75%; }
+  100% { transform: translate(-20px, -10px) rotate(-5deg) scale(0.9); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+`;
+
+const slideUpFade = keyframes`
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
 // --- THEME CONSTANTS ---
-const theme = {
+const themeColors = {
   bgDark: '#0f0c29',
-  bgGradient: 'radial-gradient(circle at 10% 20%, rgba(91, 33, 182, 0.4) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(30, 58, 138, 0.4) 0%, transparent 40%)',
-  glassBg: 'rgba(255, 255, 255, 0.05)',
-  glassBorder: '1px solid rgba(255, 255, 255, 0.1)',
-  glassHighlight: 'rgba(255, 255, 255, 0.2)',
+  glassBg: 'rgba(255, 255, 255, 0.03)',
+  glassBorder: '1px solid rgba(255, 255, 255, 0.08)',
   textPrimary: '#ffffff',
   textSecondary: 'rgba(255, 255, 255, 0.6)',
   accentBlue: '#3b82f6',
-  accentOrange: '#f59e0b', 
+  accentOrange: '#f59e0b',
   statusRed: '#ef4444',
   statusYellow: '#f59e0b',
   statusGreen: '#10b981',
 };
 
-const styles = {
-  container: {
-    minHeight: '100vh',
-    bgcolor: theme.bgDark,
-    background: `${theme.bgDark} ${theme.bgGradient}`,
-    color: theme.textPrimary,
-    fontFamily: "'Inter', sans-serif",
-    p: { xs: 2, md: 4 },
-    width: '100%',
-    overflowX: 'hidden',
+// --- STYLES CONSTANTS ---
+const pageStyle = {
+  minHeight: '100vh',
+  width: '100%',
+  position: 'relative',
+  overflowX: 'hidden',
+  background: themeColors.bgDark,
+  backgroundImage: `
+    radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.25) 0%, transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(37, 99, 235, 0.2) 0%, transparent 50%)
+  `,
+  color: themeColors.textPrimary,
+  fontFamily: "'Inter', sans-serif",
+  p: { xs: 2, md: 4 },
+};
+
+const orbStyle = {
+  position: 'fixed',
+  borderRadius: '50%',
+  filter: 'blur(80px)',
+  zIndex: 0,
+  animation: `${liquidMove} 10s infinite ease-in-out`,
+};
+
+const glassPanelStyle = {
+  background: themeColors.glassBg,
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: themeColors.glassBorder,
+  borderRadius: '24px',
+  p: 3,
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+  transition: 'transform 0.3s ease',
+};
+
+const inputStyle = {
+  width: '100%',
+  p: '4px 12px',
+  borderRadius: '12px',
+  bgcolor: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.1)',
+  transition: '0.3s',
+  '&:hover': { border: '1px solid rgba(255,255,255,0.3)' },
+  '&:focus-within': { border: `1px solid ${themeColors.accentBlue}`, boxShadow: `0 0 10px ${themeColors.accentBlue}33` },
+  '& input': { color: '#fff', fontSize: '0.9rem', cursor: 'pointer' },
+  '& input::-webkit-calendar-picker-indicator': { filter: 'invert(1)', cursor: 'pointer' }
+};
+
+const primaryBtnStyle = {
+  background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+  color: 'white',
+  borderRadius: '16px',
+  textTransform: 'none',
+  fontWeight: 700,
+  py: 1.5,
+  boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: '0 6px 20px rgba(37, 99, 235, 0.5)',
   },
-  glassCard: {
-    background: theme.glassBg,
-    backdropFilter: 'blur(16px)',
-    border: theme.glassBorder,
-    borderTop: `1px solid ${theme.glassHighlight}`,
-    borderRadius: '24px',
-    p: 3,
-    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  toggleBtn: {
-    flex: 1,
-    textTransform: 'none',
-    color: theme.textSecondary,
-    borderRadius: '8px',
-    py: 1,
-    fontSize: '0.9rem',
-    '&.active': { bgcolor: theme.accentBlue, color: '#fff' },
-  },
-  calendarDay: {
-    height: 42,
-    width: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '50%',
-    cursor: 'pointer',
-    fontSize: '0.9rem',
-    position: 'relative',
-    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' },
-    '&.selected': {
-      background: 'linear-gradient(135deg, #60a5fa, #3b82f6)',
-      color: '#fff',
-      fontWeight: 700,
-    },
-  },
-  inputGroup: {
-    bgcolor: 'rgba(0, 0, 0, 0.2)',
-    border: theme.glassBorder,
-    borderRadius: '10px',
-    display: 'flex',
-    alignItems: 'center',
-    height: '48px',
-    overflow: 'hidden'
-  },
-  clickableInput: {
-    width: '100%',
-    '& .MuiInputBase-input': {
-      color: 'white',
-      fontSize: '0.85rem',
-      cursor: 'pointer',
-      padding: '12px',
-    },
-    '& input::-webkit-calendar-picker-indicator': {
-      filter: 'invert(1)',
-      cursor: 'pointer'
-    }
-  },
-  dot: { width: 5, height: 5, borderRadius: '50%', mx: 0.2, mt: 0.5 },
-  popover: {
-    '& .MuiPaper-root': {
-      bgcolor: '#1a1a35',
-      color: 'white',
-      borderRadius: '16px',
-      border: '1px solid rgba(255,255,255,0.1)',
-      p: 2,
-      boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-      minWidth: '220px'
-    }
+  '&.Mui-disabled': {
+    background: 'rgba(255,255,255,0.1)',
+    color: 'rgba(255,255,255,0.3)'
   }
 };
 
 const TechnicalVisitPlanner = () => {
+  const theme = useTheme();
+  
+  // --- STATE ---
   const [scheduleType, setScheduleType] = useState('my');
   const [priority, setPriority] = useState('Medium');
   const [techSearch, setTechSearch] = useState('');
   
-  // --- FORM SELECTION STATE ---
+  // Selection State
   const [selectedLead, setSelectedLead] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
   const [visitTime, setVisitTime] = useState("09:00");
 
-  // --- API STATE ---
+  // API State
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState('');
-  
-  // Data State
   const [unassignedLeads, setUnassignedLeads] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [calendarVisits, setCalendarVisits] = useState({ head: [], team: [] });
-
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
   // Calendar State
@@ -170,12 +165,8 @@ const TechnicalVisitPlanner = () => {
         const token = getToken();
         if (!token) throw new Error("No access token found");
 
-        const headers = {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        };
+        const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-        // Parallel Fetch for Queue/Emp Data and Calendar Data
         const [queueRes, calendarRes] = await Promise.all([
             fetch(`${API_BASE_URL}/api/tleads/technicalteam/all-leads`, { method: 'GET', headers }),
             fetch(`${API_BASE_URL}/api/tleads/technicalteam/visit-details`, { method: 'GET', headers })
@@ -187,11 +178,8 @@ const TechnicalVisitPlanner = () => {
         const queueData = await queueRes.json();
         const calendarData = await calendarRes.json();
 
-        // Set Queue & Employee Data
         setUnassignedLeads(queueData.unassigned_leads || []);
         setEmployees(queueData.employees || []);
-
-        // Set Calendar Data
         setCalendarVisits({
             head: calendarData.head_data?.visits || [],
             team: calendarData.team_data?.visits || []
@@ -208,21 +196,14 @@ const TechnicalVisitPlanner = () => {
     fetchData();
   }, []);
 
-  // --- ASSIGN LEAD LOGIC ---
+  // --- ASSIGN LOGIC ---
   const handleCompleteAction = async () => {
-    if (!selectedLead) {
-      setToast({ open: true, message: 'Please select a lead from the queue.', severity: 'warning' });
-      return;
-    }
-    if (!selectedEmployee) {
-      setToast({ open: true, message: 'Please select a technical person.', severity: 'warning' });
-      return;
-    }
+    if (!selectedLead) return setToast({ open: true, message: 'Please select a lead from the queue.', severity: 'warning' });
+    if (!selectedEmployee) return setToast({ open: true, message: 'Please select a technical person.', severity: 'warning' });
 
     setAssigning(true);
     try {
       const token = getToken();
-      
       const payload = {
         lead_id: selectedLead.lead_id,
         assigned_employee: selectedEmployee.employee_id,
@@ -230,36 +211,22 @@ const TechnicalVisitPlanner = () => {
         technical_visit_time: visitTime,
         technical_visit_priority: priority,
         technical_visit_type: "Specific",
-        reason: `New Technical Person ${selectedEmployee.username} assigned to ${selectedLead.company_name || selectedLead.lead_name} (Lead ID: ${selectedLead.lead_id})`
+        reason: `New Technical Person ${selectedEmployee.username} assigned to ${selectedLead.company_name || selectedLead.lead_name}`
       };
 
       const response = await fetch(`${API_BASE_URL}/api/tleads/assign`, {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Assignment failed');
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Assignment failed');
-      }
-
-      setToast({ 
-        open: true, 
-        message: `Lead assigned to ${selectedEmployee.username}`, 
-        severity: 'success' 
-      });
-
-      // Remove from queue
+      setToast({ open: true, message: `Lead assigned successfully!`, severity: 'success' });
       setUnassignedLeads(prev => prev.filter(l => l.lead_id !== selectedLead.lead_id));
       setSelectedLead(null);
       setSelectedEmployee(null);
-
-      // Optionally refresh calendar data here to show newly assigned visit (could call fetch again)
 
     } catch (err) {
       setToast({ open: true, message: err.message, severity: 'error' });
@@ -268,32 +235,32 @@ const TechnicalVisitPlanner = () => {
     }
   };
 
-  // Filter Employees based on Search
-  const filteredTechs = useMemo(() => {
-    return employees.filter(emp => 
-      emp.username.toLowerCase().includes(techSearch.toLowerCase())
-    );
-  }, [employees, techSearch]);
-
+  const filteredTechs = useMemo(() => employees.filter(emp => emp.username.toLowerCase().includes(techSearch.toLowerCase())), [employees, techSearch]);
+  
   const getLoadStatus = (count) => {
-    if (count < 3) return { label: 'Low', color: theme.statusGreen };
-    if (count < 6) return { label: 'Medium', color: theme.statusYellow };
-    return { label: 'High', color: theme.statusRed };
+    if (count < 3) return { label: 'Low', color: themeColors.statusGreen };
+    if (count < 6) return { label: 'Medium', color: themeColors.statusYellow };
+    return { label: 'High', color: themeColors.statusRed };
   };
 
-  // Calendar Auto-revert
-  useEffect(() => {
-    if (selectedDay !== today.getDate() || viewDate.getMonth() !== today.getMonth()) {
-      const timer = setTimeout(() => {
-        setSelectedDay(today.getDate());
-        setViewDate(new Date());
-        handleClosePopup();
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedDay, viewDate, today]);
+  // Calendar Logic
+  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+  const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+  const monthName = viewDate.toLocaleString('default', { month: 'long' });
+  const activeScheduleMap = useMemo(() => {
+    const visits = scheduleType === 'my' ? calendarVisits.head : calendarVisits.team;
+    const map = {};
+    visits.forEach(visit => {
+        if (visit.visit_date) {
+            const vDate = new Date(visit.visit_date);
+            if (vDate.getMonth() === viewDate.getMonth() && vDate.getFullYear() === viewDate.getFullYear()) {
+                map[vDate.getDate()] = visit; 
+            }
+        }
+    });
+    return map;
+  }, [calendarVisits, scheduleType, viewDate]);
 
-  // Handle Calendar Day Click
   const handleDayClick = (event, day, task) => {
     setSelectedDay(day);
     if (task) {
@@ -307,117 +274,120 @@ const TechnicalVisitPlanner = () => {
     }
   };
 
-  const handleClosePopup = () => {
-    setAnchorEl(null);
-    setPopupData(null);
-  };
-
-  const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
-  const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
-  const monthName = viewDate.toLocaleString('default', { month: 'long' });
-
-  const handleMonthChange = (direction) => {
-    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + direction, 1));
-  };
-
-  // Prepare Daily Schedule Map based on current viewDate and active tab
-  const activeScheduleMap = useMemo(() => {
-    const visits = scheduleType === 'my' ? calendarVisits.head : calendarVisits.team;
-    const map = {};
-    
-    visits.forEach(visit => {
-        if (visit.visit_date) {
-            const vDate = new Date(visit.visit_date);
-            // Check if visit is in currently viewed month and year
-            if (vDate.getMonth() === viewDate.getMonth() && vDate.getFullYear() === viewDate.getFullYear()) {
-                const day = vDate.getDate();
-                // If multiple visits, currently just taking the last one for simplicity of dot logic, 
-                // in production you might want an array of tasks per day.
-                map[day] = visit; 
-            }
-        }
-    });
-    return map;
-  }, [calendarVisits, scheduleType, viewDate]);
-
+  // --- SUB-COMPONENTS ---
 
   const CalendarSection = () => (
-    <Box sx={styles.glassCard}>
-      <Box sx={{ bgcolor: 'rgba(0,0,0,0.3)', borderRadius: '12px', p: 0.5, display: 'flex', mb: 3 }}>
-        <Button onClick={() => setScheduleType('my')} sx={styles.toggleBtn} className={scheduleType === 'my' ? 'active' : ''}>My Schedule</Button>
-        <Button onClick={() => setScheduleType('team')} sx={styles.toggleBtn} className={scheduleType === 'team' ? 'active' : ''}>Team Schedule</Button>
+    <Box sx={glassPanelStyle}>
+      {/* Toggle */}
+      <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', p: 0.5, display: 'flex', mb: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
+        <Button 
+          onClick={() => setScheduleType('my')} 
+          fullWidth 
+          sx={{ 
+            borderRadius: '8px', 
+            color: scheduleType === 'my' ? '#fff' : 'rgba(255,255,255,0.5)',
+            bgcolor: scheduleType === 'my' ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+            '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.1)' }
+          }}
+        >
+          My Schedule
+        </Button>
+        <Button 
+          onClick={() => setScheduleType('team')} 
+          fullWidth 
+          sx={{ 
+             borderRadius: '8px', 
+             color: scheduleType === 'team' ? '#fff' : 'rgba(255,255,255,0.5)',
+             bgcolor: scheduleType === 'team' ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+             '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.1)' }
+          }}
+        >
+          Team Schedule
+        </Button>
       </Box>
+
+      {/* Calendar Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <IconButton sx={{ color: '#fff' }} onClick={() => handleMonthChange(-1)}><ChevronLeftIcon /></IconButton>
-        <Typography variant="h6" fontWeight={700}>{monthName} {viewDate.getFullYear()}</Typography>
-        <IconButton sx={{ color: '#fff' }} onClick={() => handleMonthChange(1)}><ChevronRightIcon /></IconButton>
+        <IconButton sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }} onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}><ChevronLeftIcon /></IconButton>
+        <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 0.5 }}>{monthName} {viewDate.getFullYear()}</Typography>
+        <IconButton sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }} onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}><ChevronRightIcon /></IconButton>
       </Box>
+
+      {/* Days Grid */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, textAlign: 'center', mb: 1 }}>
-        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => (<Typography key={d} sx={{ color: theme.textSecondary, fontSize: '0.75rem', fontWeight: 600 }}>{d}</Typography>))}
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => (<Typography key={d} sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', fontWeight: 700 }}>{d}</Typography>))}
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, textAlign: 'center', mb: 3 }}>
         {[...Array(firstDay)].map((_, i) => <Box key={`pad-${i}`} />)}
         {[...Array(daysInMonth)].map((_, i) => {
           const day = i + 1;
           const isSelected = day === selectedDay;
-          const task = activeScheduleMap[day]; // Check if there is a task for this day
+          const task = activeScheduleMap[day];
           
           return (
-            <Box key={day} onClick={(e) => handleDayClick(e, day, task)} sx={styles.calendarDay} className={isSelected ? 'selected' : ''}>
+            <Box 
+              key={day} 
+              onClick={(e) => handleDayClick(e, day, task)} 
+              sx={{
+                height: 42,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '12px', cursor: 'pointer', position: 'relative',
+                background: isSelected ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'transparent',
+                color: isSelected ? '#fff' : 'rgba(255,255,255,0.8)',
+                fontWeight: isSelected ? 700 : 400,
+                boxShadow: isSelected ? '0 4px 15px rgba(59, 130, 246, 0.4)' : 'none',
+                transition: 'all 0.2s',
+                '&:hover': { bgcolor: isSelected ? '' : 'rgba(255,255,255,0.1)' }
+              }}
+            >
               <Typography variant="body2">{day}</Typography>
-              <Box sx={{ display: 'flex', position: 'absolute', bottom: 4 }}>
-                {/* Render Dot if task exists */}
-                {task && (
-                    <Box sx={{ 
-                        ...styles.dot, 
-                        bgcolor: scheduleType === 'my' ? theme.accentBlue : theme.accentOrange 
-                    }} />
-                )}
-              </Box>
+              {task && <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: isSelected ? '#fff' : '#f59e0b', mt: 0.5 }} />}
             </Box>
           );
         })}
       </Box>
-      <Stack direction="row" spacing={3} justifyContent="center" sx={{ fontSize: '0.75rem', color: theme.textSecondary }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: theme.accentBlue }} /> Me</Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: theme.accentOrange }} /> Other</Box>
-      </Stack>
 
-      <Popover open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={handleClosePopup} sx={styles.popover} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        <Box sx={{ position: 'relative' }}>
-          <IconButton size="small" onClick={handleClosePopup} sx={{ position: 'absolute', top: -10, right: -10, color: theme.textSecondary }}><CloseIcon fontSize="small" /></IconButton>
-          <Typography variant="caption" sx={{ color: theme.accentBlue, fontWeight: 700, display: 'block', mb: 1 }}>VISIT DETAILS</Typography>
-          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>{popupData?.lead}</Typography>
-          <Typography variant="caption" sx={{ color: theme.textSecondary, display: 'block' }}>Person: {popupData?.person}</Typography>
-          <Stack direction="row" spacing={2} mt={1.5} pt={1.5} sx={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-             <Box><Typography variant="caption" color={theme.textSecondary} display="block">Date</Typography><Typography variant="caption" fontWeight={600}>{popupData?.date}</Typography></Box>
-             <Box><Typography variant="caption" color={theme.textSecondary} display="block">Time</Typography><Typography variant="caption" fontWeight={600}>{popupData?.time}</Typography></Box>
-          </Stack>
+      {/* Popover for Task */}
+      <Popover 
+        open={Boolean(anchorEl)} 
+        anchorEl={anchorEl} 
+        onClose={() => setAnchorEl(null)} 
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{ '& .MuiPaper-root': { bgcolor: '#1a1625', color: '#fff', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', p: 2, boxShadow: '0 10px 40px rgba(0,0,0,0.6)' } }}
+      >
+        <Box sx={{ minWidth: 200 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="caption" color="#3b82f6" fontWeight={700}>VISIT DETAILS</Typography>
+                <IconButton size="small" onClick={() => setAnchorEl(null)} sx={{ p: 0.5, color: 'grey.500' }}><CloseIcon fontSize="small" /></IconButton>
+            </Stack>
+            <Typography variant="subtitle2" fontWeight={600} mb={0.5}>{popupData?.lead}</Typography>
+            <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
+                <PersonIcon sx={{ fontSize: 16, color: 'grey.500' }} />
+                <Typography variant="body2" color="rgba(255,255,255,0.7)">{popupData?.person}</Typography>
+            </Stack>
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 1.5 }} />
+            <Stack direction="row" justifyContent="space-between">
+                 <Box><Typography variant="caption" color="grey.500" display="block">Date</Typography><Typography variant="body2" fontWeight={600}>{popupData?.date}</Typography></Box>
+                 <Box textAlign="right"><Typography variant="caption" color="grey.500" display="block">Time</Typography><Typography variant="body2" fontWeight={600}>{popupData?.time}</Typography></Box>
+            </Stack>
         </Box>
       </Popover>
     </Box>
   );
 
   const QueueSection = () => (
-    <Box sx={styles.glassCard}>
-      <Typography variant="h6" fontWeight={700} mb={3}>Pending Visits Queue</Typography>
+    <Box sx={glassPanelStyle}>
+      <Typography variant="h6" fontWeight={700} mb={3} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+         <span style={{ width: 4, height: 24, background: '#3b82f6', borderRadius: 2, display: 'inline-block' }}></span>
+         Pending Visits Queue
+      </Typography>
       
       {loading ? (
-        <Box display="flex" justifyContent="center" p={4}><CircularProgress /></Box>
+        <Box display="flex" justifyContent="center" p={4}><CircularProgress sx={{ color: '#fff' }} /></Box>
       ) : unassignedLeads.length === 0 ? (
-        <Box display="flex" justifyContent="center" p={4}><Typography color="textSecondary">No unassigned leads found</Typography></Box>
+        <Box display="flex" justifyContent="center" p={4}><Typography color="rgba(255,255,255,0.5)">No unassigned leads found</Typography></Box>
       ) : (
-        <Stack 
-          spacing={1.5} 
-          onWheel={(e) => e.stopPropagation()} // Prevent page scroll
-          sx={{ 
-            height: '420px', 
-            overflowY: 'auto',
-            pr: 1,
-            '&::-webkit-scrollbar': { display: 'none' },
-            scrollbarWidth: 'none'
-          }}
-        >
+        <Stack spacing={1.5} sx={{ height: '420px', overflowY: 'auto', pr: 1, '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '4px' } }}>
           {unassignedLeads.map((item, i) => {
             const isSelected = selectedLead?.lead_id === item.lead_id;
             return (
@@ -425,39 +395,24 @@ const TechnicalVisitPlanner = () => {
                 key={item.lead_id || i} 
                 onClick={() => setSelectedLead(item)}
                 sx={{ 
-                  bgcolor: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.02)', 
-                  border: isSelected ? `1px solid ${theme.accentBlue}` : '1px solid rgba(255,255,255,0.05)', 
+                  bgcolor: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.02)', 
+                  border: isSelected ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.05)', 
                   borderRadius: '16px', 
                   p: 2, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 2,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.1)' }
+                  display: 'flex', alignItems: 'center', gap: 2,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.08)', transform: 'translateX(5px)' }
                 }}
               >
-                <Checkbox 
-                  checked={isSelected}
-                  sx={{ color: 'rgba(255,255,255,0.2)', p: 0, '&.Mui-checked': { color: theme.accentBlue } }} 
-                />
+                <Checkbox checked={isSelected} sx={{ color: 'rgba(255,255,255,0.2)', p: 0, '&.Mui-checked': { color: '#3b82f6' } }} />
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="body2" fontWeight={600}>{item.company_name || item.lead_name}</Typography>
-                  <Typography variant="caption" sx={{ color: theme.textSecondary, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <LocationOnIcon sx={{ fontSize: 12 }} /> 
+                  <Typography variant="body2" fontWeight={600} color="#fff">{item.company_name || item.lead_name}</Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                    <LocationOnIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }} /> 
                     {item.company_city ? `${item.company_city}, ${item.company_state}` : 'Location N/A'}
                   </Typography>
                 </Box>
-                <Chip 
-                  label={item.lead_status || 'New'} 
-                  size="small" 
-                  sx={{ 
-                    height: 20, 
-                    fontSize: '0.65rem', 
-                    bgcolor: 'rgba(239, 68, 68, 0.1)', 
-                    color: theme.statusRed 
-                  }} 
-                />
+                <Chip label={item.lead_status || 'New'} size="small" sx={{ height: 22, fontSize: '0.65rem', bgcolor: 'rgba(239, 68, 68, 0.15)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.3)' }} />
               </Box>
             );
           })}
@@ -467,50 +422,36 @@ const TechnicalVisitPlanner = () => {
   );
 
   const AssignSection = () => (
-    <Box sx={styles.glassCard}>
-      <Typography variant="h6" fontWeight={700} mb={4}>Assign Visit</Typography>
-      <Box sx={{ bgcolor: theme.accentBlue, borderRadius: '12px', p: 1.5, display: 'flex', justifyContent: 'center', mb: 3 }}>
-        <Typography sx={{ color: '#fff', fontWeight: 600 }}>Specific Time</Typography>
-      </Box>
-
+    <Box sx={glassPanelStyle}>
+      <Typography variant="h6" fontWeight={700} mb={3}>Assign Visit</Typography>
+      
+      {/* Date & Time */}
       <Grid container spacing={2} mb={3}>
         <Grid item xs={6}>
-          <Typography variant="caption" color={theme.textSecondary} mb={0.5} display="block" fontWeight={600}>Date</Typography>
-          <Box sx={styles.inputGroup}>
-            <InputBase 
-              type="date" 
-              sx={styles.clickableInput} 
-              value={visitDate}
-              onChange={(e) => setVisitDate(e.target.value)}
-            />
-          </Box>
+            <Typography variant="caption" color="rgba(255,255,255,0.6)" mb={0.5} display="block" fontWeight={600}>Visit Date</Typography>
+            <Box sx={inputStyle}><InputBase type="date" fullWidth value={visitDate} onChange={(e) => setVisitDate(e.target.value)} sx={{ color: '#fff', '& input': { p: 0 } }} /></Box>
         </Grid>
         <Grid item xs={6}>
-          <Typography variant="caption" color={theme.textSecondary} mb={0.5} display="block" fontWeight={600}>Time</Typography>
-          <Box sx={styles.inputGroup}>
-            <InputBase 
-              type="time" 
-              sx={styles.clickableInput} 
-              value={visitTime}
-              onChange={(e) => setVisitTime(e.target.value)}
-            />
-          </Box>
+            <Typography variant="caption" color="rgba(255,255,255,0.6)" mb={0.5} display="block" fontWeight={600}>Visit Time</Typography>
+            <Box sx={inputStyle}><InputBase type="time" fullWidth value={visitTime} onChange={(e) => setVisitTime(e.target.value)} sx={{ color: '#fff', '& input': { p: 0 } }} /></Box>
         </Grid>
       </Grid>
 
-      <Box mb={3}>
-        <Typography variant="caption" color={theme.textSecondary} mb={1} display="block" fontWeight={600}>Priority</Typography>
+      {/* Priority */}
+      <Box mb={4}>
+        <Typography variant="caption" color="rgba(255,255,255,0.6)" mb={1} display="block" fontWeight={600}>Priority Level</Typography>
         <Stack direction="row" spacing={1}>
-          {[{ label: 'High', color: theme.statusRed }, { label: 'Medium', color: theme.statusYellow }, { label: 'Low', color: theme.statusGreen }].map((p) => (
+          {[{ label: 'High', color: '#ef4444' }, { label: 'Medium', color: '#f59e0b' }, { label: 'Low', color: '#10b981' }].map((p) => (
             <Button 
               key={p.label} 
               fullWidth 
               onClick={() => setPriority(p.label)} 
               sx={{ 
-                bgcolor: priority === p.label ? `${p.color}44` : 'rgba(255,255,255,0.05)', 
-                color: priority === p.label ? p.color : theme.textSecondary, 
-                border: priority === p.label ? `1px solid ${p.color}` : '1px solid transparent', 
-                textTransform: 'none', borderRadius: '10px' 
+                bgcolor: priority === p.label ? `${p.color}22` : 'rgba(255,255,255,0.03)', 
+                color: priority === p.label ? p.color : 'rgba(255,255,255,0.6)', 
+                border: priority === p.label ? `1px solid ${p.color}` : '1px solid rgba(255,255,255,0.1)', 
+                borderRadius: '12px', py: 1, fontSize: '0.8rem',
+                '&:hover': { bgcolor: `${p.color}11` }
               }}
             >
               {p.label}
@@ -519,30 +460,19 @@ const TechnicalVisitPlanner = () => {
         </Stack>
       </Box>
 
+      {/* Employee List */}
       <Box>
-        <Typography variant="caption" color={theme.textSecondary} mb={1} display="block" fontWeight={600}>Assign Technical Person</Typography>
-        <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', border: theme.glassBorder, borderRadius: '16px', p: 1.5 }}>
-          <Stack direction="row" spacing={1} alignItems="center" mb={1.5}><StarIcon sx={{ color: '#fbbf24', fontSize: 18 }} /><Typography variant="body2" fontWeight={600}>Select Technician</Typography></Stack>
-          <Box sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '10px', px: 1.5, py: 0.8, display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-            <SearchIcon sx={{ color: theme.textSecondary, fontSize: 18 }} />
-            <InputBase 
-              placeholder="Search technicians..." 
-              sx={{ color: 'white', fontSize: '0.85rem', width: '100%' }} 
-              value={techSearch}
-              onChange={(e) => setTechSearch(e.target.value)}
-            />
+        <Typography variant="caption" color="rgba(255,255,255,0.6)" mb={1} display="block" fontWeight={600}>Select Technician</Typography>
+        <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', p: 2 }}>
+          
+          {/* Search */}
+          <Box sx={{ ...inputStyle, display: 'flex', alignItems: 'center', gap: 1, mb: 2, py: 1 }}>
+            <SearchIcon sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 20 }} />
+            <InputBase placeholder="Search technician..." sx={{ color: '#fff', fontSize: '0.9rem', width: '100%' }} value={techSearch} onChange={(e) => setTechSearch(e.target.value)} />
           </Box>
-          <Stack 
-            spacing={1} 
-            onWheel={(e) => e.stopPropagation()} // Prevent page scroll
-            sx={{ 
-              maxHeight: '180px', 
-              overflowY: 'auto', 
-              pr: 0.5, 
-              '&::-webkit-scrollbar': { width: '4px' }, 
-              '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '4px' } 
-            }}
-          >
+
+          {/* List */}
+          <Stack spacing={1} sx={{ maxHeight: '200px', overflowY: 'auto', pr: 0.5, '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '4px' } }}>
             {filteredTechs.map((emp, i) => {
               const status = getLoadStatus(emp.total_leads);
               const isSelected = selectedEmployee?.employee_id === emp.employee_id;
@@ -551,21 +481,14 @@ const TechnicalVisitPlanner = () => {
                   key={emp.employee_id || i} 
                   onClick={() => setSelectedEmployee(emp)}
                   sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    p: 1, 
-                    borderRadius: '8px', 
-                    bgcolor: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-                    cursor: 'pointer',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } 
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.2, borderRadius: '12px', 
+                    bgcolor: isSelected ? 'rgba(59, 130, 246, 0.2)' : 'transparent', border: isSelected ? '1px solid #3b82f6' : '1px solid transparent',
+                    cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } 
                   }}
                 >
                   <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Avatar sx={{ width: 28, height: 28, fontSize: '0.7rem', bgcolor: theme.accentBlue }}>
-                      {emp.username?.charAt(0).toUpperCase() || 'U'}
-                    </Avatar>
-                    <Typography variant="body2">{emp.username}</Typography>
+                    <Avatar sx={{ width: 32, height: 32, fontSize: '0.8rem', bgcolor: '#3b82f6', color: '#fff' }}>{emp.username?.charAt(0).toUpperCase()}</Avatar>
+                    <Typography variant="body2" color="#fff">{emp.username}</Typography>
                   </Stack>
                   <Chip 
                     label={`Load: ${status.label}`} 
@@ -578,49 +501,52 @@ const TechnicalVisitPlanner = () => {
           </Stack>
         </Box>
       </Box>
+
+      {/* Action Button */}
       <Button 
         fullWidth 
         variant="contained" 
         onClick={handleCompleteAction}
         disabled={assigning}
-        sx={{ mt: 4, py: 1.8, borderRadius: '16px', fontWeight: 800, background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 10px 25px rgba(37, 99, 235, 0.4)' }}
+        sx={{ mt: 4, ...primaryBtnStyle }}
       >
-        {assigning ? 'Assigning...' : 'Complete Action'}
+        {assigning ? <CircularProgress size={24} color="inherit" /> : 'Assign Visit'}
       </Button>
     </Box>
   );
 
   return (
-    <Box sx={styles.container}>
-      <Typography variant="h4" fontWeight={900} mb={5} sx={{ color: '#fff', letterSpacing: -0.5 }}>Visit Planner & Team Manager</Typography>
-      
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+    <Box sx={pageStyle}>
+      {/* Background Blobs */}
+      <Box sx={{ ...orbStyle, width: '600px', height: '600px', background: 'rgba(91, 33, 182, 0.25)', top: '-10%', left: '-10%', animation: `${liquidMove} 15s infinite alternate` }} />
+      <Box sx={{ ...orbStyle, width: '500px', height: '500px', background: 'rgba(59, 130, 246, 0.2)', bottom: '-10%', right: '-5%', animation: `${liquidMove} 20s infinite alternate-reverse` }} />
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} lg={8}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}><CalendarSection /></Grid>
-            <Grid item xs={12} md={6}><QueueSection /></Grid>
+      <Box sx={{ position: 'relative', zIndex: 1, maxWidth: '1400px', mx: 'auto', animation: `${slideUpFade} 0.8s ease-out` }}>
+        <Typography variant="h4" fontWeight={800} mb={1} sx={{ background: 'linear-gradient(to right, #fff, #a5b4fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>
+          Visit Planner
+        </Typography>
+        <Typography variant="body1" color="rgba(255,255,255,0.6)" mb={5}>
+          Manage team schedules and assign technical visits
+        </Typography>
+        
+        {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>{error}</Alert>}
+
+        <Grid container spacing={3}>
+          <Grid item xs={12} lg={8}>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}><CalendarSection /></Grid>
+              <Grid item xs={12} md={6}><QueueSection /></Grid>
+            </Grid>
+          </Grid>
+          <Grid item xs={12} lg={4}>
+            <AssignSection />
           </Grid>
         </Grid>
-        <Grid item xs={12} lg={4}>
-          <AssignSection />
-        </Grid>
-      </Grid>
+      </Box>
 
       {/* Toast Notification */}
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={() => setToast({ ...toast, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          severity={toast.severity}
-          onClose={() => setToast({ ...toast, open: false })}
-          sx={{ width: "100%", borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-          variant="filled"
-        >
+      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} sx={{ borderRadius: '12px', width: '100%', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }} variant="filled">
           {toast.message}
         </Alert>
       </Snackbar>
