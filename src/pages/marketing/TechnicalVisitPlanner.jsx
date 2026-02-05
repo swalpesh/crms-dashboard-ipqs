@@ -14,7 +14,7 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
-  Divider, // <--- Fixed: Added missing import
+  Divider,
   keyframes,
   useTheme
 } from '@mui/material';
@@ -202,16 +202,23 @@ const TechnicalVisitPlanner = () => {
     if (!selectedEmployee) return setToast({ open: true, message: 'Please select a technical person.', severity: 'warning' });
 
     setAssigning(true);
+    
+    // Store refs to data for notification before clearing state
+    const currentLead = selectedLead;
+    const currentEmployee = selectedEmployee;
+
     try {
       const token = getToken();
+      
+      // 1. Assign Visit
       const payload = {
-        lead_id: selectedLead.lead_id,
-        assigned_employee: selectedEmployee.employee_id,
+        lead_id: currentLead.lead_id,
+        assigned_employee: currentEmployee.employee_id,
         technical_visit_date: visitDate,
         technical_visit_time: visitTime,
         technical_visit_priority: priority,
         technical_visit_type: "Specific",
-        reason: `New Technical Person ${selectedEmployee.username} assigned to ${selectedLead.company_name || selectedLead.lead_name}`
+        reason: `New Technical Person ${currentEmployee.username} assigned to ${currentLead.company_name || currentLead.lead_name}`
       };
 
       const response = await fetch(`${API_BASE_URL}/api/tleads/assign`, {
@@ -224,9 +231,32 @@ const TechnicalVisitPlanner = () => {
       if (!response.ok) throw new Error(data.message || 'Assignment failed');
 
       setToast({ open: true, message: `Lead assigned successfully!`, severity: 'success' });
-      setUnassignedLeads(prev => prev.filter(l => l.lead_id !== selectedLead.lead_id));
+      
+      // Update UI immediately
+      setUnassignedLeads(prev => prev.filter(l => l.lead_id !== currentLead.lead_id));
       setSelectedLead(null);
       setSelectedEmployee(null);
+
+      // 2. Trigger Notification (Delayed by 3 seconds)
+      setTimeout(async () => {
+        try {
+            console.log("Sending Notification...");
+            const notificationPayload = {
+                to_emp_id: currentEmployee.employee_id,
+                title: "New Lead Assigned",
+                message: `Technical Team Head Assigned you a new lead ${currentLead.lead_id}`
+            };
+
+            await fetch(`${API_BASE_URL}/api/notifications/send`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(notificationPayload)
+            });
+            console.log("Notification Sent Successfully");
+        } catch (notifError) {
+            console.error("Error sending notification:", notifError);
+        }
+      }, 3000);
 
     } catch (err) {
       setToast({ open: true, message: err.message, severity: 'error' });
@@ -247,6 +277,7 @@ const TechnicalVisitPlanner = () => {
   const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
   const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
   const monthName = viewDate.toLocaleString('default', { month: 'long' });
+  
   const activeScheduleMap = useMemo(() => {
     const visits = scheduleType === 'my' ? calendarVisits.head : calendarVisits.team;
     const map = {};
@@ -272,6 +303,11 @@ const TechnicalVisitPlanner = () => {
         date: new Date(task.visit_date).toLocaleDateString()
       });
     }
+  };
+
+  const handleClosePopup = () => {
+    setAnchorEl(null);
+    setPopupData(null);
   };
 
   // --- SUB-COMPONENTS ---
@@ -351,14 +387,14 @@ const TechnicalVisitPlanner = () => {
       <Popover 
         open={Boolean(anchorEl)} 
         anchorEl={anchorEl} 
-        onClose={() => setAnchorEl(null)} 
+        onClose={handleClosePopup} 
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         sx={{ '& .MuiPaper-root': { bgcolor: '#1a1625', color: '#fff', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', p: 2, boxShadow: '0 10px 40px rgba(0,0,0,0.6)' } }}
       >
         <Box sx={{ minWidth: 200 }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
                 <Typography variant="caption" color="#3b82f6" fontWeight={700}>VISIT DETAILS</Typography>
-                <IconButton size="small" onClick={() => setAnchorEl(null)} sx={{ p: 0.5, color: 'grey.500' }}><CloseIcon fontSize="small" /></IconButton>
+                <IconButton size="small" onClick={handleClosePopup} sx={{ p: 0.5, color: 'grey.500' }}><CloseIcon fontSize="small" /></IconButton>
             </Stack>
             <Typography variant="subtitle2" fontWeight={600} mb={0.5}>{popupData?.lead}</Typography>
             <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>

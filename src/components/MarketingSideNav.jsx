@@ -278,11 +278,14 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const stdItemsForUser = mkTeamItems(userIsHead);
 
   // --- CUSTOM TECHNICAL TEAM ITEMS ---
+  // UPDATED: Now "Visit Planner" is hidden for regular employees (isHeadView = false)
   const techTeamItems = (isHeadView) => [
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
-    ...(isHeadView ? [{ path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" }] : []),
+    ...(isHeadView ? [
+      { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" },
+      { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" }
+    ] : []),
     { path: "/customer-visit", icon: <FactCheckOutlinedIcon />, label: "Customer Visit" },
-    { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" },
     { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" },
   ];
 
@@ -333,7 +336,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                  maxWidth: "100%", 
                  display: "block", 
                  objectFit: "contain", 
-                 // UPDATED FILTER: brightness(0) makes it black, invert(1) turns black to white
                  filter: "brightness(0) invert(1) drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))" 
                }} />
         </Box>

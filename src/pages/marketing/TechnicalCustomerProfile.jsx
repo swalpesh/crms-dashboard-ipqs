@@ -393,24 +393,27 @@ const TechnicalCustomerProfile = () => {
     }
   };
 
-  // --- 9. Handle Mark Complete ---
+  // --- 9. Handle Mark Complete & Notification ---
   const handleCompleteVisit = async () => {
     setCompleteLoading(true);
     try {
       const token = getToken();
       const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
+      // Step A: Mark Visit Complete
       await fetch(`${API_BASE_URL}/api/tleads/${LEAD_ID}/complete-visit`, {
         method: "PATCH",
         headers: headers
       });
 
+      // Step B: Change Lead Stage
       await fetch(`${API_BASE_URL}/api/tleads/change-stage`, {
         method: "PATCH",
         headers: headers,
         body: JSON.stringify({ lead_id: LEAD_ID, new_lead_stage: "Solutions-Team", reason: "Technical Visit Complete" })
       });
 
+      // Step C: Update UI
       setToast({ open: true, message: "Visit completed and lead moved to Solutions Team.", severity: "success" });
       setCompleteOpen(false);
       
@@ -419,6 +422,25 @@ const TechnicalCustomerProfile = () => {
         lead_visit_status: "Completed",
         technical_visit_complete_time: new Date().toISOString()
       }));
+
+      // Step D: Trigger Notification (2 seconds delay)
+      setTimeout(async () => {
+        try {
+            console.log("Sending Notification...");
+            await fetch(`${API_BASE_URL}/api/notifications/send`, {
+                method: 'POST',
+                headers: headers, // Reusing existing headers with token
+                body: JSON.stringify({
+                    to_emp_id: "IPQS-H25010", 
+                    title: "Technical Data Complete",
+                    message: "Technical Data complete and sent to solutions Department"
+                })
+            });
+            console.log("Notification sent.");
+        } catch (notifErr) {
+            console.error("Error sending notification:", notifErr);
+        }
+      }, 2000);
 
     } catch (err) {
       console.error(err);
@@ -443,13 +465,11 @@ const TechnicalCustomerProfile = () => {
   const formatAssignedDate = (dateString, timeString) => {
     if (!dateString) return "Date Pending";
     try {
-      // Create a date object from the date part (e.g. 2026-02-04)
       const datePart = new Date(dateString).toISOString().split('T')[0];
-      // Construct ISO string: YYYY-MM-DDTHH:MM:SS
       const dateTimeString = timeString ? `${datePart}T${timeString}` : dateString;
       const dateObj = new Date(dateTimeString);
       
-      if (isNaN(dateObj.getTime())) return dateString; // fallback
+      if (isNaN(dateObj.getTime())) return dateString; 
 
       return dateObj.toLocaleString('en-US', {
         month: 'short', 
