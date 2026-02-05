@@ -1,5 +1,5 @@
 import {
-  Box, List, ListItemButton, ListItemIcon, ListItemText, Collapse, Divider
+  Box, List, ListItemButton, ListItemIcon, ListItemText, Collapse, Divider, Typography
 } from "@mui/material";
 import { NavLink, useLocation } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
@@ -90,7 +90,7 @@ function readAuthUser() {
   try { return JSON.parse(raw); } catch { return null; }
 }
 
-const GROUP_LABEL_TYPO_SX = { fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+const GROUP_LABEL_TYPO_SX = { fontSize: 13, fontWeight: 700, letterSpacing: '0.5px', whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
 
 const LS_KEYS = {
   all: "msn-openAll",
@@ -109,6 +109,13 @@ const getLSBool = (k, fallback) => {
 };
 const setLSBool = (k, v) => window.localStorage.setItem(k, String(v));
 
+// --- STYLING CONSTANTS ---
+const activeGradient = "linear-gradient(90deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.8) 100%)";
+const activeShadow = "0 4px 20px rgba(37, 99, 235, 0.4)";
+const hoverBg = "rgba(255, 255, 255, 0.05)";
+const textSecondary = "rgba(255, 255, 255, 0.6)";
+const borderLight = "rgba(255, 255, 255, 0.08)";
+
 /* ------------ NavItem ------------ */
 const NavItem = ({ to, icon, label, noBgOnSelect = false, onNavigate }) => {
   const location = useLocation();
@@ -121,15 +128,33 @@ const NavItem = ({ to, icon, label, noBgOnSelect = false, onNavigate }) => {
       onClick={onNavigate}
       selected={active}
       sx={{
-        borderRadius: 2,
+        borderRadius: '12px',
+        mb: 0.8,
+        mx: 1.5,
+        color: textSecondary,
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        position: 'relative',
+        overflow: 'hidden',
+        "&:hover": {
+          bgcolor: hoverBg,
+          color: "#fff",
+          "& .MuiListItemIcon-root": { color: "#fff", transform: "translateX(3px)" }
+        },
         "&.Mui-selected": {
-          bgcolor: noBgOnSelect ? "transparent" : "rgba(215,25,20,0.1)",
-          "& .MuiListItemIcon-root, & .MuiListItemText-primary": { color: "primary.main" },
+          background: noBgOnSelect ? "transparent" : activeGradient,
+          color: "#fff",
+          boxShadow: noBgOnSelect ? "none" : activeShadow,
+          backdropFilter: 'blur(5px)',
+          "& .MuiListItemIcon-root": { color: "#fff" },
+          "&:hover": {
+            background: noBgOnSelect ? "transparent" : activeGradient,
+          },
+          "& .MuiListItemText-primary": { fontWeight: 600 }
         },
       }}
     >
-      <ListItemIcon sx={{ minWidth: 40 }}>{icon}</ListItemIcon>
-      <ListItemText primary={label} />
+      <ListItemIcon sx={{ minWidth: 40, color: 'inherit', transition: 'transform 0.2s' }}>{icon}</ListItemIcon>
+      <ListItemText primary={label} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 500 }} />
     </ListItemButton>
   );
 };
@@ -141,23 +166,37 @@ const Group = ({ title, icon, basePath, open, setOpen, selected, onNavigate, ite
       onClick={() => setOpen((p) => !p)}
       selected={selected}
       sx={{
-        borderRadius: 2,
-        ml: 1.5,
+        borderRadius: '12px',
+        mb: 0.5,
+        mx: 1,
+        color: textSecondary,
+        transition: "all 0.2s",
+        "&:hover": {
+          bgcolor: hoverBg,
+          color: "#fff",
+          "& .MuiListItemIcon-root": { color: "#fff" }
+        },
         "&.Mui-selected": {
-          bgcolor: "rgba(215,25,20,0.08)",
-          "& .MuiListItemIcon-root, & .MuiListItemText-primary": { color: "primary.main" },
+          bgcolor: "rgba(59, 130, 246, 0.1)",
+          color: "#60a5fa",
+          "& .MuiListItemIcon-root": { color: "#60a5fa" },
         },
       }}
     >
-      <ListItemIcon sx={{ minWidth: 40 }}>{icon}</ListItemIcon>
-      <ListItemText primary={title} primaryTypographyProps={{ sx: GROUP_LABEL_TYPO_SX }} />
-      {open ? <ExpandLess /> : <ExpandMore />}
+      <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>{icon}</ListItemIcon>
+      <ListItemText primary={title} primaryTypographyProps={GROUP_LABEL_TYPO_SX} />
+      {open ? <ExpandLess sx={{ opacity: 0.7 }} /> : <ExpandMore sx={{ opacity: 0.7 }} />}
     </ListItemButton>
 
     <Collapse in={open}>
-      <Box sx={{ pl: 4 }}>
+      <Box sx={{ pl: 1, position: 'relative' }}>
+        {/* Thread line visual */}
+        <Box sx={{ 
+            position: 'absolute', left: '29px', top: '4px', bottom: '15px', 
+            width: '2px', bgcolor: 'rgba(255,255,255,0.05)', zIndex: 0, borderRadius: '4px'
+        }} />
         {items.map(({ path, icon: itemIcon, label }) => (
-          <NavItem key={path} to={`${basePath}${path}`} icon={itemIcon} label={label} noBgOnSelect onNavigate={onNavigate} />
+          <NavItem key={path} to={`${basePath}${path}`} icon={itemIcon} label={label} noBgOnSelect={false} onNavigate={onNavigate} />
         ))}
       </Box>
     </Collapse>
@@ -190,7 +229,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     teleActive || fieldActive || assocActive || corpActive || techActive || solActive ||
     qTeamActive || payTeamActive || quoteBuilderActive || savedQuotesActive;
 
-  // open state (persisted)
+  // open state
   const [openAll, setOpenAll] = useState(() => getLSBool(LS_KEYS.all, anyAllActive || true));
   const [openTele, setOpenTele] = useState(() => getLSBool(LS_KEYS.tele, teleActive));
   const [openField, setOpenField] = useState(() => getLSBool(LS_KEYS.field, fieldActive));
@@ -199,8 +238,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const [openTech, setOpenTech] = useState(() => getLSBool(LS_KEYS.tech, techActive));
   const [openSol, setOpenSol] = useState(() => getLSBool(LS_KEYS.sol, solActive));
   const [openQTeam, setOpenQTeam] = useState(() => getLSBool(LS_KEYS.qteam, qTeamActive));
-  
-  // FIX: changed `openPayTeam` to `payTeamActive` here to prevent ReferenceError
   const [openPayTeam, setOpenPayTeam] = useState(() => getLSBool(LS_KEYS.payteam, payTeamActive));
 
   useEffect(() => setLSBool(LS_KEYS.all, openAll), [openAll]);
@@ -243,7 +280,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   // --- CUSTOM TECHNICAL TEAM ITEMS ---
   const techTeamItems = (isHeadView) => [
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
-    // Only show Team Manager to Heads
     ...(isHeadView ? [{ path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" }] : []),
     { path: "/customer-visit", icon: <FactCheckOutlinedIcon />, label: "Customer Visit" },
     { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" },
@@ -260,26 +296,53 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     ...mkTeamItems(isHeadView).filter(i => i.path !== "/dashboard" && i.path !== "/follow-ups")
   ];
 
-  /* ----------- Hide Quotations for Tech / Payments / Quote Team ----------- */
   const hideQuotationBuilder =
     norm(user?.role_id || "").includes("quotation-team-head") ||
     norm(user?.role_id || "").includes("payments-team-head") ||
     userSlug === "technical";
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Box sx={{ px: 2.5, py: 2, display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
+    <Box 
+      sx={{ 
+        height: "100%", 
+        display: "flex", 
+        flexDirection: "column",
+        background: "linear-gradient(to bottom right, #131129, #1a1625)",
+        borderRight: `1px solid ${borderLight}`,
+        color: "#fff",
+        overflowY: "auto",
+        "&::-webkit-scrollbar": { width: "4px" },
+        "&::-webkit-scrollbar-track": { background: "transparent" },
+        "&::-webkit-scrollbar-thumb": { background: "rgba(255,255,255,0.15)", borderRadius: "4px" }
+      }}
+    >
+      {/* Header / Logo */}
+      <Box sx={{ px: 3, py: 3, display: "flex", alignItems: "center", justifyContent: "flex-start", position: 'relative' }}>
+        {/* Glow effect behind logo */}
+        <Box sx={{
+           position: 'absolute', top: '20px', left: '20px', width: '60px', height: '60px',
+           background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(0,0,0,0) 70%)',
+           filter: 'blur(20px)', zIndex: 0
+        }} />
         <Box component={NavLink} to="/marketing" onClick={onNavigate}
-             sx={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
+             sx={{ display: "inline-flex", alignItems: "center", textDecoration: "none", zIndex: 1 }}>
           <Box component="img" src={logoUrl} alt="Company logo" loading="lazy"
-               sx={{ height: { xs: 40, sm: 46, md: 54 }, width: "auto", maxWidth: "100%", display: "block", objectFit: "contain" }} />
+               sx={{ 
+                 height: { xs: 40, sm: 46, md: 50 }, 
+                 width: "auto", 
+                 maxWidth: "100%", 
+                 display: "block", 
+                 objectFit: "contain", 
+                 // UPDATED FILTER: brightness(0) makes it black, invert(1) turns black to white
+                 filter: "brightness(0) invert(1) drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))" 
+               }} />
         </Box>
       </Box>
 
-      <Divider />
+      <Divider sx={{ borderColor: borderLight, mb: 2, mx: 2 }} />
 
-      <Box sx={{ px: 2, pt: 1, color: "text.secondary", fontSize: 12, fontWeight: 700 }}>
-        MAIN MENU
+      <Box sx={{ px: 3, pb: 1, color: "rgba(255,255,255,0.4)", fontSize: 11, fontWeight: 800, letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+        Main Menu
       </Box>
 
       <List sx={{ px: 1 }}>
@@ -302,56 +365,63 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
         {isIpqsHead(user) ? (
           <>
-            <ListItemButton onClick={() => setOpenAll((p) => !p)} sx={{ borderRadius: 2 }}>
-              <ListItemIcon sx={{ minWidth: 40 }}><CampaignOutlinedIcon /></ListItemIcon>
-              <ListItemText primary="All" />
-              {openAll ? <ExpandLess /> : <ExpandMore />}
+            <ListItemButton 
+              onClick={() => setOpenAll((p) => !p)} 
+              sx={{ 
+                borderRadius: '12px', mb: 0.5, mx: 1, color: textSecondary, 
+                "&:hover": { bgcolor: hoverBg, color: "#fff" } 
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}><CampaignOutlinedIcon /></ListItemIcon>
+              <ListItemText primary="All Departments" primaryTypographyProps={{fontWeight: 700, fontSize: '0.9rem'}} />
+              {openAll ? <ExpandLess sx={{ color: 'rgba(255,255,255,0.5)' }} /> : <ExpandMore sx={{ color: 'rgba(255,255,255,0.5)' }} />}
             </ListItemButton>
 
             <NavItem to="/marketing/masterleads" icon={<AssignmentTurnedInOutlinedIcon />} label="Master Leads" onNavigate={onNavigate} />
 
             <Collapse in={openAll}>
-              <Group title="Tele Marketing" icon={<SupportAgentOutlinedIcon />} basePath="/marketing/tele"
-                     open={openTele} setOpen={setOpenTele} selected={/\/marketing\/tele\//.test(pathname)}
-                     onNavigate={onNavigate} items={mkTeamItems(true)} />
-              
-              <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
-                     open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
-                     onNavigate={onNavigate} items={fieldTeamItems(true)} />
+              <Box sx={{ pl: 0 }}> 
+                <Group title="Tele Marketing" icon={<SupportAgentOutlinedIcon />} basePath="/marketing/tele"
+                      open={openTele} setOpen={setOpenTele} selected={/\/marketing\/tele\//.test(pathname)}
+                      onNavigate={onNavigate} items={mkTeamItems(true)} />
+                
+                <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
+                      open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
+                      onNavigate={onNavigate} items={fieldTeamItems(true)} />
 
-              <Group title="Associate Marketing" icon={<GroupsOutlinedIcon />} basePath="/marketing/associate"
-                     open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
-                     onNavigate={onNavigate} items={mkTeamItems(true)} />
-              <Group title="Corporate Marketing" icon={<CorporateFareOutlinedIcon />} basePath="/marketing/corporate"
-                     open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
-                     onNavigate={onNavigate} items={mkTeamItems(true)} />
-              
-              {/* Technical Team (Admin sees Head view items) */}
-              <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
-                     open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
-                     onNavigate={onNavigate} items={techTeamItems(true)} />
-              
-              <Group title="Solution Team" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
-                     open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
-                     onNavigate={onNavigate} items={mkTeamItems(true)} />
+                <Group title="Associate Marketing" icon={<GroupsOutlinedIcon />} basePath="/marketing/associate"
+                      open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
+                      onNavigate={onNavigate} items={mkTeamItems(true)} />
+                <Group title="Corporate Marketing" icon={<CorporateFareOutlinedIcon />} basePath="/marketing/corporate"
+                      open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
+                      onNavigate={onNavigate} items={mkTeamItems(true)} />
+                
+                <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
+                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
+                      onNavigate={onNavigate} items={techTeamItems(true)} />
+                
+                <Group title="Solution Team" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
+                      open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
+                      onNavigate={onNavigate} items={mkTeamItems(true)} />
 
-              {!hideQuotationBuilder && (
-                <>
-                  <NavItem to="/marketing/quotation-builder" icon={<RequestQuoteOutlinedIcon />} label="Quotation Builder" onNavigate={onNavigate} />
-                  <NavItem to="/marketing/saved-quotations" icon={<DescriptionOutlinedIcon />} label="Saved Quotations" onNavigate={onNavigate} />
-                </>
-              )}
+                {!hideQuotationBuilder && (
+                  <>
+                    <NavItem to="/marketing/quotation-builder" icon={<RequestQuoteOutlinedIcon />} label="Quotation Builder" onNavigate={onNavigate} />
+                    <NavItem to="/marketing/saved-quotations" icon={<DescriptionOutlinedIcon />} label="Saved Quotations" onNavigate={onNavigate} />
+                  </>
+                )}
 
-              <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
-                     open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
-                     onNavigate={onNavigate} items={[{ path: "/all-quotations", icon: <RequestQuoteOutlinedIcon />, label: "All Quotations" }]} />
+                <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
+                      open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
+                      onNavigate={onNavigate} items={[{ path: "/all-quotations", icon: <RequestQuoteOutlinedIcon />, label: "All Quotations" }]} />
 
-              <Group title="Payments Team" icon={<PaidOutlinedIcon />} basePath="/marketing/payments-team"
-                     open={openPayTeam} setOpen={setOpenPayTeam} selected={pathname.startsWith("/marketing/payments-team/")}
-                     onNavigate={onNavigate} items={[
-                       { path: "/q-payments", icon: <PaidOutlinedIcon />, label: "Q-Payments" },
-                       { path: "/q-invoices", icon: <ReceiptLongOutlinedIcon />, label: "Q-Invoices" },
-                     ]} />
+                <Group title="Payments Team" icon={<PaidOutlinedIcon />} basePath="/marketing/payments-team"
+                      open={openPayTeam} setOpen={setOpenPayTeam} selected={pathname.startsWith("/marketing/payments-team/")}
+                      onNavigate={onNavigate} items={[
+                        { path: "/q-payments", icon: <PaidOutlinedIcon />, label: "Q-Payments" },
+                        { path: "/q-invoices", icon: <ReceiptLongOutlinedIcon />, label: "Q-Invoices" },
+                      ]} />
+              </Box>
             </Collapse>
           </>
         ) : (
@@ -402,8 +472,8 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
       </List>
 
       <Box sx={{ flex: 1 }} />
-      <Divider />
-      <Box sx={{ p: 2, fontSize: 12, color: "text.secondary" }}>© 2025 CRMS</Box>
+      <Divider sx={{ borderColor: borderLight, mx: 2 }} />
+      <Box sx={{ p: 2, fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: 'center', letterSpacing: '0.5px' }}>© 2025 CRMS v2.0</Box>
     </Box>
   );
 }

@@ -22,9 +22,9 @@ import MarketingSideNav from "../components/MarketingSideNav.jsx";
 
 const DRAWER_WIDTH = 260;
 
-// --- Styles matching the technical.css "Liquid Glass" theme ---
-const glassBorder = "rgba(255, 255, 255, 0.1)";
-const glassBgHover = "rgba(255, 255, 255, 0.15)";
+// --- Styles matching the "Dark Glassmorphism" theme ---
+const glassBorder = "rgba(255, 255, 255, 0.08)"; // Subtler border
+const glassBgHover = "rgba(255, 255, 255, 0.1)";
 
 // Style for the square icon buttons (Calendar, Mail, Bell)
 const actionBtnStyle = {
@@ -32,14 +32,16 @@ const actionBtnStyle = {
   height: "40px",
   borderRadius: "12px",
   border: `1px solid ${glassBorder}`,
-  backgroundColor: "rgba(53, 26, 72, 0.05)",
-  color: "#e2e8f0ff",
+  backgroundColor: "rgba(255, 255, 255, 0.03)", // Darker, transparent bg
+  color: "rgba(255, 255, 255, 0.7)", // Muted white text
   marginLeft: "12px",
   transition: "all 0.2s ease-in-out",
   "&:hover": {
     backgroundColor: glassBgHover,
+    color: "#fff",
     transform: "translateY(-2px)",
-    borderColor: "rgba(255,255,255,0.3)",
+    borderColor: "rgba(255,255,255,0.2)",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
   },
 };
 
@@ -68,8 +70,10 @@ export default function MarketingLayout() {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      {/* Left sidenav drawer - UNTOUCHED */}
+    // Main Page Background - Matching the dark theme
+    <Box sx={{ minHeight: "100vh", bgcolor: "#0f0c29" }}>
+      
+      {/* Left sidenav drawer */}
       <Drawer
         variant={isMdUp ? "permanent" : "temporary"}
         open={isMdUp ? true : open}
@@ -79,8 +83,10 @@ export default function MarketingLayout() {
           "& .MuiDrawer-paper": {
             width: DRAWER_WIDTH,
             boxSizing: "border-box",
-            borderRight: "1px solid",
-            borderColor: "divider",
+            borderRight: `1px solid ${glassBorder}`,
+            bgcolor: "transparent", // Let the Nav component handle its own bg
+            // Ensure no white background leaks through
+            background: "linear-gradient(to bottom right, #131129, #1a1625)",
           },
         }}
       >
@@ -101,11 +107,11 @@ export default function MarketingLayout() {
           position="sticky"
           elevation={0}
           sx={{
-            // Transparent/Dark background to match the glass theme header
-            bgcolor: "#140e36ff", // Fallback dark color if bg image isn't set
-            background: "linear-gradient(to right, #330c2cff, #3c28a0ff)", 
+            // Updated to Dark Glass Gradient
+            background: "linear-gradient(to right, #131129, #1a1625)", 
             color: "text.primary",
             borderBottom: `1px solid ${glassBorder}`,
+            backdropFilter: "blur(10px)",
             zIndex: (theme) => theme.zIndex.drawer + 1,
           }}
         >
@@ -147,12 +153,12 @@ export default function MarketingLayout() {
                 alt="ENGAGE"
                 onError={() => setLogoIdx((i) => i + 1)}
                 style={{
-                  height: 24,
+                  height: 28, // Slightly larger for better visibility
                   width: "auto",
                   display: "block",
                   objectFit: "contain",
-                  // Invert filter to make logo white if it's black
-                  filter: "brightness(0) invert(1)", 
+                  // Invert filter to make logo white
+                  filter: "brightness(0) invert(1) drop-shadow(0 0 8px rgba(255,255,255,0.3))", 
                 }}
               />
             </Box>
@@ -163,7 +169,7 @@ export default function MarketingLayout() {
               {/* My Profile Button */}
               {isMdUp && (
                 <Button
-                  startIcon={<BoltIcon sx={{ color: "#818cf8" }} />}
+                  startIcon={<BoltIcon sx={{ color: "#818cf8" }} />} // Indigo accent
                   sx={{
                     borderRadius: "30px",
                     color: "#fff",
@@ -172,13 +178,14 @@ export default function MarketingLayout() {
                     fontWeight: 700,
                     letterSpacing: "0.8px",
                     border: `1px solid ${glassBorder}`,
-                    background: "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02))",
+                    background: "rgba(255, 255, 255, 0.03)",
                     padding: "6px 20px",
                     marginRight: "10px",
+                    transition: "all 0.2s",
                     "&:hover": {
-                      background: "rgba(255,255,255,0.1)",
-                      borderColor: "#818cf8",
-                      boxShadow: "0 0 10px rgba(129, 140, 248, 0.2)",
+                      background: "rgba(59, 130, 246, 0.1)", // Blue tint on hover
+                      borderColor: "#3b82f6",
+                      boxShadow: "0 0 15px rgba(59, 130, 246, 0.3)",
                     },
                   }}
                 >
@@ -189,7 +196,6 @@ export default function MarketingLayout() {
               {/* Calendar Icon */}
               <Tooltip title="My Tasks">
                 <IconButton sx={actionBtnStyle}>
-                   {/* Green dot badge logic if needed, removed for clean look like image */}
                    <CalendarTodayIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
@@ -214,8 +220,9 @@ export default function MarketingLayout() {
                   onClick={handleLogout}
                   sx={{
                     marginLeft: "15px",
-                    color: "#94a3b8",
-                    "&:hover": { color: "#fff" },
+                    color: "rgba(255,255,255,0.4)",
+                    transition: "color 0.2s",
+                    "&:hover": { color: "#ef4444" }, // Red on hover for logout
                   }}
                 >
                   <LogoutIcon sx={{ fontSize: 22 }} />
@@ -227,7 +234,8 @@ export default function MarketingLayout() {
         </AppBar>
         {/* --- TOP NAV BAR END --- */}
 
-        <Box component="main" sx={{ p: { xs: 2, md: 3 }, width: "100%", flexGrow: 1 }}>
+        {/* Main Content Area - Renders child routes */}
+        <Box component="main" sx={{ p: 0, width: "100%", flexGrow: 1 }}>
           <Outlet />
         </Box>
       </Box>
