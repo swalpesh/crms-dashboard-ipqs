@@ -391,10 +391,11 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
                 <Group title="Associate Marketing" icon={<GroupsOutlinedIcon />} basePath="/marketing/associate"
                       open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
-                      onNavigate={onNavigate} items={mkTeamItems(true)} />
+                      onNavigate={onNavigate} items={fieldTeamItems(true)} />
+
                 <Group title="Corporate Marketing" icon={<CorporateFareOutlinedIcon />} basePath="/marketing/corporate"
                       open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
-                      onNavigate={onNavigate} items={mkTeamItems(true)} />
+                      onNavigate={onNavigate} items={fieldTeamItems(true)} />
                 
                 <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                       open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
@@ -441,12 +442,12 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
             {userSlug === "associate" && (
               <Group title="Associate Marketing" icon={<GroupsOutlinedIcon />} basePath="/marketing/associate"
                      open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
-                     onNavigate={onNavigate} items={stdItemsForUser} />
+                     onNavigate={onNavigate} items={fieldTeamItems(userIsHead)} />
             )}
             {userSlug === "corporate" && (
               <Group title="Corporate Marketing" icon={<CorporateFareOutlinedIcon />} basePath="/marketing/corporate"
                      open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
-                     onNavigate={onNavigate} items={stdItemsForUser} />
+                     onNavigate={onNavigate} items={fieldTeamItems(userIsHead)} />
             )}
             
             {userSlug === "technical" && (
