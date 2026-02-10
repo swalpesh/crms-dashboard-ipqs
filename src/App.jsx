@@ -53,12 +53,15 @@ import CorporateDashboard from "./pages/marketing/CorporateDashboard.jsx";
 import CorporateLeads from "./pages/marketing/CorporateLeads.jsx";
 import CorporateMyTeam from "./pages/marketing/CorporateMyTeam.jsx";
 import CorporateFollowUps from "./pages/marketing/CorporateFollowUps.jsx";
+import CorporateLeadinfo from "./pages/marketing/CorporateLeadinfo.jsx";
 
 // Associate
 import AssociateDashboard from "./pages/marketing/AssociateDashboard.jsx";
 import AssociateLeads from "./pages/marketing/AssociateLeads.jsx";
 import AssociateMyTeam from "./pages/marketing/AssociateMyTeam.jsx";
 import AssociateFollowUps from "./pages/marketing/AssociateFollowUps.jsx";
+import AssociateLeadinfo from "./pages/marketing/AssociateLeadinfo.jsx";
+import AssociateLeadManager from "./pages/marketing/AssociateLeadmanager.jsx";
 
 // Technical
 import TechnicalDashboard from "./pages/marketing/TechnicalDashboard.jsx";
@@ -267,7 +270,7 @@ export default function App() {
               <Route index element={<MarketingIndex />} />
 
               {/* SHARED ROUTES */}
-              <Route path="customer-info" element={<CustomerInfo />} />
+              <Route path="customer-info/:id" element={<CustomerInfo />} />
               <Route path="my-activity" element={<MyActivity />} />
               <Route path="lead/:id" element={<LeadDetail />} />
               <Route path="masterleads" element={<Leads />} />
@@ -310,9 +313,12 @@ export default function App() {
                 <Route path="associate/dashboard" element={<AssociateDashboard />} />
                 <Route path="associate/leads" element={<AssociateLeads />} />
                 <Route element={<RequireHead redirectTo="/marketing/associate/dashboard" />}>
+
                   <Route path="associate/my-team" element={<AssociateMyTeam />} />
                 </Route>
+                <Route path="associate/leadinfo" element={<AssociateLeadinfo />} />
                 <Route path="associate/follow-ups" element={<AssociateFollowUps />} />
+                <Route path="associate/lead-manager" element={<AssociateLeadManager />} /> 
               </Route>
 
               {/* Corporate */}
@@ -322,6 +328,7 @@ export default function App() {
                 <Route element={<RequireHead redirectTo="/marketing/corporate/dashboard" />}>
                   <Route path="corporate/my-team" element={<CorporateMyTeam />} />
                 </Route>
+                <Route path="corporate/leadinfo" element={<CorporateLeadinfo />} />
                 <Route path="corporate/follow-ups" element={<CorporateFollowUps />} />
               </Route>
 
@@ -333,7 +340,7 @@ export default function App() {
                    Changed from exact path to allow optional :id parameter 
                    so the View button navigation works correctly.
                 */}
-                <Route path="technical/customer-profile" element={<TechnicalCustomerProfile />} />
+                {/* <Route path="technical/customer-profile" element={<TechnicalCustomerProfile />} /> */}
                 <Route path="technical/customer-profile/:id" element={<TechnicalCustomerProfile />} />
 
                 <Route path="technical/customer-visit" element={<TechnicalCustomerVisit />} />
