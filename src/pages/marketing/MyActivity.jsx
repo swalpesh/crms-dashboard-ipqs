@@ -17,7 +17,11 @@ import {
   Stack,
   Snackbar,
   Alert,
-  Divider
+  Divider,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
@@ -36,7 +40,8 @@ import {
   CalendarPlus,
   X,
   Eye,
-  PaperPlaneRight
+  PaperPlaneRight,
+  Users
 } from "@phosphor-icons/react";
 
 // --- API HELPERS ---
@@ -74,6 +79,15 @@ const formatDateString = (d) => {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+// Helper to format ISO Date to "15 Feb 2026, 3:09 PM"
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return "N/A";
+  const d = new Date(dateStr);
+  const datePart = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return `${datePart}, ${timePart}`;
 };
 
 // Helper to get today's date string in YYYY-MM-DD format
@@ -174,6 +188,12 @@ const styles = {
     },
     '& .MuiInputLabel-root': { color: themeColors.textSecondary },
     '& input::-webkit-calendar-picker-indicator': { filter: 'invert(1)', cursor: 'pointer' }
+  },
+  filterSelect: {
+    color: '#fff', bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '12px',
+    '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.1)' },
+    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: themeColors.blue },
+    '& .MuiSvgIcon-root': { color: '#fff' }
   }
 };
 
@@ -281,6 +301,11 @@ const MyActivity = () => {
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
   const navigate = useNavigate();
   
+  // Get Auth user and check Role for Filter Visibility directly from localStorage
+  const authUser = getAuthUser();
+  const authRole = localStorage.getItem("auth_role") || sessionStorage.getItem("auth_role");
+  const isMarketingHead = authRole === 'Field-Marketing-Head';
+  
   const [activeTab, setActiveTab] = useState(0); 
   const [dateRange, setDateRange] = useState([]);
   const [baseDate, setBaseDate] = useState(new Date());
@@ -290,25 +315,29 @@ const MyActivity = () => {
   // Status Filter for Scheduled Tab
   const [statusFilter, setStatusFilter] = useState('All');
   
+  // API State
+  const [unscheduledLeads, setUnscheduledLeads] = useState([]);
+  const [scheduledLeads, setScheduledLeads] = useState([]);
+  const [completedLeadsData, setCompletedLeadsData] = useState([]); // Flat array from new API
+  const [selectedEmpFilter, setSelectedEmpFilter] = useState('All'); // For the completed tab filter
+  
+  const [loadingUnscheduled, setLoadingUnscheduled] = useState(false);
+  const [loadingScheduled, setLoadingScheduled] = useState(false);
+  const [loadingCompleted, setLoadingCompleted] = useState(false);
+  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+
   // Celebration State
   const [showCelebration, setShowCelebration] = useState(false);
   const [hasCelebrated, setHasCelebrated] = useState(false);
   
-  // API State
-  const [unscheduledLeads, setUnscheduledLeads] = useState([]);
-  const [scheduledLeads, setScheduledLeads] = useState([]);
-  const [loadingUnscheduled, setLoadingUnscheduled] = useState(false);
-  const [loadingScheduled, setLoadingScheduled] = useState(false);
-  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
-  
   // Schedule/Reschedule Modal State
   const [openModal, setOpenModal] = useState(false);
-  const [isRescheduleMode, setIsRescheduleMode] = useState(false); // <--- Added Mode Flag
+  const [isRescheduleMode, setIsRescheduleMode] = useState(false); 
   const [selectedLead, setSelectedLead] = useState(null);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [schedulePriority, setSchedulePriority] = useState('Medium');
-  const [scheduleReason, setScheduleReason] = useState('Field Visit Rescheduled.'); // <--- Added Reason Field
+  const [scheduleReason, setScheduleReason] = useState('Field Visit Rescheduled.'); 
   const [isScheduling, setIsScheduling] = useState(false);
 
   // End Visit & Transfer Modal State
@@ -319,41 +348,46 @@ const MyActivity = () => {
 
   const timerRef = useRef(null);
 
-  // --- FETCH UNSCHEDULED LEADS ---
-  const fetchUnscheduledLeads = async () => {
+  // --- FETCH ALL DATA ---
+  const fetchAllData = async () => {
     setLoadingUnscheduled(true);
-    try {
-      const token = getToken();
-      if (!token) return;
-      const response = await fetch(`${API_BASE_URL}/api/fleads/unscheduled-leads`, {
-        method: 'GET', headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setUnscheduledLeads(data.leads || []);
-      }
-    } catch (error) { console.error("API Error:", error); } finally { setLoadingUnscheduled(false); }
-  };
-
-  // --- FETCH SCHEDULED LEADS (All) ---
-  const fetchScheduledLeads = async () => {
     setLoadingScheduled(true);
+    setLoadingCompleted(true);
+    
+    const token = getToken();
+    if (!token) return;
+
     try {
-      const token = getToken();
-      if (!token) return;
-      const response = await fetch(`${API_BASE_URL}/api/fleads/scheduled-visits`, {
-        method: 'GET', headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setScheduledLeads(data.leads || []);
+      const [unSchedRes, schedRes, compRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/fleads/unscheduled-leads`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/fleads/scheduled-visits`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/fleads/completed-visits`, { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+
+      if (unSchedRes.ok) {
+        const d = await unSchedRes.json();
+        setUnscheduledLeads(d.leads || []);
       }
-    } catch (error) { console.error("API Error:", error); } finally { setLoadingScheduled(false); }
+      if (schedRes.ok) {
+        const d = await schedRes.json();
+        setScheduledLeads(d.leads || []);
+      }
+      if (compRes.ok) {
+        const d = await compRes.json();
+        // Updated to use the flat leads array from the newly provided API response structure
+        setCompletedLeadsData(d.leads || []);
+      }
+    } catch (error) { 
+      console.error("API Fetch Error:", error); 
+    } finally { 
+      setLoadingUnscheduled(false);
+      setLoadingScheduled(false);
+      setLoadingCompleted(false);
+    }
   };
 
   useEffect(() => {
-    fetchUnscheduledLeads();
-    fetchScheduledLeads();
+    fetchAllData();
   }, []);
 
   // Auto-reset calendar window after 5s
@@ -401,7 +435,7 @@ const MyActivity = () => {
     setScheduleTime(lead.field_visit_time || '');
     setSchedulePriority(lead.field_visit_priority || 'Medium');
     setIsRescheduleMode(isRescheduling);
-    setScheduleReason('Field Visit Rescheduled.'); // Default reason
+    setScheduleReason(isRescheduling ? 'Field Visit Rescheduled.' : '');
     setOpenModal(true); 
   };
   
@@ -481,9 +515,8 @@ const MyActivity = () => {
       // Auto-set the filter date to the newly scheduled date
       setActiveFilterDate(scheduleDate);
       
-      // Refresh both lists to move items between tabs
-      fetchUnscheduledLeads();
-      fetchScheduledLeads();
+      // Refresh all lists
+      fetchAllData();
 
       // Trigger Notification to specific Field Marketing Head
       setTimeout(async () => {
@@ -610,6 +643,9 @@ const MyActivity = () => {
 
       setToast({ open: true, message: 'Visit ended and lead transferred successfully!', severity: 'success' });
       handleCloseEndModal();
+      
+      // Pull fresh data so Completed Tab gets the new visit
+      fetchAllData();
 
       // 3. Send Notification to target Head
       setTimeout(async () => {
@@ -657,6 +693,34 @@ const MyActivity = () => {
       return false;
     });
   }, [scheduledLeads, activeFilterDate, statusFilter]);
+
+  // --- UNIQUE EMPLOYEES EXTRACTOR (For Filter Dropdown) ---
+  const uniqueEmployees = useMemo(() => {
+    const empMap = new Map();
+    completedLeadsData.forEach(lead => {
+      if (lead.completed_by_id && !empMap.has(lead.completed_by_id)) {
+        empMap.set(lead.completed_by_id, lead.completed_by_name || 'Unknown Employee');
+      }
+    });
+    return Array.from(empMap, ([id, name]) => ({ id, name }));
+  }, [completedLeadsData]);
+
+  // --- FILTER COMPLETED VISITS (Role Based) ---
+  const filteredCompleted = useMemo(() => {
+    let data = completedLeadsData || [];
+    
+    // If not Marketing Head, user can only see their own completed visits
+    if (!isMarketingHead) {
+      return data.filter(lead => lead.completed_by_id === authUser?.employee_id);
+    }
+    
+    // If Head and specific employee filter is applied
+    if (selectedEmpFilter !== 'All') {
+      return data.filter(lead => lead.completed_by_id === selectedEmpFilter);
+    }
+    
+    return data;
+  }, [completedLeadsData, selectedEmpFilter, isMarketingHead, authUser]);
 
   // Target Calculations (Based on Today's scheduled leads)
   const todaysTotalLeads = useMemo(() => {
@@ -758,8 +822,8 @@ const MyActivity = () => {
             <Typography variant="body2">Dashboard</Typography><CaretRight size={14} /><Typography variant="body2" color="#fff" fontWeight={600}>My Activity</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'rgba(255,255,255,0.1)', py: 0.5, px: 1, borderRadius: '30px', border: themeColors.glassBorder }}>
-            <Avatar src="https://ui-avatars.com/api/?name=Rahul+J&background=0984e3&color=fff" sx={{ width: 28, height: 28 }} />
-            <Typography variant="body2" fontWeight={600}>Rahul Jadhav</Typography>
+            <Avatar src={`https://ui-avatars.com/api/?name=${authUser?.username || 'User'}&background=0984e3&color=fff`} sx={{ width: 28, height: 28 }} />
+            <Typography variant="body2" fontWeight={600}>{authUser?.username || 'User'}</Typography>
           </Box>
         </Box>
 
@@ -795,10 +859,10 @@ const MyActivity = () => {
           </Box>
         </Box>
 
-        {/* Tab Selection Row (Removed Completed Tab) */}
+        {/* Tab Selection Row */}
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
           <Box sx={{ display: 'inline-flex', gap: 1, p: 0.8, bgcolor: 'rgba(0,0,0,0.3)', borderRadius: '18px', border: themeColors.glassBorder }}>
-            {[ {n:1, l:'Scheduled'}, {n:2, l:'Plan Visit'} ].map((tab, i) => (
+            {[ {n:1, l:'Scheduled'}, {n:2, l:'Plan Visit'}, {n:3, l:'Completed'} ].map((tab, i) => (
               <Button key={i} onClick={() => setActiveTab(i)} sx={{ ...styles.tabBtn, bgcolor: activeTab === i ? themeColors.blue : 'transparent', color: activeTab === i ? '#fff' : themeColors.textSecondary }}>
                 <Box sx={{ ...styles.tabNumber, bgcolor: activeTab === i ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)' }}>{tab.n}</Box> {tab.l}
               </Button>
@@ -847,7 +911,6 @@ const MyActivity = () => {
                   phone={lead.contact_person_phone} 
                   location={lead.company_city && lead.company_state ? `${lead.company_city}, ${lead.company_state}` : 'Location N/A'} 
                   email={lead.company_email || lead.contact_person_email} 
-                  isActive={lead.field_lead_visit_status === 'Started'}
                   disableStart={!lead.field_visit_date?.startsWith(todayStr)} // Disable if not today
                   onReschedule={() => handleOpenSchedule(lead, true)} // <--- Passes 'true' for isRescheduleMode
                   onStartVisit={() => handleStartVisit(lead)}
@@ -902,6 +965,75 @@ const MyActivity = () => {
                   </Box>
                 )
               })
+            )}
+          </Box>
+        )}
+
+        {/* --- COMPLETED VISITS TAB (Active Tab 2) --- */}
+        {activeTab === 2 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            
+            {/* Filter Dropdown (Only for Field-Marketing-Head) */}
+            {isMarketingHead && (
+              <Box sx={{ mb: 2, maxWidth: 300 }}>
+                <Typography variant="caption" sx={{ color: themeColors.blue, fontWeight: 700, textTransform: 'uppercase', mb: 1, display: 'block' }}>Filter by Employee</Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={selectedEmpFilter}
+                    onChange={(e) => setSelectedEmpFilter(e.target.value)}
+                    sx={styles.filterSelect}
+                  >
+                    <MenuItem value="All">All Employees</MenuItem>
+                    {uniqueEmployees.map(emp => (
+                      <MenuItem key={emp.id} value={emp.id}>
+                        {emp.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+            )}
+
+            {loadingCompleted ? (
+               <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress sx={{ color: themeColors.blue }} /></Box>
+            ) : filteredCompleted.length === 0 ? (
+               <Box sx={{ textAlign: 'center', p: 4 }}><Typography sx={{ color: themeColors.textSecondary }}>No completed visits found.</Typography></Box>
+            ) : (
+               filteredCompleted.map(lead => (
+                 <Box key={lead.lead_id} sx={{ ...styles.glassCard, mb: 2 }}>
+                   <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                     <Box>
+                        <Typography variant="h6" fontWeight={700}>{lead.company_name || lead.lead_name}</Typography>
+                        <Typography variant="caption" color={themeColors.textSecondary}>
+                          Completed by <span style={{color: '#fff', fontWeight: 'bold'}}>{lead.completed_by_name || 'Employee'}</span> on {formatDateTime(lead.completed_at || lead.updated_at)}
+                        </Typography>
+                     </Box>
+                     <Chip icon={<CheckCircle weight="fill" />} label="Completed" size="small" color="success" variant="outlined" />
+                   </Stack>
+                   
+                   <Grid container spacing={2} sx={{ mb: 2 }}>
+                     <Grid item xs={12} sm={4}>
+                       <InfoItem icon={<Clock size={18} />} label="Visit Time" value={formatTime(lead.field_visit_time || lead.visit_time)} />
+                     </Grid>
+                     <Grid item xs={12} sm={4}>
+                       <InfoItem icon={<CalendarPlus size={18} />} label="Visit Date" value={lead.field_visit_date || lead.visit_date ? new Date(lead.field_visit_date || lead.visit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "Date Not Available"} />
+                     </Grid>
+                     <Grid item xs={12} sm={4}>
+                       <InfoItem icon={<MapPin size={18} />} label="Start Location" value={lead.field_visit_start_location || lead.start_location || "Coordinates Captured"} />
+                     </Grid>
+                   </Grid>
+                   
+                   {/* <Button 
+                     fullWidth 
+                     variant="outlined" 
+                     size="small" 
+                     sx={{ color: themeColors.blue, borderColor: 'rgba(9, 132, 227, 0.5)', '&:hover': { bgcolor: 'rgba(9, 132, 227, 0.1)'} }} 
+                     onClick={() => navigate(`/marketing/customer-info/${lead.lead_id}`)}
+                   >
+                     View History
+                   </Button> */}
+                 </Box>
+               ))
             )}
           </Box>
         )}
