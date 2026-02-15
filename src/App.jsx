@@ -54,6 +54,7 @@ import CorporateLeads from "./pages/marketing/CorporateLeads.jsx";
 import CorporateMyTeam from "./pages/marketing/CorporateMyTeam.jsx";
 import CorporateFollowUps from "./pages/marketing/CorporateFollowUps.jsx";
 import CorporateLeadinfo from "./pages/marketing/CorporateLeadinfo.jsx";
+import CorporateLeadManager from "./pages/marketing/CorporateLeadManager.jsx";
 
 // Associate
 import AssociateDashboard from "./pages/marketing/AssociateDashboard.jsx";
@@ -329,6 +330,7 @@ export default function App() {
                   <Route path="corporate/my-team" element={<CorporateMyTeam />} />
                 </Route>
                 <Route path="corporate/leadinfo" element={<CorporateLeadinfo />} />
+                <Route path="corporate/lead-manager" element={<CorporateLeadManager />} /> 
                 <Route path="corporate/follow-ups" element={<CorporateFollowUps />} />
               </Route>
 
