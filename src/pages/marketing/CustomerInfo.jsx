@@ -18,7 +18,7 @@ import {
   Fade,
   Backdrop,
   CircularProgress,
-  Divider, // <-- Fixed: Divider is securely imported here!
+  Divider,
   Select,
   MenuItem,
   FormControl,
@@ -556,8 +556,13 @@ const CustomerInfo = () => {
              <CaretLeft size={20} />
           </IconButton>
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button variant="outlined" sx={{ borderColor: 'rgba(255,255,255,0.2)', color: 'white', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.05)' } }}>Action</Button>
-            <Button variant="contained" sx={{ bgcolor: themeColors.accent, '&:hover': { bgcolor: themeColors.accentGlow }, boxShadow: `0 0 10px rgba(123, 44, 191, 0.5)` }}>Create Quotation</Button>
+            <Button 
+              onClick={() => navigate('/marketing/quotation-builder', { state: { leadId } })}
+              variant="contained" 
+              sx={{ bgcolor: themeColors.accent, '&:hover': { bgcolor: themeColors.accentGlow }, boxShadow: `0 0 10px rgba(123, 44, 191, 0.5)` }}
+            >
+              Create Quotation
+            </Button>
           </Box>
         </Box>
 
@@ -566,15 +571,15 @@ const CustomerInfo = () => {
           <PipelineStep label="Lead Created" status="completed" icon={CheckCircle} />
           <PipelineStep label="Marketing" status="completed" icon={CheckCircle} />
           <PipelineStep label="Technical" status={techActive ? 'active' : 'pending'} icon={Wrench} />
-          <PipelineStep label="Solution" status={solActive ? 'active' : 'pending'} icon={Lightbulb} />
-          <PipelineStep label="Quotation" status={quotActive ? 'active' : 'pending'} icon={Receipt} />
+          <PipelineStep label="Solutions" status={solActive ? 'active' : 'pending'} icon={Lightbulb} />
+          <PipelineStep label="Quotations" status={quotActive ? 'active' : 'pending'} icon={Receipt} />
         </Box>
 
         {/* Header Card */}
         <Box sx={glassCardStyle}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, flexDirection: {xs: 'column', sm: 'row'} }}>
             <Box>
-              <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>{leadData?.company_name || leadData?.lead_name}</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>{leadData?.lead_name} {"(" + (leadData?.lead_id || "N/A") + ")"}</Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Chip label={`${leadData?.lead_type || 'N/A'} Lead`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white', border: themeColors.glassBorder }} />
                 <Chip label={`${priority} Priority`} icon={<Fire size={14} color={priorityColor} weight="fill" />} size="small" sx={{ bgcolor: priorityBg, color: priorityColor, border: `1px solid ${priorityColor}55` }} />
