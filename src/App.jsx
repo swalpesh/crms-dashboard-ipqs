@@ -63,6 +63,7 @@ import AssociateMyTeam from "./pages/marketing/AssociateMyTeam.jsx";
 import AssociateFollowUps from "./pages/marketing/AssociateFollowUps.jsx";
 import AssociateLeadinfo from "./pages/marketing/AssociateLeadinfo.jsx";
 import AssociateLeadManager from "./pages/marketing/AssociateLeadmanager.jsx";
+import AssociateMyActivity from "./pages/marketing/AssociateMyactivity.jsx";
 
 // Technical
 import TechnicalDashboard from "./pages/marketing/TechnicalDashboard.jsx";
@@ -313,6 +314,7 @@ export default function App() {
               <Route element={<RequireDeptAccess slug="associate" />}>
                 <Route path="associate/dashboard" element={<AssociateDashboard />} />
                 <Route path="associate/leads" element={<AssociateLeads />} />
+                <Route path="associate/my-activity" element={<AssociateMyActivity />} />
                 <Route element={<RequireHead redirectTo="/marketing/associate/dashboard" />}>
 
                   <Route path="associate/my-team" element={<AssociateMyTeam />} />
