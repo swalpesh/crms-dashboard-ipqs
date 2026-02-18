@@ -36,6 +36,24 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import CloseIcon from '@mui/icons-material/Close';
 
+// --- API HELPERS ---
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+
+// Helper to get the logged-in user's details
+const getAuthUser = () => {
+  const userStr = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
+  try { return userStr ? JSON.parse(userStr) : null; } catch (e) { return null; }
+};
+
+const getLogoColor = (str) => {
+  if (!str) return '#3b82f6';
+  const colorsList = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return colorsList[Math.abs(hash) % colorsList.length];
+};
+
 const colors = {
   bgGradient: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
   textPrimary: '#ffffff',
@@ -111,49 +129,6 @@ const AnimatedLinearProgress = ({ targetValue, color }) => {
   );
 };
 
-// --- DATA ---
-
-const allLeads = [
-  { 
-    n: 'Mahindra Auto', v: '₹ 1.5 L', i: 'MA', c: colors.purple,
-    requirement: 'Fleet upgrade for commercial EVs',
-    phone: '+91 98765 43210',
-    email: 'procurement@mahindra.com',
-    address: 'Gateway Building, Apollo Bunder, Mumbai'
-  },
-  { 
-    n: 'TechSpace Park', v: '₹ 50 k', i: 'TS', c: colors.accent,
-    requirement: 'Solar grid maintenance contract',
-    phone: '+91 88877 66655',
-    email: 'admin@techspace.in',
-    address: 'Hitech City, Phase 2, Hyderabad'
-  },
-  { 
-    n: 'Infosys Ltd', v: '₹ 2.2 L', i: 'IN', c: colors.green,
-    requirement: 'Smart Lighting System installation',
-    phone: '+91 99000 11000',
-    email: 'ops@infosys.com',
-    address: 'Electronics City, Bengaluru'
-  },
-  { 
-    n: 'Reliance Ind', v: '₹ 4.5 L', i: 'RI', c: colors.orange,
-    requirement: 'Automation software license',
-    phone: '+91 77766 55544',
-    email: 'tech@ril.com',
-    address: 'Reliance Corporate Park, Navi Mumbai'
-  },
-  { n: 'Tata Motors', v: '₹ 80 k', i: 'TM', c: colors.purple },
-  { n: 'HDFC Bank', v: '₹ 1.2 L', i: 'HB', c: colors.accent },
-  { n: 'Zomato Corp', v: '₹ 30 k', i: 'ZC', c: colors.green },
-];
-
-const leadData = [
-  { name: 'Referral', value: 40, color: colors.accent },
-  { name: 'Website', value: 30, color: '#0ea5e9' },
-  { name: 'Cold Call', value: 20, color: colors.purple },
-  { name: 'Social', value: 10, color: colors.orange },
-];
-
 const glassPanelStyle = {
   background: 'rgba(255, 255, 255, 0.03)',
   backdropFilter: 'blur(20px)',
@@ -195,7 +170,7 @@ const detailModalStyle = {
     background: 'rgba(15, 12, 41, 0.98)', 
     border: '1px solid rgba(255, 255, 255, 0.15)',
     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8)',
-    p: 0, // Header will handle internal padding
+    p: 0, 
 };
 
 const Glow = ({ color }) => (
@@ -255,12 +230,134 @@ const FieldDashboard = () => {
   const [open, setOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
 
+  // Authentication & Role
+  const authUser = getAuthUser();
+  const authRole = localStorage.getItem("auth_role") || sessionStorage.getItem("auth_role");
+  const isHead = authRole === 'Field-Marketing-Head';
+
+  // API States
+  const [hotLeads, setHotLeads] = useState([]);
+  const [topPerformers, setTopPerformers] = useState([]);
+  const [estimatedValue, setEstimatedValue] = useState(0);
+  const [newLeadsCount, setNewLeadsCount] = useState(0);
+  const [funnelData, setFunnelData] = useState(null);
+
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
   const handleViewLead = (lead) => {
     setSelectedLead(lead);
   };
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      const token = getToken();
+      if (!token) return;
+
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      // 1. Fetch Hot Leads
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/fleads/hot-leads`, { headers });
+        if (res.ok) {
+          const result = await res.json();
+          const mappedLeads = (result.data || []).map(lead => {
+            let revNum = lead.expected_revenue || 0;
+            let revStr = `₹ 0`;
+            if (revNum >= 100000) revStr = `₹ ${(revNum / 100000).toFixed(1)} L`;
+            else if (revNum >= 1000) revStr = `₹ ${(revNum / 1000).toFixed(1)} k`;
+            else if (revNum > 0) revStr = `₹ ${revNum}`;
+
+            return {
+              ...lead,
+              n: lead.company_name || lead.lead_name || 'Unknown',
+              v: revStr,
+              i: (lead.company_name || lead.lead_name || 'U').charAt(0).toUpperCase(),
+              c: getLogoColor(lead.company_name || lead.lead_name),
+              requirement: lead.lead_requirement,
+              phone: lead.contact_person_phone || lead.company_contact_number,
+              email: lead.contact_person_email || lead.company_email,
+              address: [lead.company_address, lead.company_city, lead.company_state].filter(Boolean).join(', ')
+            };
+          });
+          setHotLeads(mappedLeads);
+        }
+      } catch (err) { console.error("Error fetching hot leads", err); }
+
+      // 2. Fetch Employees Revenue (Top Performers & Estimated Value)
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/fleads/employees-revenue`, { headers });
+        if (res.ok) {
+          const result = await res.json();
+          const sortedPerformers = [...(result.data || [])].sort((a, b) => b.total_expected_revenue - a.total_expected_revenue);
+          setTopPerformers(sortedPerformers);
+
+          if (isHead) {
+            setEstimatedValue(result.total_expected_revenue_all_employees || 0);
+          } else {
+            const myData = sortedPerformers.find(emp => emp.employee_id === authUser?.employee_id);
+            setEstimatedValue(myData ? myData.total_expected_revenue : 0);
+          }
+        }
+      } catch (err) { console.error("Error fetching revenue", err); }
+
+      // 3. Fetch New Assigned Leads Summary
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/fleads/new-assigned-summary`, { headers });
+        if (res.ok) {
+          const result = await res.json();
+          if (isHead) {
+            setNewLeadsCount(result.total_new_leads_today || 0);
+          } else {
+            const myData = (result.data || []).find(emp => emp.employee_id === authUser?.employee_id);
+            setNewLeadsCount(myData ? myData.today_assigned : 0);
+          }
+        }
+      } catch (err) { console.error("Error fetching new leads", err); }
+
+      // 4. Fetch Sales Funnel
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/fleads/sales-funnel`, { headers });
+        if (res.ok) {
+          const result = await res.json();
+          setFunnelData(result.data);
+        }
+      } catch (err) { console.error("Error fetching funnel", err); }
+    };
+
+    fetchDashboardData();
+  }, [isHead, authUser?.employee_id]);
+
+  // Format Estimated Value for KPI Card dynamically (Lakhs or Thousands)
+  let estNum = estimatedValue || 0;
+  let estSuffix = "";
+  if (estNum >= 100000) { 
+    estNum = estNum / 100000; 
+    estSuffix = " L"; 
+  } else if (estNum >= 1000) { 
+    estNum = estNum / 1000; 
+    estSuffix = " k"; 
+  }
+
+  // Calculate dynamic data mapping exactly to requested labels
+  const totalLeadsCount = funnelData?.total_leads?.count || 0;
+  const schedCount = funnelData?.scheduled_visits?.count || 0;
+  const compCount = funnelData?.completed_visits?.count || 0;
+  const transCount = funnelData?.transferred_visits?.count || 0;
+  
+  // "Created" is any lead not yet scheduled, completed, or transferred
+  const createdCount = Math.max(0, totalLeadsCount - (schedCount + compCount + transCount));
+
+  const activePieData = [
+    { name: 'Created', value: createdCount, color: colors.orange },
+    { name: 'Visit Scheduled', value: schedCount, color: '#3b82f6' },
+    { name: 'Visit Completed', value: compCount, color: colors.green },
+    { name: 'Visit Transferred', value: transCount, color: colors.purple },
+  ].filter(d => d.value > 0);
+
+  if (activePieData.length === 0) {
+    activePieData.push({ name: 'No Visits', value: 1, color: 'rgba(255,255,255,0.1)' });
+  }
 
   return (
     <Box sx={{ minHeight: '100vh', background: colors.bgGradient, p: 4, color: colors.textPrimary }}>
@@ -270,12 +367,12 @@ const FieldDashboard = () => {
         <div className="row g-4 mb-4">
           <div className="col-12 col-sm-6 col-md-3">
             <Box sx={{ aspectRatio: '1/1' }}>
-              <SquareKpiCard title="Estimated Value" valueObj={{num: 24.5, prefix: "₹ ", suffix: "L"}} icon={<CurrencyRupeeIcon />} iconBg={colors.accent} trend="+12%" trendLabel="vs last month" trendColor={colors.green} />
+              <SquareKpiCard title="Estimated Value" valueObj={{num: estNum, prefix: "₹ ", suffix: estSuffix}} icon={<CurrencyRupeeIcon />} iconBg={colors.accent} trend="+12%" trendLabel="vs last month" trendColor={colors.green} />
             </Box>
           </div>
           <div className="col-12 col-sm-6 col-md-3">
             <Box sx={{ aspectRatio: '1/1' }}>
-              <SquareKpiCard title="New Leads" valueObj={{num: 145, prefix: "", suffix: ""}} icon={<GroupIcon />} iconBg={colors.purple} subText="Avg. 5 per day" />
+              <SquareKpiCard title="New Leads" valueObj={{num: newLeadsCount, prefix: "", suffix: ""}} icon={<GroupIcon />} iconBg={colors.purple} subText={isHead ? "Total Team Assigned Today" : "Assigned To You Today"} />
             </Box>
           </div>
           <div className="col-12 col-sm-6 col-md-3">
@@ -290,10 +387,10 @@ const FieldDashboard = () => {
                 <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, mb: 1, color: colors.textSecondary, textTransform: 'uppercase' }}>Sales Funnel</Typography>
                   <Box>
-                    <FunnelBarSmall label="Leads" percentage="100%" color={colors.accent} targetWidth={100} />
-                    <FunnelBarSmall label="Visits" percentage="41%" color={colors.purple} targetWidth={41} />
-                    <FunnelBarSmall label="Won" percentage="8%" color={colors.green} targetWidth={8} />
-                    <FunnelBarSmall label="Lost" percentage="51%" color={colors.red} targetWidth={51} />
+                    <FunnelBarSmall label="Total Leads" percentage={funnelData?.total_leads?.percentage || "0%"} color={colors.accent} targetWidth={parseInt(funnelData?.total_leads?.percentage || 0)} />
+                    <FunnelBarSmall label="Scheduled Visits" percentage={funnelData?.scheduled_visits?.percentage || "0%"} color={colors.purple} targetWidth={parseInt(funnelData?.scheduled_visits?.percentage || 0)} />
+                    <FunnelBarSmall label="Completed Visits" percentage={funnelData?.completed_visits?.percentage || "0%"} color={colors.green} targetWidth={parseInt(funnelData?.completed_visits?.percentage || 0)} />
+                    <FunnelBarSmall label="Transferred Visits" percentage={funnelData?.transferred_visits?.percentage || "0%"} color={colors.orange} targetWidth={parseInt(funnelData?.transferred_visits?.percentage || 0)} />
                   </Box>
                 </CardContent>
               </Card>
@@ -309,24 +406,32 @@ const FieldDashboard = () => {
                 <Box sx={{ width: 220, height: 220, position: 'relative' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={leadData} innerRadius={65} outerRadius={90} paddingAngle={5} dataKey="value" stroke="none" animationDuration={1500} animationBegin={200}>
-                        {leadData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                      <Pie data={activePieData} innerRadius={65} outerRadius={90} paddingAngle={5} dataKey="value" stroke="none" animationDuration={1500} animationBegin={200}>
+                        {activePieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
-                  <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-                    <Typography variant="caption" sx={{ color: colors.textSecondary, display: 'block', textTransform: 'uppercase', fontSize: '0.65rem' }}>Total Leads</Typography>
-                    <Typography variant="h4" sx={{ fontWeight: 800 }}>145</Typography>
+                  
+                  {/* Center Chart Text */}
+                  <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <Typography variant="caption" sx={{ color: colors.textSecondary, textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '1px', mb: 0.5 }}>TOTAL LEADS</Typography>
+                    <Typography variant="h3" sx={{ fontWeight: 800, color: '#fff', m: 0 }}>{totalLeadsCount}</Typography>
                   </Box>
                 </Box>
-                <div className="row gx-4 gy-2" style={{ maxWidth: '300px' }}>
-                   {leadData.map((item, i) => (
-                     <div className="col-6 d-flex align-items-center gap-2" key={i}>
-                       <Box sx={{ width: 10, height: 10, borderRadius: '3px', bgcolor: item.color }} />
-                       <Typography variant="body2" sx={{ color: colors.textSecondary, fontSize: '0.8rem' }}>{item.name} <b className="text-white">({item.value}%)</b></Typography>
-                     </div>
+                
+                {/* 2x2 Grid Legend */}
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 4, rowGap: 2 }}>
+                   {activePieData.map((item, i) => (
+                     item.name !== 'No Visits' && (
+                       <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                         <Box sx={{ width: 12, height: 12, borderRadius: '4px', bgcolor: item.color }} />
+                         <Typography variant="body2" sx={{ color: colors.textSecondary }}>
+                           {item.name} <span style={{ color: '#fff', fontWeight: 700 }}>({item.value})</span>
+                         </Typography>
+                       </Box>
+                     )
                    ))}
-                </div>
+                </Box>
               </Box>
             </Card>
           </div>
@@ -336,25 +441,30 @@ const FieldDashboard = () => {
               <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                    <WhatshotIcon sx={{ color: colors.orange }} />
-                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>HOT LEADS</Typography>
+                   <Typography variant="subtitle1" sx={{ fontWeight: 800, letterSpacing: '0.5px' }}>HOT LEADS</Typography>
                  </Box>
-                 <Button onClick={handleOpen} size="small" endIcon={<ChevronRightIcon />} sx={{ color: colors.accent, textTransform: 'none' }}>View all</Button>
+                 <Box onClick={handleOpen} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', color: colors.accent, '&:hover': { textDecoration: 'underline' } }}>
+                   <Typography variant="body2" sx={{ fontWeight: 600 }}>View all</Typography>
+                   <ChevronRightIcon fontSize="small" />
+                 </Box>
               </Box>
-              <TableContainer>
-                <Table size="small">
-                  <TableBody>
-                    {allLeads.slice(0, 2).map((row, index) => (
-                      <TableRow key={index} sx={{ '& td': { borderBottom: '1px solid rgba(255,255,255,0.03)', color: '#fff', py: 2 } }}>
-                        <TableCell><Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}><Avatar sx={{ bgcolor: row.c, width: 36, height: 36, fontSize: '0.8rem' }}>{row.i}</Avatar><Typography variant="body2">{row.n}</Typography></Box></TableCell>
-                        <TableCell sx={{ fontWeight: 800 }}>{row.v}</TableCell>
-                        <TableCell align="right">
-                            <Button onClick={() => handleViewLead(row)} variant="contained" size="small" sx={{ bgcolor: colors.accent, borderRadius: '8px', textTransform: 'none', px: 3 }}>View</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+
+              <Box sx={{ px: 3, pb: 3 }}>
+                {hotLeads.length > 0 ? hotLeads.slice(0, 2).map((row, index) => (
+                  <Box key={index} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 2, borderBottom: index === 0 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                      <Avatar sx={{ bgcolor: row.c, width: 40, height: 40, fontSize: '0.95rem', fontWeight: 600 }}>{row.i}</Avatar>
+                      <Typography variant="body1" sx={{ fontWeight: 500, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.n}</Typography>
+                    </Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#fff', width: '90px', textAlign: 'left' }}>{row.v}</Typography>
+                    <Button onClick={() => handleViewLead(row)} variant="contained" size="small" sx={{ bgcolor: '#3b82f6', borderRadius: '8px', textTransform: 'none', px: 3, py: 0.6, fontWeight: 600, boxShadow: 'none', '&:hover': { bgcolor: '#2563eb' } }}>
+                      View
+                    </Button>
+                  </Box>
+                )) : (
+                  <Typography sx={{ color: colors.textSecondary, py: 4, textAlign: 'center' }}>No hot leads found.</Typography>
+                )}
+              </Box>
             </Card>
           </div>
         </div>
@@ -369,7 +479,7 @@ const FieldDashboard = () => {
             <TableContainer sx={{ overflowY: 'auto', flexGrow: 1, pr: 1, '&::-webkit-scrollbar': { width: '6px' }, '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.1)', borderRadius: '10px' } }}>
               <Table size="small">
                 <TableBody>
-                  {allLeads.map((row, index) => (
+                  {hotLeads.map((row, index) => (
                     <TableRow key={index} sx={{ '& td': { borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#fff', py: 2 } }}>
                       <TableCell><Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}><Avatar sx={{ bgcolor: row.c, width: 36, height: 36, fontSize: '0.8rem' }}>{row.i}</Avatar><Typography variant="body2">{row.n}</Typography></Box></TableCell>
                       <TableCell sx={{ fontWeight: 800 }}>{row.v}</TableCell>
@@ -378,6 +488,11 @@ const FieldDashboard = () => {
                       </TableCell>
                     </TableRow>
                   ))}
+                  {hotLeads.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} align="center" sx={{ color: colors.textSecondary, py: 4 }}>No hot leads available.</TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -442,31 +557,43 @@ const FieldDashboard = () => {
         </Modal>
 
         {/* ROW 3: TOP PERFORMERS */}
-        <div className="row g-4">
-          <div className="col-12">
-            <Card sx={glassPanelStyle}>
-              <CardContent sx={{ p: 3 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 3 }}>TOP PERFORMERS</Typography>
-                <div className="row g-4">
-                  <div className="col-md-6">
-                    <ListItem sx={{ bgcolor: 'rgba(255, 206, 0, 0.05)', borderRadius: '15px', p: 2 }} secondaryAction={<Typography variant="body1" sx={{ fontWeight: 800, color: '#ffce00' }}>₹ 4.0L</Typography>}>
-                       <Typography variant="h5" sx={{ color: '#ffce00', mr: 3, fontWeight: 900 }}>1</Typography>
-                       <ListItemAvatar><Avatar src="https://i.pravatar.cc/150?img=68" sx={{ width: 45, height: 45, border: '2px solid #ffce00' }} /></ListItemAvatar>
-                       <ListItemText primary="Amit V." secondary="Sales Executive" />
-                    </ListItem>
+        {isHead && (
+          <div className="row g-4">
+            <div className="col-12">
+              <Card sx={glassPanelStyle}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 3 }}>TOP PERFORMERS</Typography>
+                  <div className="row g-4">
+                    {topPerformers.slice(0, 4).map((emp, index) => {
+                      const isFirst = index === 0;
+                      const rankColor = isFirst ? '#ffce00' : colors.textSecondary;
+                      const rankBg = isFirst ? 'rgba(255, 206, 0, 0.05)' : 'rgba(255, 255, 255, 0.02)';
+                      
+                      let revNum = emp.total_expected_revenue || 0;
+                      let revStr = `₹ 0`;
+                      if (revNum >= 100000) revStr = `₹ ${(revNum / 100000).toFixed(1)}L`;
+                      else if (revNum >= 1000) revStr = `₹ ${(revNum / 1000).toFixed(1)}k`;
+                      else if (revNum > 0) revStr = `₹ ${revNum}`;
+
+                      return (
+                        <div className="col-md-6" key={emp.employee_id}>
+                          <ListItem sx={{ bgcolor: rankBg, borderRadius: '15px', p: 2 }} secondaryAction={<Typography variant="body1" sx={{ fontWeight: 800, color: rankColor }}>{revStr}</Typography>}>
+                             <Typography variant="h5" sx={{ color: rankColor, mr: 3, fontWeight: 900 }}>{index + 1}</Typography>
+                             <ListItemAvatar><Avatar sx={{ width: 45, height: 45, border: isFirst ? `2px solid ${rankColor}` : 'none', bgcolor: getLogoColor(emp.employee_name) }}>{emp.employee_name.charAt(0).toUpperCase()}</Avatar></ListItemAvatar>
+                             <ListItemText primary={emp.employee_name} secondary={`${emp.completed_leads_count} Leads Completed`} sx={{ '& .MuiListItemText-primary': { color: '#fff', fontWeight: 600 }, '& .MuiListItemText-secondary': { color: colors.textSecondary } }} />
+                          </ListItem>
+                        </div>
+                      );
+                    })}
+                    {topPerformers.length === 0 && (
+                      <Typography variant="body2" sx={{ color: colors.textSecondary, width: '100%', textAlign: 'center', py: 2 }}>No performer data available.</Typography>
+                    )}
                   </div>
-                  <div className="col-md-6">
-                    <ListItem sx={{ bgcolor: 'rgba(255, 255, 255, 0.02)', borderRadius: '15px', p: 2 }} secondaryAction={<Typography variant="body1" sx={{ fontWeight: 800 }}>₹ 2.5L</Typography>}>
-                       <Typography variant="h5" sx={{ color: colors.textSecondary, mr: 3, fontWeight: 700 }}>2</Typography>
-                       <ListItemAvatar><Avatar src="https://i.pravatar.cc/150?img=44" sx={{ width: 45, height: 45 }} /></ListItemAvatar>
-                       <ListItemText primary="Sarah L." secondary="Senior Executive" />
-                    </ListItem>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
     </Box>

@@ -202,7 +202,13 @@ const LeadInfo = () => {
     try {
         const token = getToken();
         const currentUser = getAuthUser();
-        const assignedEmpId = currentUser?.employee_id || "0"; 
+        const empId = currentUser?.employee_id || "";
+        
+        // Determine if logged in user is a Telemarketing employee
+        const isTeleMarketing = empId.startsWith("FTM-IPQS");
+        
+        // If telemarketing, assigned person is 0. Else, assign to self.
+        const assignedEmpId = isTeleMarketing ? "0" : (empId || "0"); 
 
         const payload = {
             ...formData,
@@ -236,12 +242,24 @@ const LeadInfo = () => {
 
             setTimeout(async () => {
                 try {
+                    let notifyTo = assignedEmpId;
+                    let notifyTitle = "New Lead Created";
+                    let notifyMessage = `You have created a new lead: ${payload.lead_name}`;
+
+                    // If Telemarketing, alert the Head that it needs assignment
+                    if (isTeleMarketing) {
+                        notifyTo = "IPQS-H25002"; // Head ID
+                        notifyTitle = "New Lead Needs Assignment";
+                        notifyMessage = `Lead ${payload.lead_name} created by Tele Marketing Person (${currentUser?.username}). Needs to be assigned.`;
+                    }
+
                     await fetch(`${API_BASE_URL}/api/notifications/send`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            to_emp_id: assignedEmpId, title: "New Lead Created",
-                            message: `You have created a new lead: ${payload.lead_name}`
+                            to_emp_id: notifyTo, 
+                            title: notifyTitle,
+                            message: notifyMessage
                         })
                     });
                 } catch (e) { console.error(e); }

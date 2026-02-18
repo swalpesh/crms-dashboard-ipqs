@@ -202,18 +202,29 @@ const CorporateLeadinfo = () => {
     try {
         const token = getToken();
         const currentUser = getAuthUser();
-        const assignedEmpId = currentUser?.employee_id || "0"; 
+        const empId = currentUser?.employee_id || "";
+        
+        // TELEMARKETING LOGIC INTEGRATION FOR CORPORATE MARKETING
+        const isTeleMarketing = empId.startsWith("CTM-IPQS");
+        const assignedEmpId = isTeleMarketing ? "0" : (empId || "0"); 
 
         const payload = {
             ...formData,
             assigned_employee: assignedEmpId, 
+            created_by: empId,
             lead_status: "new",
             lead_stage: "Corporate-Marketing",
-            expected_closing_date: null, expected_revenue: 0, probability: 50,           
-            mark_as_hot_lead: isHotLead, follow_up_reason: null, follow_up_date: null, follow_up_time: null, notes: null
+            expected_closing_date: null, 
+            expected_revenue: 0, 
+            probability: 50,           
+            mark_as_hot_lead: isHotLead ? 1 : 0, 
+            follow_up_reason: null, 
+            follow_up_date: null, 
+            follow_up_time: null, 
+            notes: null
         };
 
-        const response = await fetch(`${API_BASE_URL}/api/cleads`, {
+        const response = await fetch(`${API_BASE_URL}/api/aleads`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -236,12 +247,24 @@ const CorporateLeadinfo = () => {
 
             setTimeout(async () => {
                 try {
+                    let notifyTo = assignedEmpId;
+                    let notifyTitle = "New Lead Created";
+                    let notifyMessage = `You have created a new lead: ${payload.lead_name}`;
+
+                    // If Telemarketing, alert the Corporate Head that it needs assignment
+                    if (isTeleMarketing) {
+                        notifyTo = "IPQS-E25017"; // Send to Corporate Head ID
+                        notifyTitle = "New Lead Needs Assignment";
+                        notifyMessage = `Lead ${payload.lead_name} created by Tele Marketing Person (${currentUser?.username}). Needs to be assigned.`;
+                    }
+
                     await fetch(`${API_BASE_URL}/api/notifications/send`, {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            to_emp_id: assignedEmpId, title: "New Lead Created",
-                            message: `You have created a new lead: ${payload.lead_name}`
+                            to_emp_id: notifyTo, 
+                            title: notifyTitle,
+                            message: notifyMessage
                         })
                     });
                 } catch (e) { console.error(e); }
@@ -300,7 +323,7 @@ const CorporateLeadinfo = () => {
   };
 
   const handleViewClick = (id) => {
-    navigate(`/marketing/customer-info/${id}`);
+    navigate(`/corporate-marketing/customer-info/${id}`);
   };
 
   return (
@@ -562,9 +585,33 @@ const CorporateLeadinfo = () => {
       {/* --- Main Content (MUI for List) --- */}
       <Box sx={{ maxWidth: 1400, mx: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
         <Box sx={{ ...glassPanel, p: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 3 }}>
-          <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}><Typography variant="h5" fontWeight={600}>Company Leads</Typography><Typography variant="body2" sx={{ color: '#a0a0c0' }}>Manage Corporate Marketing leads </Typography></Box>
-          {!isMobile && (<Box sx={{ display: 'flex', alignItems: 'center', gap: 6 }}><Box sx={{ textAlign: 'center' }}><Typography variant="caption" sx={{ color: '#a0a0c0', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Total Leads</Typography><Typography variant="h5" fontWeight={800} sx={{ mt: 0.5 }}><AnimatedCounter end={stats.total} /></Typography></Box><Box sx={{ textAlign: 'center' }}><Typography variant="caption" sx={{ color: '#a0a0c0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}><Fire weight="fill" color="#f97316" /> HOT LEADS</Typography><Typography variant="h5" fontWeight={800} color="#f97316" sx={{ mt: 0.5 }}><AnimatedCounter end={stats.hot} /></Typography></Box></Box>)}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' } }}><Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 2, px: 2, py: 1, border: '1px solid rgba(255,255,255,0.05)', flex: 1, minWidth: { md: 200 } }}><MagnifyingGlass size={20} color="#a0a0c0" /><InputBase placeholder="Search companies..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} sx={{ ml: 1, color: '#fff', fontSize: 14, width: '100%' }} /></Box><Button variant="contained" startIcon={<Plus weight="bold" />} onClick={() => setShowModal(true)} sx={{ bgcolor: '#3b82f6', color: '#fff', textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 3, py: 1, height: 42, whiteSpace: 'nowrap', '&:hover': { bgcolor: '#2563eb' } }}>Create Lead</Button></Box>
+          <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
+            <Typography variant="h5" fontWeight={600}>Company Leads</Typography>
+            <Typography variant="body2" sx={{ color: '#a0a0c0' }}>Manage Corporate Marketing leads</Typography>
+          </Box>
+          {!isMobile && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="caption" sx={{ color: '#a0a0c0', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Total Leads</Typography>
+                <Typography variant="h5" fontWeight={800} sx={{ mt: 0.5 }}><AnimatedCounter end={stats.total} /></Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="caption" sx={{ color: '#a0a0c0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>
+                  <Fire weight="fill" color="#f97316" /> HOT LEADS
+                </Typography>
+                <Typography variant="h5" fontWeight={800} color="#f97316" sx={{ mt: 0.5 }}><AnimatedCounter end={stats.hot} /></Typography>
+              </Box>
+            </Box>
+          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 2, px: 2, py: 1, border: '1px solid rgba(255,255,255,0.05)', flex: 1, minWidth: { md: 200 } }}>
+              <MagnifyingGlass size={20} color="#a0a0c0" />
+              <InputBase placeholder="Search companies..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} sx={{ ml: 1, color: '#fff', fontSize: 14, width: '100%' }} />
+            </Box>
+            <Button variant="contained" startIcon={<Plus weight="bold" />} onClick={() => setShowModal(true)} sx={{ bgcolor: '#3b82f6', color: '#fff', textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 3, py: 1, height: 42, whiteSpace: 'nowrap', '&:hover': { bgcolor: '#2563eb' } }}>
+              Create Lead
+            </Button>
+          </Box>
         </Box>
 
         {/* --- Filters (Dynamic & HIDDEN ON MOBILE) --- */}
@@ -610,7 +657,16 @@ const CorporateLeadinfo = () => {
                         <Box><Chip label={lead.lead_type} size="small" sx={{ height: 22, fontSize: 10, fontWeight: 600, bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} /></Box>
                         <Box><Chip label={lead.lead_priority || 'Medium'} size="small" sx={{ height: 22, fontSize: 10, fontWeight: 600, bgcolor: priorityStyle.bg, color: priorityStyle.text }} /></Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}><Avatar sx={{ width: 32, height: 32, fontSize: 12, fontWeight: 700, bgcolor: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.4)' }}>{getInitials(lead.created_by_name)}</Avatar><Typography variant="body2" fontSize={13} color="#e2e8f0">{lead.created_by_name || "Unknown"}</Typography></Box>
-                        <Box sx={{ textAlign: { xs: 'left', md: 'right' }, pr: { md: 2 } }}><Button onClick={() => handleViewClick(lead.lead_id)} variant="outlined" size="small" sx={{ minWidth: 0, p: '4px 10px', textTransform: 'none', color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.3)', borderRadius: 2, fontSize: 12, '&:hover': { borderColor: '#3b82f6', bgcolor: 'rgba(59, 130, 246, 0.1)' } }}>View</Button></Box>
+                        <Box sx={{ textAlign: { xs: 'left', md: 'right' }, pr: { md: 2 } }}>
+                          <Button 
+                            onClick={() => handleViewClick(lead.lead_id)} 
+                            variant="outlined" 
+                            size="small" 
+                            sx={{ minWidth: 0, p: '4px 10px', textTransform: 'none', color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.3)', borderRadius: 2, fontSize: 12, '&:hover': { borderColor: '#3b82f6', bgcolor: 'rgba(59, 130, 246, 0.1)' } }}
+                          >
+                            View
+                          </Button>
+                        </Box>
                     </Box>
                 )
              })}

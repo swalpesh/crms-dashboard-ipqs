@@ -1,539 +1,485 @@
-// src/pages/marketing/AssociateMyTeam.jsx
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Box, Avatar, Typography, Badge, Chip, 
+  Tabs, Tab, InputBase, IconButton, Stack, 
+  Collapse, Dialog, DialogContent, 
+  Divider, CircularProgress, Alert, Snackbar,
+  keyframes, useTheme
+} from '@mui/material';
+import { 
+  Search, ExpandMore, Map, 
+  Business, Person, LocationOn, Close,
+  FiberManualRecord, CalendarToday,
+  Call, Email
+} from '@mui/icons-material';
 
-import {
-  Avatar,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  GlobalStyles,
-  Grid,
-  IconButton,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Paper,
-  Select,
-  Stack,
-  TextField,
-  Typography,
-  useMediaQuery,
-  useTheme,
-  Checkbox,
-  CircularProgress,
-} from "@mui/material";
-import Groups2OutlinedIcon from "@mui/icons-material/Groups2Outlined";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
-import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import RefreshIcon from "@mui/icons-material/Refresh";
-
-import { useMemo, useRef, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-
-/* ----------------------------- helpers ----------------------------- */
+// --- API HELPERS ---
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-const getToken = () =>
-  localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-const initials = (name = "") =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase())
-    .join("");
+// --- ANIMATIONS ---
+const liquidMove = keyframes`
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); border-radius: 40% 60% 50% 50% / 50% 50% 60% 40%; }
+  50% { transform: translate(20px, 20px) rotate(10deg) scale(1.1); border-radius: 50% 50% 20% 80% / 25% 80% 20% 75%; }
+  100% { transform: translate(-20px, -10px) rotate(-5deg) scale(0.9); border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+`;
 
-const mapLead = (api) => ({
-  id: api.lead_id,
-  title: api.lead_name || api.company_name || api.lead_requirement || api.lead_id,
-  company: api.company_name || "",
-  requirement: api.lead_requirement || "",
-  assigned_employee: api.assigned_employee ?? "0",
-});
+const slideUpFade = keyframes`
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
 
-/* ------------------------------ page ------------------------------- */
-export default function AssociateMyTeam() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const navigate = useNavigate();
+// --- THEME CONSTANTS ---
+const themeColors = {
+  bgDark: '#0f0c29',
+  glassBg: 'rgba(255, 255, 255, 0.03)',
+  glassBorder: '1px solid rgba(255, 255, 255, 0.08)',
+  textPrimary: '#ffffff',
+  textSecondary: 'rgba(255, 255, 255, 0.6)',
+  accentBlue: '#3b82f6',
+  accentPurple: '#8b5cf6',
+  statusRed: '#ef4444',
+  statusYellow: '#f59e0b',
+  statusGreen: '#10b981',
+};
 
-  const [loading, setLoading] = useState(false);
-  const [team, setTeam] = useState([]);
-  const [buckets, setBuckets] = useState({ unassigned: [] });
-  const [error, setError] = useState("");
+// --- STYLES CONSTANTS ---
+const pageStyle = {
+  minHeight: '100vh',
+  width: '100%',
+  position: 'relative',
+  overflowX: 'hidden',
+  background: themeColors.bgDark,
+  backgroundImage: `
+    radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.25) 0%, transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(37, 99, 235, 0.2) 0%, transparent 50%)
+  `,
+  color: themeColors.textPrimary,
+  fontFamily: "'Inter', sans-serif",
+  p: { xs: 2, md: 4 },
+};
 
-  /* ---------------- Fetch team + leads ---------------- */
-  async function fetchTeam() {
-    const token = getToken();
-    if (!token) return;
+const orbStyle = {
+  position: 'fixed',
+  borderRadius: '50%',
+  filter: 'blur(80px)',
+  zIndex: 0,
+  animation: `${liquidMove} 10s infinite ease-in-out`,
+};
 
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/aleads/associatemarketing/all-leads`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.message || "Failed to fetch team");
+const glassPanelStyle = {
+  background: themeColors.glassBg,
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: themeColors.glassBorder,
+  borderRadius: '24px',
+  display: 'flex',
+  flexDirection: 'column',
+  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
+  height: '100%',
+  overflow: 'hidden'
+};
 
-      // handle flexible keys (associateEmployees, employees, data)
-      const employees =
-        json.employees || json.associateEmployees || json.data?.employees || [];
-      const unassignedLeads =
-        json.unassigned_leads || json.unassignedLeads || json.data?.unassigned_leads || [];
+const inputStyle = {
+  width: '100%',
+  p: '8px 16px',
+  borderRadius: '16px',
+  bgcolor: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.1)',
+  color: '#fff',
+  transition: '0.3s',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 1,
+  '&:hover': { border: '1px solid rgba(255,255,255,0.3)' },
+  '&:focus-within': { border: `1px solid ${themeColors.accentBlue}`, boxShadow: `0 0 15px ${themeColors.accentBlue}33` },
+  '& input': { color: '#fff', fontSize: '0.95rem' }
+};
 
-      const nextTeam = employees.map((e) => ({
-        id: e.employee_id || e.id,
-        name: e.username || e.name || e.email,
-        role: e.role_id || e.role_name || "",
-        email: e.email || "",
-      }));
+// --- MAP DIALOG COMPONENT ---
+const MapDialog = ({ open, onClose, location }) => {
+  const cleanLocation = location ? location.replace(/° [N|S|E|W]/g, '') : '';
 
-      const nextBuckets = { unassigned: unassignedLeads.map(mapLead) };
-      nextTeam.forEach((t) => (nextBuckets[t.id] = []));
-
-      employees.forEach((emp) => {
-        const leads = emp.leads || emp.assigned_leads || [];
-        leads.forEach((L) => {
-          const mapped = mapLead(L);
-          const eid = emp.employee_id || emp.id;
-          if (nextBuckets[eid]) nextBuckets[eid].push(mapped);
-        });
-      });
-
-      setTeam(nextTeam);
-      setBuckets(nextBuckets);
-    } catch (e) {
-      console.error(e);
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchTeam();
-  }, []);
-
-  const totalLeads = useMemo(
-    () => Object.values(buckets).flat().length,
-    [buckets]
-  );
-
-  /* ---------------- Search teammates ---------------- */
-  const [qEmp, setQEmp] = useState("");
-  const filteredTeam = useMemo(() => {
-    const q = qEmp.trim().toLowerCase();
-    if (!q) return team;
-    return team.filter((m) =>
-      [m.name, m.role, m.email].join(" ").toLowerCase().includes(q)
-    );
-  }, [team, qEmp]);
-
-  /* ---------------- Drag & Drop ---------------- */
-  const dragRef = useRef(null);
-  const [highlight, setHighlight] = useState("");
-  const [draggingId, setDraggingId] = useState(null);
-  const [confirmBack, setConfirmBack] = useState(null);
-
-  const onDragStart = (leadId, fromKey) => (e) => {
-    dragRef.current = { leadId, fromKey };
-    setDraggingId(leadId);
-    e.dataTransfer?.setData("text/plain", leadId);
-  };
-
-  const onDragEnd = () => {
-    dragRef.current = null;
-    setDraggingId(null);
-    setHighlight("");
-  };
-
-  const applyMove = ({ leadId, fromKey, toKey }) => {
-    if (fromKey === toKey) return;
-    setBuckets((prev) => {
-      const src = prev[fromKey] || [];
-      const dst = prev[toKey] || [];
-      const idx = src.findIndex((l) => l.id === leadId);
-      if (idx === -1) return prev;
-      const lead = src[idx];
-      return {
-        ...prev,
-        [fromKey]: [...src.slice(0, idx), ...src.slice(idx + 1)],
-        [toKey]: [...dst, lead],
-      };
-    });
-  };
-
-  async function apiAssignLead(leadId, empId) {
-    const token = getToken();
-    const res = await fetch(`${API_BASE_URL}/api/aleads/assign`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ lead_id: leadId, assigned_employee: empId }),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.message || "Failed to assign lead");
-  }
-
-  const doServerMove = async ({ leadId, fromKey, toKey }) => {
-    applyMove({ leadId, fromKey, toKey });
-    try {
-      await apiAssignLead(leadId, toKey === "unassigned" ? "0" : toKey);
-      fetchTeam();
-    } catch (e) {
-      console.error(e);
-      setError(e.message);
-      applyMove({ leadId, fromKey: toKey, toKey: fromKey });
-    }
-  };
-
-  const onDropTo = (toKey) => (e) => {
-    e.preventDefault();
-    const info = dragRef.current;
-    if (!info) return;
-    const { leadId, fromKey } = info;
-    const isBack = fromKey !== "unassigned" && toKey === "unassigned";
-    if (isBack) setConfirmBack({ leadId, fromKey, toKey });
-    else doServerMove({ leadId, fromKey, toKey });
-    onDragEnd();
-  };
-
-  /* ---------------- Assign Modal ---------------- */
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [assignEmpId, setAssignEmpId] = useState("");
-  const [assignLeadIds, setAssignLeadIds] = useState([]);
-  const unassigned = buckets.unassigned || [];
-
-  const resetAssign = () => {
-    setAssignOpen(false);
-    setAssignEmpId("");
-    setAssignLeadIds([]);
-  };
-
-  const saveAssign = async () => {
-    try {
-      await Promise.all(
-        assignLeadIds.map((id) => apiAssignLead(id, assignEmpId))
-      );
-      fetchTeam();
-      resetAssign();
-    } catch (e) {
-      console.error(e);
-      setError(e.message);
-    }
-  };
-
-  const goToLead = (id) => navigate(`/marketing/lead/${encodeURIComponent(id)}`);
-
-  /* ---------------- UI ---------------- */
   return (
-    <Box>
-      <GlobalStyles
-        styles={{
-          ":root": { "--card-r": "16px" },
-          body: { fontFamily: "Inter, system-ui, sans-serif" },
-        }}
-      />
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      maxWidth="md" 
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '24px',
+          bgcolor: '#1a1625',
+          backgroundImage: 'linear-gradient(to bottom right, #1a1625, #0f0c29)',
+          border: themeColors.glassBorder,
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+        }
+      }}
+    >
+      <Box sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: themeColors.glassBorder }}>
+        <Box display="flex" alignItems="center" gap={1.5}>
+          <LocationOn sx={{ color: themeColors.statusGreen }} />
+          <Typography variant="h6" color="white" fontWeight={600}>Location View</Typography>
+        </Box>
+        <IconButton onClick={onClose} sx={{ color: 'grey.500', '&:hover': { color: 'white' } }}>
+          <Close />
+        </IconButton>
+      </Box>
+      <DialogContent sx={{ p: 0, height: '450px', bgcolor: '#000', position: 'relative' }}>
+        <iframe 
+          width="100%" 
+          height="100%" 
+          frameBorder="0" 
+          style={{ border: 0, opacity: 0.85, filter: 'contrast(1.1) saturate(1.1)' }}
+          src={`https://maps.google.com/maps?q=${encodeURIComponent(cleanLocation)}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+          title="Map Location"
+        />
+      </DialogContent>
+    </Dialog>
+  );
+};
 
-      <Box
-        sx={{
-          mb: 2,
-          display: "flex",
-          alignItems: "center",
-          gap: 1.25,
-          flexWrap: "wrap",
-        }}
-      >
-        <Typography sx={{ fontSize: { xs: 20, md: 24 }, fontWeight: 800 }}>
-          Associate • My Team
-        </Typography>
-        <Chip label={`${team.length} members`} />
-        <Chip
-          color="primary"
-          variant="outlined"
-          label={`${totalLeads} total leads`}
-        />
-        <TextField
-          size="small"
-          placeholder="Search teammate"
-          value={qEmp}
-          onChange={(e) => setQEmp(e.target.value)}
-          sx={{ ml: "auto", width: { xs: "100%", md: 300 } }}
-        />
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={fetchTeam}
-        >
-          Refresh
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<AssignmentTurnedInOutlinedIcon />}
-          onClick={() => setAssignOpen(true)}
-        >
-          Assign Leads
-        </Button>
+// --- LEAD ITEM (ACCORDION) ---
+const LeadItem = ({ lead, onMapClick }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  // Helper to format Date & Time
+  const formatDateTime = (dateString, timeString) => {
+    if (!dateString) return "Pending";
+    const d = new Date(dateString);
+    if (timeString) {
+        const [hours, minutes] = timeString.split(':');
+        d.setHours(hours);
+        d.setMinutes(minutes);
+    }
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  const getStatusColor = (status) => {
+    const s = status?.toLowerCase();
+    if (s === 'completed') return themeColors.statusGreen;
+    if (s === 'pending' || s === 'started') return themeColors.accentBlue;
+    return themeColors.textSecondary; // Grey for pending/new
+  };
+
+  const statusColor = getStatusColor(lead.associate_lead_visit_status);
+  const isStarted = lead.associate_lead_visit_status === 'Pending' || lead.associate_lead_visit_status === 'Started';
+  const isCompleted = lead.associate_lead_visit_status === 'Completed';
+
+  const timelineData = [
+    { label: "Assigned", time: formatDateTime(lead.associate_visit_date, lead.associate_visit_time), completed: true, showMap: false },
+    { label: "Visit Started", time: isStarted ? "On Site" : "Pending", completed: isStarted, showMap: isStarted && lead.associate_visit_start_location },
+    { label: "Completed", time: isCompleted && lead.associate_visit_complete_time ? formatDateTime(lead.associate_visit_complete_time) : "Pending", completed: isCompleted, showMap: false }
+  ];
+
+  return (
+    <Box sx={{ 
+      mb: 2, 
+      borderRadius: '16px', 
+      bgcolor: expanded ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)', 
+      border: `1px solid ${expanded ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.05)'}`, 
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.15)' }
+    }}>
+      
+      {/* Header */}
+      <Box sx={{ p: 2, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => setExpanded(!expanded)}>
+        <Stack direction="row" spacing={2} alignItems="center" overflow="hidden">
+            <Avatar sx={{ 
+                bgcolor: 'rgba(255,255,255,0.05)', color: statusColor, 
+                width: 42, height: 42, borderRadius: '12px',
+                border: `1px solid ${statusColor}44` 
+            }}>
+                <Business sx={{ fontSize: 20 }} />
+            </Avatar>
+            <Box overflow="hidden">
+                <Typography variant="body2" fontWeight="700" color="white" noWrap sx={{ letterSpacing: 0.5 }}>
+                    {lead.company_name || lead.lead_name || 'Unknown Company'}
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ opacity: 0.7 }}>
+                   <Person sx={{ fontSize: 12 }} />
+                   <Typography variant="caption" noWrap>{lead.contact_person_name || 'N/A'}</Typography>
+                   <Divider orientation="vertical" flexItem sx={{ bgcolor: 'rgba(255,255,255,0.3)', height: 10, my: 'auto' }} />
+                   <Call sx={{ fontSize: 12 }} />
+                   <Typography variant="caption" noWrap>{lead.contact_person_phone || 'N/A'}</Typography>
+                </Stack>
+            </Box>
+        </Stack>
+
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip 
+            label={lead.associate_lead_visit_status || 'Pending'} 
+            size="small" 
+            sx={{ 
+                bgcolor: expanded ? statusColor : `${statusColor}22`, 
+                color: expanded ? '#000' : statusColor, 
+                border: expanded ? 'none' : `1px solid ${statusColor}44`, 
+                fontSize: '0.65rem', fontWeight: '800', height: 22, textTransform: 'uppercase', letterSpacing: 0.5 
+            }} 
+          />
+          <IconButton size="small" sx={{ color: 'rgba(255,255,255,0.5)', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.3s' }}>
+            <ExpandMore fontSize="small" />
+          </IconButton>
+        </Stack>
       </Box>
 
-      {loading ? (
-        <Stack alignItems="center" sx={{ py: 6 }}>
-          <CircularProgress size={28} />
-        </Stack>
-      ) : (
-        <Grid container spacing={2.5}>
-          {/* Employees */}
-          <Grid item xs={12} md={7}>
-            <Stack spacing={2.5}>
-              {filteredTeam.map((emp) => {
-                const leads = buckets[emp.id] || [];
-                return (
-                  <Paper
-                    key={emp.id}
-                    elevation={0}
-                    sx={{
-                      borderRadius: 3,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      p: 2,
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      justifyContent="space-between"
-                      alignItems="center"
-                    >
-                      <Stack direction="row" spacing={1.25} alignItems="center">
-                        <Avatar>{initials(emp.name)}</Avatar>
-                        <Box>
-                          <Typography fontWeight={800}>{emp.name}</Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {emp.role} {emp.email && `• ${emp.email}`}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                      <Chip
-                        label={`${leads.length} leads`}
-                        color="primary"
-                        variant="outlined"
-                      />
-                    </Stack>
-
-                    <Box
-                      sx={{ mt: 2, display: "grid", gap: 1 }}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={onDropTo(emp.id)}
-                    >
-                      {leads.map((lead) => (
-                        <Paper
-                          key={lead.id}
-                          draggable
-                          onDragStart={onDragStart(lead.id, emp.id)}
-                          onDragEnd={onDragEnd}
-                          sx={{
-                            p: 1.5,
-                            border: "1px solid",
-                            borderColor: "divider",
-                            borderRadius: 2,
-                            cursor: "grab",
-                          }}
-                        >
-                          <Stack direction="row" spacing={1.25} alignItems="center">
-                            <Avatar sx={{ width: 34, height: 34 }}>
-                              {initials(lead.company)}
-                            </Avatar>
-                            <Box sx={{ flex: 1 }}>
-                              <Typography fontWeight={700} noWrap>
-                                {lead.title}
-                              </Typography>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                noWrap
-                              >
-                                {lead.company}
-                              </Typography>
-                            </Box>
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              noWrap
-                            >
-                              {lead.requirement}
-                            </Typography>
-                            <IconButton size="small" onClick={() => goToLead(lead.id)}>
-                              <VisibilityOutlinedIcon fontSize="small" />
-                            </IconButton>
-                          </Stack>
-                        </Paper>
-                      ))}
-                      {leads.length === 0 && (
-                        <Box
-                          sx={{
-                            py: 3,
-                            textAlign: "center",
-                            color: "text.secondary",
-                            border: "1px dashed",
-                            borderColor: "divider",
-                            borderRadius: 2,
-                          }}
-                        >
-                          No leads assigned — drop from right to assign.
-                        </Box>
-                      )}
-                    </Box>
-                  </Paper>
-                );
-              })}
-            </Stack>
-          </Grid>
-
-          {/* Unassigned */}
-          <Grid item xs={12} md={5}>
-            <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", p: 2 }}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Groups2OutlinedIcon />
-                <Typography fontWeight={800}>Unassigned Leads</Typography>
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                {unassigned.length} leads waiting
-              </Typography>
-
-              <Box
-                sx={{ mt: 2, display: "grid", gap: 1 }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={onDropTo("unassigned")}
-              >
-                {unassigned.map((lead) => (
-                  <Paper
-                    key={lead.id}
-                    draggable
-                    onDragStart={onDragStart(lead.id, "unassigned")}
-                    onDragEnd={onDragEnd}
-                    sx={{
-                      p: 1.5,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 2,
-                      cursor: "grab",
-                    }}
-                  >
-                    <Stack direction="row" spacing={1.25} alignItems="center">
-                      <Avatar sx={{ width: 34, height: 34 }}>
-                        {initials(lead.company)}
-                      </Avatar>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography fontWeight={700} noWrap>
-                          {lead.title}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          noWrap
-                        >
-                          {lead.company}
-                        </Typography>
-                      </Box>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        noWrap
-                      >
-                        {lead.requirement}
-                      </Typography>
-                      <IconButton size="small" onClick={() => goToLead(lead.id)}>
-                        <VisibilityOutlinedIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  </Paper>
-                ))}
-                {unassigned.length === 0 && (
-                  <Box
-                    sx={{
-                      py: 3,
-                      textAlign: "center",
-                      border: "1px dashed",
-                      borderColor: "divider",
-                      borderRadius: 2,
-                      color: "text.secondary",
-                    }}
-                  >
-                    All good — nothing unassigned.
-                  </Box>
+      {/* Expanded Timeline */}
+      <Collapse in={expanded} timeout="auto" unmountOnExit>
+        <Box sx={{ p: 2, pt: 1, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <Box sx={{ mt: 1, pl: 1 }}>
+            {timelineData.map((event, idx) => (
+              <Box key={idx} sx={{ position: 'relative', pb: idx === timelineData.length - 1 ? 0 : 3 }}>
+                
+                {/* Connecting Line */}
+                {idx !== timelineData.length - 1 && (
+                  <Box sx={{ 
+                    position: 'absolute', left: 7, top: 20, bottom: 0, width: 2, 
+                    background: event.completed ? `linear-gradient(to bottom, ${themeColors.accentBlue}, ${themeColors.accentPurple})` : 'rgba(255,255,255,0.1)',
+                    borderRadius: 1
+                  }} />
                 )}
+
+                <Stack direction="row" spacing={2} alignItems="flex-start">
+                  <FiberManualRecord sx={{ 
+                    fontSize: 16, 
+                    color: event.completed ? themeColors.accentBlue : 'rgba(255,255,255,0.2)', 
+                    mt: 0.5, zIndex: 1,
+                    filter: event.completed ? `drop-shadow(0 0 5px ${themeColors.accentBlue})` : 'none'
+                  }} />
+                  
+                  <Box flexGrow={1}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Box>
+                            <Typography variant="body2" color={event.completed ? "white" : "rgba(255,255,255,0.5)"} fontWeight={event.completed ? 600 : 400}>
+                                {event.label}
+                            </Typography>
+                            <Typography variant="caption" color="rgba(255,255,255,0.4)" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <CalendarToday sx={{ fontSize: 12 }} /> {event.time}
+                            </Typography>
+                        </Box>
+                        
+                        {event.showMap && (
+                            <IconButton 
+                                size="small" 
+                                onClick={(e) => { e.stopPropagation(); onMapClick(lead.associate_visit_start_location); }}
+                                sx={{ 
+                                    color: '#fff', 
+                                    bgcolor: themeColors.accentBlue, 
+                                    boxShadow: `0 0 15px ${themeColors.accentBlue}66`,
+                                    '&:hover': { bgcolor: themeColors.accentPurple }
+                                }}
+                            >
+                                <Map fontSize="small" />
+                            </IconButton>
+                        )}
+                    </Stack>
+                  </Box>
+                </Stack>
               </Box>
-            </Paper>
-          </Grid>
-        </Grid>
-      )}
-
-      {/* Assign Modal */}
-      <Dialog open={assignOpen} onClose={resetAssign} maxWidth="sm" fullWidth>
-        <DialogTitle>Assign Leads</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-            Choose Employee
-          </Typography>
-          <Select
-            fullWidth
-            size="small"
-            value={assignEmpId}
-            onChange={(e) => setAssignEmpId(e.target.value)}
-            sx={{ my: 1 }}
-          >
-            {team.map((t) => (
-              <MenuItem key={t.id} value={t.id}>
-                {t.name} ({t.role})
-              </MenuItem>
             ))}
-          </Select>
+          </Box>
+        </Box>
+      </Collapse>
+    </Box>
+  );
+};
 
-          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-            Select Leads
-          </Typography>
-          <Select
-            fullWidth
-            multiple
-            size="small"
-            value={assignLeadIds}
-            onChange={(e) =>
-              setAssignLeadIds(
-                typeof e.target.value === "string"
-                  ? e.target.value.split(",")
-                  : e.target.value
-              )
-            }
+// --- TEAM CARD COMPONENT ---
+const TeamCard = ({ employee }) => {
+  const [mapOpen, setMapOpen] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState('');
+
+  const handleOpenMap = (location) => {
+    setSelectedLocation(location);
+    setMapOpen(true);
+  };
+
+  const isInactive = !employee.leads || employee.leads.length === 0;
+  const statusLabel = isInactive ? "NO LEADS" : "ACTIVE";
+  const statusColor = isInactive ? themeColors.textSecondary : themeColors.statusGreen;
+
+  return (
+    <>
+      <Box sx={glassPanelStyle}>
+        {/* Card Header */}
+        <Box sx={{ p: 2.5, borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Badge 
+              overlap="circular" 
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} 
+              variant="dot" 
+              sx={{ '& .MuiBadge-badge': { backgroundColor: statusColor, boxShadow: `0 0 10px ${statusColor}` } }}
+            >
+              <Avatar sx={{ 
+                width: 56, height: 56, 
+                background: 'linear-gradient(135deg, #2d2438 0%, #1f1a28 100%)', 
+                border: '1px solid rgba(255,255,255,0.2)',
+                fontSize: '1.2rem', fontWeight: 700
+              }}>
+                {(employee.employee_name || employee.username || employee.email || 'U').charAt(0).toUpperCase()}
+              </Avatar>
+            </Badge>
+            <Box flexGrow={1} overflow="hidden">
+              <Typography variant="h6" fontWeight="bold" color="white" noWrap sx={{ fontSize: '1.1rem', letterSpacing: 0.5 }}>
+                {(employee.employee_name || employee.username || employee.email || 'Unknown').split('@')[0]}
+              </Typography>
+              <Typography variant="caption" color="rgba(255,255,255,0.5)" display="block" noWrap sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
+                {(employee.role_id || 'Associate Employee').replace(/-/g, ' ')}
+              </Typography>
+            </Box>
+            <Chip 
+                label={statusLabel} 
+                size="small" 
+                sx={{ 
+                  bgcolor: isInactive ? 'rgba(255,255,255,0.1)' : 'rgba(16, 185, 129, 0.15)', 
+                  color: isInactive ? 'rgba(255,255,255,0.5)' : themeColors.statusGreen, 
+                  fontWeight: '800', 
+                  border: isInactive ? '1px solid rgba(255,255,255,0.1)' : `1px solid ${themeColors.statusGreen}44`,
+                  fontSize: '0.7rem'
+                }} 
+            />
+          </Stack>
+        </Box>
+
+        {/* Scrollable Leads List */}
+        <Box sx={{ 
+            p: 2, flexGrow: 1, maxHeight: 500, overflowY: 'auto',
+            '&::-webkit-scrollbar': { width: '4px' }, 
+            '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '4px' } 
+        }}>
+          {employee.leads && employee.leads.length > 0 ? (
+            employee.leads.map(lead => (
+              <LeadItem key={lead.lead_id} lead={lead} onMapClick={handleOpenMap} />
+            ))
+          ) : (
+            <Box textAlign="center" py={6} sx={{ opacity: 0.5 }}>
+                <Typography variant="body2" color="white" fontStyle="italic">No leads assigned currently.</Typography>
+            </Box>
+          )}
+        </Box>
+      </Box>
+
+      <MapDialog open={mapOpen} onClose={() => setMapOpen(false)} location={selectedLocation} />
+    </>
+  );
+};
+
+// --- MAIN PAGE ---
+export default function TeamOverview() {
+  const [tab, setTab] = useState(0);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [toast, setToast] = useState({ open: false, message: '', severity: 'info' });
+
+  // Fetch Data on Tab Change or Mount
+  useEffect(() => {
+    const fetchTeamData = async () => {
+      setLoading(true);
+      try {
+        const token = getToken();
+        if (!token) throw new Error("Authentication token missing");
+
+        const endpoint = tab === 0 
+            ? `${API_BASE_URL}/api/aleads/associatemarketing/todays-all-visits`
+            : `${API_BASE_URL}/api/aleads/associatemarketing/all-leads`;
+
+        const response = await fetch(endpoint, {
+            method: "GET",
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch team data");
+
+        const data = await response.json();
+        setEmployees(data.employees || []);
+
+      } catch (err) {
+        console.error("API Error:", err);
+        setToast({ open: true, message: "Error loading team data", severity: "error" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeamData();
+  }, [tab]); 
+
+  // Safely filter employees protecting against null/undefined fields mapping API keys dynamically
+  const filteredEmployees = employees.filter(emp => 
+    (emp.employee_name || emp.username || emp.email || "").toLowerCase().includes(search.toLowerCase()) ||
+    (emp.leads && emp.leads.some(l => (l.company_name || l.lead_name || "").toLowerCase().includes(search.toLowerCase())))
+  );
+
+  return (
+    <Box sx={pageStyle}>
+      {/* Background Orbs */}
+      <Box sx={{ ...orbStyle, width: '600px', height: '600px', background: 'rgba(59, 130, 246, 0.15)', top: '-10%', left: '-10%', animation: `${liquidMove} 15s infinite alternate` }} />
+      <Box sx={{ ...orbStyle, width: '500px', height: '500px', background: 'rgba(139, 92, 246, 0.15)', bottom: '-10%', right: '-5%', animation: `${liquidMove} 20s infinite alternate-reverse` }} />
+
+      <Box maxWidth="xl" sx={{ mx: 'auto', position: 'relative', zIndex: 1, animation: `${slideUpFade} 0.8s ease-out` }}>
+        
+        {/* Header */}
+        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems="flex-end" mb={5} spacing={3}>
+          <Box>
+            <Typography variant="h4" fontWeight="800" sx={{ background: 'linear-gradient(to right, #fff, #a5b4fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>
+              Team Overview
+            </Typography>
+            <Typography variant="body1" color={themeColors.textSecondary} sx={{ mt: 0.5 }}>
+              Monitor Associate employees and their assigned tasks in real-time
+            </Typography>
+          </Box>
+
+          <Box sx={inputStyle} maxWidth={{ xs: '100%', md: 350 }}>
+            <Search sx={{ color: 'rgba(255,255,255,0.5)' }} />
+            <InputBase 
+                placeholder="Search employee or company..." 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                sx={{ color: '#fff', width: '100%' }}
+            />
+          </Box>
+        </Stack>
+
+        {/* Tabs */}
+        <Box sx={{ borderBottom: 1, borderColor: 'rgba(255,255,255,0.1)', mb: 4 }}>
+          <Tabs 
+            value={tab} 
+            onChange={(e, v) => setTab(v)} 
+            sx={{ 
+                '& .MuiTabs-indicator': { backgroundColor: themeColors.accentBlue, height: 3, borderRadius: '3px 3px 0 0' },
+                '& .MuiTab-root': { 
+                    color: 'rgba(255,255,255,0.5)', 
+                    fontWeight: 600, 
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    '&.Mui-selected': { color: '#fff' } 
+                } 
+            }}
           >
-            {unassigned.map((u) => (
-              <MenuItem key={u.id} value={u.id}>
-                <Checkbox checked={assignLeadIds.includes(u.id)} />
-                <ListItemText
-                  primary={u.title}
-                  secondary={`${u.company} • ${u.requirement}`}
-                />
-              </MenuItem>
+            <Tab label="Today's Visits" disableRipple />
+            <Tab label="All Assigned Visits" disableRipple />
+          </Tabs>
+        </Box>
+
+        {/* Content */}
+        {loading ? (
+            <Box display="flex" justifyContent="center" mt={10}><CircularProgress sx={{ color: themeColors.accentBlue }} /></Box>
+        ) : (
+            <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' }} gap={4} alignItems="start">
+            {filteredEmployees.map(emp => (
+                <TeamCard key={emp.employee_id || emp.email} employee={emp} />
             ))}
-          </Select>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={resetAssign}>Cancel</Button>
-          <Button
-            onClick={saveAssign}
-            variant="contained"
-            disabled={!assignEmpId || assignLeadIds.length === 0}
-          >
-            Assign
-          </Button>
-        </DialogActions>
-      </Dialog>
+            </Box>
+        )}
+
+      </Box>
+      
+      <Snackbar open={toast.open} autoHideDuration={6000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} sx={{ borderRadius: '12px', width: '100%', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }} variant="filled">
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

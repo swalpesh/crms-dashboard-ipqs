@@ -55,6 +55,7 @@ import CorporateMyTeam from "./pages/marketing/CorporateMyTeam.jsx";
 import CorporateFollowUps from "./pages/marketing/CorporateFollowUps.jsx";
 import CorporateLeadinfo from "./pages/marketing/CorporateLeadinfo.jsx";
 import CorporateLeadManager from "./pages/marketing/CorporateLeadManager.jsx";
+import CorporateMyActivity from "./pages/marketing/CorporateMyActivity.jsx";
 
 // Associate
 import AssociateDashboard from "./pages/marketing/AssociateDashboard.jsx";
@@ -63,6 +64,7 @@ import AssociateMyTeam from "./pages/marketing/AssociateMyTeam.jsx";
 import AssociateFollowUps from "./pages/marketing/AssociateFollowUps.jsx";
 import AssociateLeadinfo from "./pages/marketing/AssociateLeadinfo.jsx";
 import AssociateLeadManager from "./pages/marketing/AssociateLeadmanager.jsx";
+import AssociateMyActivity from "./pages/marketing/AssociateMyactivity.jsx";
 
 // Technical
 import TechnicalDashboard from "./pages/marketing/TechnicalDashboard.jsx";
@@ -313,6 +315,7 @@ export default function App() {
               <Route element={<RequireDeptAccess slug="associate" />}>
                 <Route path="associate/dashboard" element={<AssociateDashboard />} />
                 <Route path="associate/leads" element={<AssociateLeads />} />
+                <Route path="associate/my-activity" element={<AssociateMyActivity />} />
                 <Route element={<RequireHead redirectTo="/marketing/associate/dashboard" />}>
 
                   <Route path="associate/my-team" element={<AssociateMyTeam />} />
@@ -326,6 +329,7 @@ export default function App() {
               <Route element={<RequireDeptAccess slug="corporate" />}>
                 <Route path="corporate/dashboard" element={<CorporateDashboard />} />
                 <Route path="corporate/leads" element={<CorporateLeads />} />
+                <Route path="corporate/my-activity" element={<CorporateMyActivity />} />
                 <Route element={<RequireHead redirectTo="/marketing/corporate/dashboard" />}>
                   <Route path="corporate/my-team" element={<CorporateMyTeam />} />
                 </Route>
