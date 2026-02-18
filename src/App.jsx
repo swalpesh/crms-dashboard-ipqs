@@ -55,6 +55,7 @@ import CorporateMyTeam from "./pages/marketing/CorporateMyTeam.jsx";
 import CorporateFollowUps from "./pages/marketing/CorporateFollowUps.jsx";
 import CorporateLeadinfo from "./pages/marketing/CorporateLeadinfo.jsx";
 import CorporateLeadManager from "./pages/marketing/CorporateLeadManager.jsx";
+import CorporateMyActivity from "./pages/marketing/CorporateMyActivity.jsx";
 
 // Associate
 import AssociateDashboard from "./pages/marketing/AssociateDashboard.jsx";
@@ -328,6 +329,7 @@ export default function App() {
               <Route element={<RequireDeptAccess slug="corporate" />}>
                 <Route path="corporate/dashboard" element={<CorporateDashboard />} />
                 <Route path="corporate/leads" element={<CorporateLeads />} />
+                <Route path="corporate/my-activity" element={<CorporateMyActivity />} />
                 <Route element={<RequireHead redirectTo="/marketing/corporate/dashboard" />}>
                   <Route path="corporate/my-team" element={<CorporateMyTeam />} />
                 </Route>
