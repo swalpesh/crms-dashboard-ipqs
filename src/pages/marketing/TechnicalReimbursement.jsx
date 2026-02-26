@@ -61,7 +61,12 @@ import {
 // --- API HELPERS ---
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
-const EMPLOYEE_ID = "IPQS-H25010"; // Placeholder ID
+const getAuthRole = () => localStorage.getItem("auth_role") || sessionStorage.getItem("auth_role");
+
+const getAuthUser = () => {
+  const userStr = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
+  try { return userStr ? JSON.parse(userStr) : null; } catch (e) { return null; }
+};
 
 // --- ANIMATIONS ---
 const float = keyframes`
@@ -229,7 +234,7 @@ const TripMapDialog = ({ open, onClose, trip }) => {
                 height="100%" 
                 frameBorder="0" 
                 style={{ border: 0, opacity: 0.8, filter: 'grayscale(20%) contrast(1.2)' }}
-                src={`https://maps.google.com/maps?q=${encodeURIComponent(activeExpense.coords)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(activeExpense.coords.replace(/° [N|S|E|W]/g, ''))}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                 title="Map Location"
             />
             <Box sx={{ position: 'absolute', bottom: 30, right: 30, width: 300, bgcolor: 'rgba(15, 12, 41, 0.9)', backdropFilter: 'blur(16px)', p: 2.5, borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
@@ -265,21 +270,28 @@ const TripMapDialog = ({ open, onClose, trip }) => {
 };
 
 // --- SINGLE EXPENSE MAP DIALOG ---
-const SingleMapDialog = ({ open, onClose, location }) => (
+const SingleMapDialog = ({ open, onClose, location }) => {
+  const cleanLocation = location ? location.replace(/° [N|S|E|W]/g, '') : '';
+  return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: '20px', bgcolor: '#1a1625', border: '1px solid rgba(255,255,255,0.1)' } }}>
       <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <Box display="flex" alignItems="center" gap={1}><LocationIcon sx={{ color: '#10b981' }} /><Typography variant="h6" color="white">Expense Location</Typography></Box>
         <IconButton onClick={onClose} sx={{ color: 'grey.500' }}><CloseIcon /></IconButton>
       </Box>
       <DialogContent sx={{ p: 0, height: '400px', bgcolor: '#000' }}>
-        <iframe width="100%" height="100%" frameBorder="0" style={{ border: 0, opacity: 0.8 }} src={`https://maps.google.com/maps?q=${encodeURIComponent(location)}&t=&z=14&ie=UTF8&iwloc=&output=embed`} title="Map Location" />
+        <iframe width="100%" height="100%" frameBorder="0" style={{ border: 0, opacity: 0.8 }} src={`https://maps.google.com/maps?q=${encodeURIComponent(cleanLocation)}&t=&z=14&ie=UTF8&iwloc=&output=embed`} title="Map Location" />
       </DialogContent>
     </Dialog>
-);
+  );
+};
 
 const TechnicalReimbursement = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const currentUser = getAuthUser();
+  const EMPLOYEE_ID = currentUser?.employee_id || ""; 
+  const role = getAuthRole() || "";
 
   // --- State ---
   const [reimbursements, setReimbursements] = useState([]);
@@ -325,7 +337,6 @@ const TechnicalReimbursement = () => {
 
       if (!response.ok) throw new Error("Failed to fetch reimbursements");
       const data = await response.json();
-      // Expecting { data: [ { company_name, expenses: [] }, ... ] }
       setReimbursements(data.data || []);
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -338,20 +349,31 @@ const TechnicalReimbursement = () => {
   // Initial Fetch
   useEffect(() => {
     fetchReimbursements();
-  }, []);
+  }, [EMPLOYEE_ID]);
 
   // --- CALCULATE SUMMARY TOTALS ---
   const totalExpenseAmount = reimbursements.reduce((acc, curr) => acc + (parseFloat(curr.total_claimed_amount) || 0), 0);
   const totalReceivedAmount = 0; // Hardcoded as requested
   const totalRemainingAmount = totalExpenseAmount - totalReceivedAmount;
 
-  // --- FETCH COMPANIES FOR DROPDOWN ---
+  // --- FETCH COMPANIES FOR DROPDOWN DYNAMICALLY ---
   const fetchCompanies = async () => {
     try {
       const token = getToken();
       if (!token) return;
 
-      const response = await fetch(`${API_BASE_URL}/api/tleads/technicalteam/completed-visits`, {
+      let apiPath = "/api/tleads/technicalteam/completed-visits"; // Default Fallback
+
+      // Route based on logged-in auth_role
+      if (role.includes("Field-Marketing")) {
+        apiPath = "/api/fleads/completed-visits";
+      } else if (role.includes("Associate-Marketing")) {
+        apiPath = "/api/aleads/completed-visits";
+      } else if (role.includes("Corporate-Marketing")) {
+        apiPath = "/api/cleads/completed-visits";
+      }
+
+      const response = await fetch(`${API_BASE_URL}${apiPath}`, {
         method: "GET",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -378,7 +400,7 @@ const TechnicalReimbursement = () => {
 
   // --- Handlers ---
   const handleOpen = () => {
-    fetchCompanies(); // Fetch companies when modal opens
+    fetchCompanies(); // Fetch dynamically when modal opens
     setOpen(true);
   };
   
@@ -394,17 +416,14 @@ const TechnicalReimbursement = () => {
         date: new Date(e.date).toLocaleDateString(),
         time: e.time,
         category: e.category,
-        desc: e.category, // Using Category as desc as well per prompt simplicity or use company name
+        desc: e.category, 
         lead_id: e.lead_id, 
         amount: `₹${e.amount}`,
-        coords: e.location // Lat,Long string
+        coords: e.location 
     }));
 
-    // Determine aggregate status (if any pending, show pending)
     const statuses = groupedData.expenses.map(e => e.status);
     const overallStatus = statuses.includes('Pending') ? 'Pending' : (statuses.includes('Approved') ? 'Approved' : 'Completed');
-
-    // Get submission date (earliest)
     const submissionDate = groupedData.expenses.length > 0 ? new Date(groupedData.expenses[0].created_at).toLocaleDateString() : '-';
 
     return {
@@ -536,10 +555,8 @@ const TechnicalReimbursement = () => {
   // --- Filtering Logic ---
   const filteredReimbursements = reimbursements.filter((item) => {
     const query = searchQuery.toLowerCase();
-    // Safely access fields
     const companyName = item.company_name?.toLowerCase() || '';
     
-    // Check if status exists in the first expense object, if any
     const status = (item.expenses && item.expenses[0] && item.expenses[0].status) 
         ? item.expenses[0].status.toLowerCase() 
         : '';

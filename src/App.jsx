@@ -305,8 +305,9 @@ export default function App() {
                 <Route path="field/pending-followup" element={<PendingFollowup />} /> 
                 <Route path="field/follow-ups" element={<FieldFollowUps />} />
                 
-                {/* --- New Lead Manager Route --- */}
+                {/* --- Lead Manager & Reimbursement --- */}
                 <Route path="field/lead-manager" element={<LeadManager />} /> 
+                <Route path="field/reimbursement" element={<TechnicalReimbursement />} />
                 
                 <Route element={<RequireHead redirectTo="/marketing/field/dashboard" />}>
                   <Route path="field/my-team" element={<FieldMyTeam />} />
@@ -319,12 +320,12 @@ export default function App() {
                 <Route path="associate/leads" element={<AssociateLeads />} />
                 <Route path="associate/my-activity" element={<AssociateMyActivity />} />
                 <Route element={<RequireHead redirectTo="/marketing/associate/dashboard" />}>
-
                   <Route path="associate/my-team" element={<AssociateMyTeam />} />
                 </Route>
                 <Route path="associate/leadinfo" element={<AssociateLeadinfo />} />
                 <Route path="associate/follow-ups" element={<AssociateFollowUps />} />
                 <Route path="associate/lead-manager" element={<AssociateLeadManager />} /> 
+                <Route path="associate/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
 
               {/* Corporate */}
@@ -338,6 +339,7 @@ export default function App() {
                 <Route path="corporate/leadinfo" element={<CorporateLeadinfo />} />
                 <Route path="corporate/lead-manager" element={<CorporateLeadManager />} /> 
                 <Route path="corporate/follow-ups" element={<CorporateFollowUps />} />
+                <Route path="corporate/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
 
               {/* Technical */}
@@ -348,7 +350,6 @@ export default function App() {
                    Changed from exact path to allow optional :id parameter 
                    so the View button navigation works correctly.
                 */}
-                {/* <Route path="technical/customer-profile" element={<TechnicalCustomerProfile />} /> */}
                 <Route path="technical/customer-profile/:id" element={<TechnicalCustomerProfile />} />
 
                 <Route path="technical/customer-visit" element={<TechnicalCustomerVisit />} />
