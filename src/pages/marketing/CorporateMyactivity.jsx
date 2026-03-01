@@ -610,6 +610,7 @@ const CoporateMyactivity = () => {
     try {
       const token = getToken();
       const currentUser = getAuthUser();
+      const isSolutions = nextDepartment === 'Solutions-Team';
 
       // 1. Mark Visit as Completed
       const endResponse = await fetch(`${API_BASE_URL}/api/cleads/visit-status`, {
@@ -623,7 +624,7 @@ const CoporateMyactivity = () => {
 
       if (!endResponse.ok) throw new Error('Failed to end visit status.');
 
-      // 2. Change Lead Stage / Transfer to Next Dept
+      // 2. Change Lead Stage
       const transferResponse = await fetch(`${API_BASE_URL}/api/cleads/change-stage`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -636,9 +637,31 @@ const CoporateMyactivity = () => {
 
       if (!transferResponse.ok) throw new Error('Failed to transfer lead to next department.');
 
+      // 3. FORCE OVERRIDE: Direct DB Update for Solutions Team
+      if (isSolutions) {
+          // Wait 500ms for backend stage change logic to complete
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Force the absolute generic update to lock in the assignment
+          try {
+              await fetch(`${API_BASE_URL}/api/leads/${endVisitLead.lead_id}`, {
+                  method: 'PUT',
+                  headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ assigned_employee: 'IPQS-H5000' })
+              });
+          } catch (e) {
+              console.error("Force override failed silently", e);
+          }
+      }
+
       // Update Local State instantly
       setScheduledLeads(prevLeads => prevLeads.map(l => 
-        l.lead_id === endVisitLead.lead_id ? { ...l, corporate_lead_visit_status: 'Completed', lead_stage: nextDepartment } : l
+        l.lead_id === endVisitLead.lead_id ? { 
+            ...l, 
+            corporate_lead_visit_status: 'Completed', 
+            lead_stage: nextDepartment,
+            assigned_employee: isSolutions ? 'IPQS-H5000' : '0' 
+        } : l
       ));
 
       setToast({ open: true, message: 'Visit ended and lead transferred successfully!', severity: 'success' });
@@ -647,16 +670,18 @@ const CoporateMyactivity = () => {
       // Pull fresh data so Completed Tab gets the new visit
       fetchAllData();
 
-      // 3. Send Notification to target Head
+      // 4. Send Notification to target Head
       setTimeout(async () => {
         try {
-          const targetEmpId = nextDepartment === 'Technical-Team' ? 'IPQS-H25010' : 'IPQS-H25010'; 
+          const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25010'; 
           const deptName = nextDepartment.replace('-', ' ');
 
           const notificationPayload = {
             to_emp_id: targetEmpId,
-            title: `Lead Transferred to ${deptName}`,
-            message: `Corporate Lead Transferred to ${deptName}. Lead ID: ${endVisitLead.lead_id} (${endVisitLead.company_name || endVisitLead.lead_name}) by ${currentUser?.username || 'Employee'}.`
+            title: isSolutions ? "New Lead Transferred" : `Lead Transferred to ${deptName}`,
+            message: isSolutions 
+              ? `New lead transferred from Corporate Marketing for solutions. Lead ID: ${endVisitLead.lead_id} (${endVisitLead.company_name || endVisitLead.lead_name})`
+              : `Corporate Lead Transferred to ${deptName}. Lead ID: ${endVisitLead.lead_id} (${endVisitLead.company_name || endVisitLead.lead_name}) by ${currentUser?.username || 'Employee'}.`
           };
 
           await fetch(`${API_BASE_URL}/api/notifications/send`, {

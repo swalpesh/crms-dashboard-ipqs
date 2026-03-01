@@ -43,6 +43,12 @@ import { useParams } from "react-router-dom";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
+// Helper to get the logged-in user's details
+const getAuthUser = () => {
+  const userStr = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
+  try { return userStr ? JSON.parse(userStr) : null; } catch (e) { return null; }
+};
+
 /* --- Constant Glass Style --- */
 const glassPanel = {
   background: "rgba(255, 255, 255, 0.03)",
@@ -398,6 +404,7 @@ const TechnicalCustomerProfile = () => {
     setCompleteLoading(true);
     try {
       const token = getToken();
+      const currentUser = getAuthUser();
       const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
       // Step A: Mark Visit Complete
@@ -406,14 +413,27 @@ const TechnicalCustomerProfile = () => {
         headers: headers
       });
 
-      // Step B: Change Lead Stage
+      // Step B: Change Lead Stage to Solutions-Team
       await fetch(`${API_BASE_URL}/api/tleads/change-stage`, {
         method: "PATCH",
         headers: headers,
         body: JSON.stringify({ lead_id: LEAD_ID, new_lead_stage: "Solutions-Team", reason: "Technical Visit Complete" })
       });
 
-      // Step C: Update UI
+      // Step C: FORCE OVERRIDE DB Update for Solutions Team
+      // Wait 500ms for backend stage change logic to complete, then override assigned_employee
+      await new Promise(resolve => setTimeout(resolve, 500));
+      try {
+          await fetch(`${API_BASE_URL}/api/leads/${LEAD_ID}`, {
+              method: 'PUT',
+              headers: headers,
+              body: JSON.stringify({ assigned_employee: 'IPQS-H5000' })
+          });
+      } catch (e) {
+          console.error("Force override failed silently", e);
+      }
+
+      // Step D: Update UI
       setToast({ open: true, message: "Visit completed and lead moved to Solutions Team.", severity: "success" });
       setCompleteOpen(false);
       
@@ -423,24 +443,24 @@ const TechnicalCustomerProfile = () => {
         technical_visit_complete_time: new Date().toISOString()
       }));
 
-      // Step D: Trigger Notification (2 seconds delay)
+      // Step E: Trigger Custom Notification
       setTimeout(async () => {
         try {
             console.log("Sending Notification...");
             await fetch(`${API_BASE_URL}/api/notifications/send`, {
                 method: 'POST',
-                headers: headers, // Reusing existing headers with token
+                headers: headers, 
                 body: JSON.stringify({
-                    to_emp_id: "IPQS-H25010", 
-                    title: "Technical Data Complete",
-                    message: "Technical Data complete and sent to solutions Department"
+                    to_emp_id: "IPQS-H5000", 
+                    title: "New Lead Transferred",
+                    message: `New lead transferred from Technical Team for solutions. Lead ID: ${LEAD_ID} (${leadData?.company_name || leadData?.lead_name}) by ${currentUser?.username || 'Employee'}.`
                 })
             });
             console.log("Notification sent.");
         } catch (notifErr) {
             console.error("Error sending notification:", notifErr);
         }
-      }, 2000);
+      }, 1000);
 
     } catch (err) {
       console.error(err);

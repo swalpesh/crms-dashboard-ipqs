@@ -323,6 +323,12 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     return items;
   };
 
+  // --- CUSTOM SOLUTION TEAM ITEMS (Only Dashboard & Leads) ---
+  const solutionTeamItems = [
+    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
+    { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" }
+  ];
+
   return (
     <Box 
       sx={{ 
@@ -426,7 +432,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                 
                 <Group title="Solution Team" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
                       open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
-                      onNavigate={onNavigate} items={mkTeamItems(true)} />
+                      onNavigate={onNavigate} items={solutionTeamItems} />
 
                 <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
                       open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
@@ -479,7 +485,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
             {userSlug === "solution" && (
               <Group title="Solution Team" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
                      open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
-                     onNavigate={onNavigate} items={stdItemsForUser} />
+                     onNavigate={onNavigate} items={solutionTeamItems} />
             )}
           </>
         )}

@@ -224,7 +224,7 @@ const CorporateLeadinfo = () => {
             notes: null
         };
 
-        const response = await fetch(`${API_BASE_URL}/api/aleads`, {
+        const response = await fetch(`${API_BASE_URL}/api/cleads`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

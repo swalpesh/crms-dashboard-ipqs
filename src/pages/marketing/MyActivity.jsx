@@ -604,27 +604,23 @@ const MyActivity = () => {
     }
   };
 
-  // --- END VISIT & TRANSFER ACTION ---
+// --- END VISIT & TRANSFER ACTION (Clean Version) ---
   const submitEndVisit = async () => {
     setIsEnding(true);
     try {
       const token = getToken();
       const currentUser = getAuthUser();
+      const isSolutions = nextDepartment === 'Solutions-Team';
 
       // 1. Mark Visit as Completed
-      const endResponse = await fetch(`${API_BASE_URL}/api/fleads/visit-status`, {
+      await fetch(`${API_BASE_URL}/api/fleads/visit-status`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lead_id: endVisitLead.lead_id,
-          status: "Completed"
-        })
+        body: JSON.stringify({ lead_id: endVisitLead.lead_id, status: "Completed" })
       });
 
-      if (!endResponse.ok) throw new Error('Failed to end visit status.');
-
-      // 2. Change Lead Stage / Transfer to Next Dept
-      const transferResponse = await fetch(`${API_BASE_URL}/api/fleads/change-stage`, {
+      // 2. Change Lead Stage (Backend now automatically sets it to IPQS-H5000 if Solutions-Team!)
+      await fetch(`${API_BASE_URL}/api/fleads/change-stage`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -634,43 +630,39 @@ const MyActivity = () => {
         })
       });
 
-      if (!transferResponse.ok) throw new Error('Failed to transfer lead to next department.');
-
       // Update Local State instantly
       setScheduledLeads(prevLeads => prevLeads.map(l => 
-        l.lead_id === endVisitLead.lead_id ? { ...l, field_lead_visit_status: 'Completed', lead_stage: nextDepartment } : l
+        l.lead_id === endVisitLead.lead_id ? { 
+            ...l, 
+            field_lead_visit_status: 'Completed', 
+            lead_stage: nextDepartment,
+            assigned_employee: isSolutions ? 'IPQS-H5000' : '0' 
+        } : l
       ));
 
       setToast({ open: true, message: 'Visit ended and lead transferred successfully!', severity: 'success' });
       handleCloseEndModal();
-      
-      // Pull fresh data so Completed Tab gets the new visit
       fetchAllData();
 
-      // 3. Send Notification to target Head
+      // 3. Send Notification
       setTimeout(async () => {
-        try {
-          const targetEmpId = nextDepartment === 'Technical-Team' ? 'IPQS-H25010' : 'IPQS-H25010'; 
-          const deptName = nextDepartment.replace('-', ' ');
+        const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25010'; 
+        const deptName = nextDepartment.replace('-', ' ');
 
-          const notificationPayload = {
+        await fetch(`${API_BASE_URL}/api/notifications/send`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             to_emp_id: targetEmpId,
-            title: `Lead Transferred to ${deptName}`,
-            message: `Field Lead Transferred to ${deptName}. Lead ID: ${endVisitLead.lead_id} (${endVisitLead.company_name || endVisitLead.lead_name}) by ${currentUser?.username || 'Employee'}.`
-          };
-
-          await fetch(`${API_BASE_URL}/api/notifications/send`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(notificationPayload)
-          });
-        } catch (e) {
-          console.error("Error sending notification:", e);
-        }
+            title: isSolutions ? "New Lead Transferred" : `Lead Transferred to ${deptName}`,
+            message: isSolutions 
+              ? `New lead transferred from Field Marketing for solutions. Lead ID: ${endVisitLead.lead_id} (${endVisitLead.company_name || endVisitLead.lead_name})`
+              : `Field Lead Transferred to ${deptName}. Lead ID: ${endVisitLead.lead_id} (${endVisitLead.company_name || endVisitLead.lead_name}) by ${currentUser?.username || 'Employee'}.`
+          })
+        });
       }, 1000);
 
     } catch (err) {
-      console.error(err);
       setToast({ open: true, message: err.message || 'Failed to complete visit.', severity: 'error' });
     } finally {
       setIsEnding(false);
@@ -1023,15 +1015,6 @@ const MyActivity = () => {
                      </Grid>
                    </Grid>
                    
-                   {/* <Button 
-                     fullWidth 
-                     variant="outlined" 
-                     size="small" 
-                     sx={{ color: themeColors.blue, borderColor: 'rgba(9, 132, 227, 0.5)', '&:hover': { bgcolor: 'rgba(9, 132, 227, 0.1)'} }} 
-                     onClick={() => navigate(`/marketing/customer-info/${lead.lead_id}`)}
-                   >
-                     View History
-                   </Button> */}
                  </Box>
                ))
             )}
