@@ -374,7 +374,6 @@ const AssociateMyactivity = () => {
       }
       if (compRes.ok) {
         const d = await compRes.json();
-        // Updated to use the flat leads array from the newly provided API response structure
         setCompletedLeadsData(d.leads || []);
       }
     } catch (error) { 
@@ -610,6 +609,7 @@ const AssociateMyactivity = () => {
     try {
       const token = getToken();
       const currentUser = getAuthUser();
+      const isSolutions = nextDepartment === 'Solutions-Team';
 
       // 1. Mark Visit as Completed
       const endResponse = await fetch(`${API_BASE_URL}/api/aleads/visit-status`, {
@@ -623,40 +623,48 @@ const AssociateMyactivity = () => {
 
       if (!endResponse.ok) throw new Error('Failed to end visit status.');
 
-      // 2. Change Lead Stage / Transfer to Next Dept
+      // 2. Change Lead Stage AND Explicity Pass assigned_employee to override backend
+      const transferPayload = {
+        lead_id: endVisitLead.lead_id,
+        new_lead_stage: nextDepartment,
+        assigned_employee: isSolutions ? 'IPQS-H5000' : '0', // FORCING THE PAYLOAD HERE
+        reason: `Assigned to ${nextDepartment.replace('-', ' ')}`
+      };
+
       const transferResponse = await fetch(`${API_BASE_URL}/api/aleads/change-stage`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lead_id: endVisitLead.lead_id,
-          new_lead_stage: nextDepartment,
-          reason: `Assigned to ${nextDepartment.replace('-', ' ')}`
-        })
+        body: JSON.stringify(transferPayload)
       });
 
       if (!transferResponse.ok) throw new Error('Failed to transfer lead to next department.');
 
       // Update Local State instantly
       setScheduledLeads(prevLeads => prevLeads.map(l => 
-        l.lead_id === endVisitLead.lead_id ? { ...l, associate_lead_visit_status: 'Completed', lead_stage: nextDepartment } : l
+        l.lead_id === endVisitLead.lead_id ? { 
+            ...l, 
+            associate_lead_visit_status: 'Completed', 
+            lead_stage: nextDepartment,
+            assigned_employee: isSolutions ? 'IPQS-H5000' : '0' 
+        } : l
       ));
 
       setToast({ open: true, message: 'Visit ended and lead transferred successfully!', severity: 'success' });
       handleCloseEndModal();
-      
-      // Pull fresh data so Completed Tab gets the new visit
       fetchAllData();
 
       // 3. Send Notification to target Head
       setTimeout(async () => {
         try {
-          const targetEmpId = nextDepartment === 'Technical-Team' ? 'IPQS-H25010' : 'IPQS-H25010'; 
+          const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25010'; 
           const deptName = nextDepartment.replace('-', ' ');
 
           const notificationPayload = {
             to_emp_id: targetEmpId,
-            title: `Lead Transferred to ${deptName}`,
-            message: `Associate Lead Transferred to ${deptName}. Lead ID: ${endVisitLead.lead_id} (${endVisitLead.company_name || endVisitLead.lead_name}) by ${currentUser?.username || 'Employee'}.`
+            title: isSolutions ? "New Lead Transferred" : `Lead Transferred to ${deptName}`,
+            message: isSolutions 
+              ? `New lead transferred from Associate Marketing for solutions. Lead ID: ${endVisitLead.lead_id} (${endVisitLead.company_name || endVisitLead.lead_name})`
+              : `Associate Lead Transferred to ${deptName}. Lead ID: ${endVisitLead.lead_id} (${endVisitLead.company_name || endVisitLead.lead_name}) by ${currentUser?.username || 'Employee'}.`
           };
 
           await fetch(`${API_BASE_URL}/api/notifications/send`, {
@@ -1023,15 +1031,6 @@ const AssociateMyactivity = () => {
                      </Grid>
                    </Grid>
                    
-                   {/* <Button 
-                     fullWidth 
-                     variant="outlined" 
-                     size="small" 
-                     sx={{ color: themeColors.blue, borderColor: 'rgba(9, 132, 227, 0.5)', '&:hover': { bgcolor: 'rgba(9, 132, 227, 0.1)'} }} 
-                     onClick={() => navigate(`/marketing/customer-info/${lead.lead_id}`)}
-                   >
-                     View History
-                   </Button> */}
                  </Box>
                ))
             )}

@@ -19,10 +19,16 @@ import {
   Backdrop,
   CircularProgress,
   Divider,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  InputLabel,
+  ListItemIcon,
+  Stack,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -40,17 +46,22 @@ import {
   ChatCircleDots,
   Note,
   ListChecks,
-  ClockCounterClockwise,
   Paperclip,
   PaperPlaneRight,
   FilePdf,
   Image as ImageIcon,
-  HardHat,
   User,
   MapPin,
   CaretLeft,
   X 
 } from "@phosphor-icons/react";
+
+// MUI Icons for Upload
+import {
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteIcon,
+  InsertDriveFile as InsertDriveFileIcon
+} from "@mui/icons-material";
 
 // --- API HELPERS ---
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
@@ -60,15 +71,6 @@ const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getI
 const getAuthUser = () => {
   const userStr = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
   try { return userStr ? JSON.parse(userStr) : null; } catch (e) { return null; }
-};
-
-// Helper to generate consistent colors for avatars based on company name
-const getLogoColor = (str) => {
-  if (!str) return '#3b82f6';
-  const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
 };
 
 // Helper to format time (e.g., "14:30:00" -> "02:30 PM")
@@ -81,42 +83,11 @@ const formatTime = (timeStr) => {
   return `${hour12}:${minute} ${ampm}`;
 };
 
-// Helper to format date to YYYY-MM-DD (or readable string)
-const formatDateString = (d) => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 // Helper to format readable Date (e.g., 15 Feb 2026)
 const formatReadableDate = (dateStr) => {
   if (!dateStr) return "N/A";
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
-// Helper to format date and time (e.g., 15 Feb 2026, 3:09 PM)
-const formatDateTime = (dateStr) => {
-  if (!dateStr) return "N/A";
-  const d = new Date(dateStr);
-  const datePart = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  return `${datePart}, ${timePart}`;
-};
-
-// Helper to get GPS Location
-const getCurrentLocation = () => {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported by your browser"));
-    } else {
-      navigator.geolocation.getCurrentPosition(
-        (position) => resolve(`${position.coords.latitude}, ${position.coords.longitude}`),
-        (error) => reject(new Error("Failed to get location. Please enable GPS."))
-      );
-    }
-  });
 };
 
 // --- THEME CONSTANTS ---
@@ -127,9 +98,9 @@ const themeColors = {
   glassShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
   textPrimary: '#ffffff',
   textSecondary: '#a0a0a0',
-  accent: '#7b2cbf', // Purple
+  accent: '#7b2cbf', 
   accentGlow: '#9d4edd',
-  success: '#00b894', // Green
+  success: '#00b894', 
   blue: '#0984e3',
   warning: '#fdcb6e',
   danger: '#ff6b6b'
@@ -161,8 +132,18 @@ const modalBoxStyle = {
   outline: 'none',
 };
 
-// --- HELPER COMPONENTS ---
+const modalInputStyle = {
+  '& .MuiOutlinedInput-root': {
+    color: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: '12px',
+    '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.1)' },
+    '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.3)' },
+    '&.Mui-focused fieldset': { borderColor: '#3b82f6' },
+  }
+};
 
+// --- HELPER COMPONENTS ---
 const PipelineStep = ({ label, status, icon: Icon }) => {
   let bg = 'rgba(255,255,255,0.05)';
   let color = themeColors.textSecondary;
@@ -224,9 +205,7 @@ const FieldRow = ({ label, value, icon, isLink, isUser, isWarning, onClick }) =>
   </Box>
 );
 
-// New Component specifically for Activity Log mapped from API
 const ActivityLogCard = ({ activity }) => {
-  // Format Title
   let title = activity.change_type || 'Lead Updated';
   if (title.includes('_')) {
     title = title.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -234,24 +213,16 @@ const ActivityLogCard = ({ activity }) => {
     title = "Lead Created";
   }
 
-  // Format Date (DD/MM/YYYY, HH:MM:SS)
   const dateStr = new Date(activity.change_timestamp).toLocaleString('en-GB', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit', second: '2-digit'
   });
 
-  // Format Changed By
   const changedBy = activity.changed_by_details 
     ? `${activity.changed_by_details.email || activity.changed_by_details.username} (${activity.changed_by_details.role_id?.replace(/-/g, ' ')})`
     : activity.changed_by 
       ? `${activity.changed_by} ()`
       : 'None ()';
-
-  const oldStage = activity.old_lead_stage || 'None';
-  const newStage = activity.new_lead_stage || 'None';
-  
-  const oldEmp = activity.old_assigned_employee || 'None';
-  const newEmp = activity.new_assigned_employee || 'None';
 
   return (
     <Box sx={{ ...glassCardStyle, p: 2.5, mb: 2, bgcolor: 'rgba(255,255,255,0.03)' }}>
@@ -259,20 +230,13 @@ const ActivityLogCard = ({ activity }) => {
         <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#fff', fontSize: '1rem' }}>{title}</Typography>
         <Typography variant="caption" sx={{ color: themeColors.textSecondary }}>{dateStr}</Typography>
       </Box>
-      
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
         <Typography variant="body2" sx={{ color: '#e0e0e0' }}>
           Changed by: <span style={{ fontWeight: 600, color: '#fff' }}>{changedBy}</span>
         </Typography>
-        
         <Typography variant="body2" sx={{ color: '#e0e0e0' }}>
-          Stage: <span style={{ fontWeight: 600, color: '#fff' }}>{oldStage}</span> → <span style={{ fontWeight: 600, color: '#fff' }}>{newStage}</span>
+          Stage: <span style={{ fontWeight: 600, color: '#fff' }}>{activity.old_lead_stage || 'None'}</span> → <span style={{ fontWeight: 600, color: '#fff' }}>{activity.new_lead_stage || 'None'}</span>
         </Typography>
-        
-        <Typography variant="body2" sx={{ color: '#e0e0e0' }}>
-          Employee: <span style={{ fontWeight: 600, color: '#fff' }}>{oldEmp}</span> → <span style={{ fontWeight: 600, color: '#fff' }}>{newEmp}</span>
-        </Typography>
-        
         {activity.reason && (
           <Typography variant="body2" sx={{ color: themeColors.textSecondary, mt: 0.5 }}>
             Reason: {activity.reason}
@@ -329,11 +293,12 @@ const CustomerInfo = () => {
   const [leadData, setLeadData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mapModalOpen, setMapModalOpen] = useState(false);
+  const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
 
   // Discussion Tab States
   const [discussions, setDiscussions] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState([]); // Multiple files
+  const [selectedFiles, setSelectedFiles] = useState([]); 
   const [isSendingMsg, setIsSendingMsg] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -341,12 +306,22 @@ const CustomerInfo = () => {
   const [notes, setNotes] = useState([]);
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteText, setNewNoteText] = useState('');
-  const [selectedNoteFiles, setSelectedNoteFiles] = useState([]); // Multiple files
+  const [selectedNoteFiles, setSelectedNoteFiles] = useState([]); 
   const [isSendingNote, setIsSendingNote] = useState(false);
   const noteFileInputRef = useRef(null);
 
   // Activity Tab State
   const [activities, setActivities] = useState([]);
+
+  // --- Solutions Specific States ---
+  const [solutionOpen, setSolutionOpen] = useState(false);
+  const [solutionData, setSolutionData] = useState({ title: '', note: '' });
+  const [solutionFiles, setSolutionFiles] = useState([]);
+  const [solutionLoading, setSolutionLoading] = useState(false);
+  const solutionFileRef = useRef(null);
+
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferLoading, setTransferLoading] = useState(false);
 
   const handleTabChange = (event, newValue) => setTabValue(newValue);
 
@@ -363,8 +338,6 @@ const CustomerInfo = () => {
         if (response.ok) {
           const result = await response.json();
           setLeadData(result.lead);
-        } else {
-          console.error("Failed to fetch lead details");
         }
       } catch (error) {
         console.error("API Error:", error);
@@ -379,7 +352,7 @@ const CustomerInfo = () => {
     fetchActivities();
   }, [leadId]);
 
-  // --- TAB 1: DISCUSSIONS ---
+  // --- API FETCHERS ---
   const fetchDiscussions = async () => {
     const token = getToken();
     try {
@@ -391,59 +364,9 @@ const CustomerInfo = () => {
         const result = await response.json();
         setDiscussions(result.data || []);
       }
-    } catch (error) {
-      console.error("Failed to fetch discussions", error);
-    }
+    } catch (error) { console.error("Failed to fetch discussions", error); }
   };
 
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    setSelectedFiles(prev => [...prev, ...files]);
-    if (fileInputRef.current) fileInputRef.current.value = null; // reset input
-  };
-
-  const removeFile = (index) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() && selectedFiles.length === 0) return;
-
-    setIsSendingMsg(true);
-    const token = getToken();
-    const formData = new FormData();
-    formData.append('lead_id', leadId);
-    if (newMessage.trim()) formData.append('message', newMessage);
-    
-    // Append multiple files
-    selectedFiles.forEach(file => {
-      formData.append('attachments', file);
-    });
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/tleads/discussion`, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}` 
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        setNewMessage('');
-        setSelectedFiles([]);
-        fetchDiscussions(); // Refresh the chat
-      } else {
-        console.error("Failed to send message");
-      }
-    } catch (error) {
-      console.error("API Error sending message:", error);
-    } finally {
-      setIsSendingMsg(false);
-    }
-  };
-
-  // --- TAB 2: NOTES ---
   const fetchNotes = async () => {
     const token = getToken();
     try {
@@ -455,60 +378,9 @@ const CustomerInfo = () => {
         const result = await response.json();
         setNotes(result.notes || []);
       }
-    } catch (error) {
-      console.error("Failed to fetch notes", error);
-    }
+    } catch (error) { console.error("Failed to fetch notes", error); }
   };
 
-  const handleNoteFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    setSelectedNoteFiles(prev => [...prev, ...files]);
-    if (noteFileInputRef.current) noteFileInputRef.current.value = null; // reset input
-  };
-
-  const removeNoteFile = (index) => {
-    setSelectedNoteFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSubmitNote = async () => {
-    if (!newNoteTitle.trim() || !newNoteText.trim()) return;
-
-    setIsSendingNote(true);
-    const token = getToken();
-    const formData = new FormData();
-    formData.append('title', newNoteTitle);
-    formData.append('note', newNoteText);
-    
-    // Append multiple files
-    selectedNoteFiles.forEach(file => {
-      formData.append('attachments', file);
-    });
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/leads/${leadId}/notes`, {
-        method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${token}` 
-        },
-        body: formData
-      });
-
-      if (response.ok) {
-        setNewNoteTitle('');
-        setNewNoteText('');
-        setSelectedNoteFiles([]);
-        fetchNotes(); // Refresh notes list
-      } else {
-        console.error("Failed to submit note");
-      }
-    } catch (error) {
-      console.error("API Error submitting note:", error);
-    } finally {
-      setIsSendingNote(false);
-    }
-  };
-
-  // --- TAB 3: ACTIVITY TIMELINE ---
   const fetchActivities = async () => {
     const token = getToken();
     try {
@@ -520,20 +392,185 @@ const CustomerInfo = () => {
         const result = await response.json();
         setActivities(result.activities || []);
       }
-    } catch (error) {
-      console.error("Failed to fetch activities", error);
+    } catch (error) { console.error("Failed to fetch activities", error); }
+  };
+
+  // --- DISCUSSION HANDLERS ---
+  const handleFileChange = (e) => {
+    setSelectedFiles(prev => [...prev, ...Array.from(e.target.files)]);
+    if (fileInputRef.current) fileInputRef.current.value = null;
+  };
+  const removeFile = (index) => setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() && selectedFiles.length === 0) return;
+    setIsSendingMsg(true);
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('lead_id', leadId);
+    if (newMessage.trim()) formData.append('message', newMessage);
+    selectedFiles.forEach(file => formData.append('attachments', file));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tleads/discussion`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      if (response.ok) {
+        setNewMessage(''); setSelectedFiles([]); fetchDiscussions(); 
+      }
+    } catch (error) { console.error(error); } finally { setIsSendingMsg(false); }
+  };
+
+  // --- NOTES HANDLERS ---
+  const handleNoteFileChange = (e) => {
+    setSelectedNoteFiles(prev => [...prev, ...Array.from(e.target.files)]);
+    if (noteFileInputRef.current) noteFileInputRef.current.value = null;
+  };
+  const removeNoteFile = (index) => setSelectedNoteFiles(prev => prev.filter((_, i) => i !== index));
+
+  const handleSubmitNote = async () => {
+    if (!newNoteTitle.trim() || !newNoteText.trim()) return;
+    setIsSendingNote(true);
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('title', newNoteTitle);
+    formData.append('note', newNoteText);
+    selectedNoteFiles.forEach(file => formData.append('attachments', file));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/leads/${leadId}/notes`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      if (response.ok) {
+        setNewNoteTitle(''); setNewNoteText(''); setSelectedNoteFiles([]); fetchNotes(); 
+      }
+    } catch (error) { console.error(error); } finally { setIsSendingNote(false); }
+  };
+
+  // --- SOLUTIONS SPECIFIC ACTIONS ---
+  const handleSolutionFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    setSolutionFiles(prev => [...prev, ...files]);
+    if (solutionFileRef.current) solutionFileRef.current.value = null;
+  };
+
+  const removeSolutionFile = (index) => {
+    setSolutionFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSolutionSubmit = async () => {
+    if (!solutionData.title || !solutionData.note) {
+      setToast({ open: true, message: "Please enter a title and note description.", severity: "warning" });
+      return;
+    }
+
+    setSolutionLoading(true);
+    try {
+      const token = getToken();
+      
+      // 1. Post to Standard Notes API (Uploads files + notes to general history)
+      const formData = new FormData();
+      formData.append('title', solutionData.title);
+      formData.append('note', solutionData.note);
+      solutionFiles.forEach((file) => formData.append('attachments', file));
+
+      const response = await fetch(`${API_BASE_URL}/api/leads/${leadId}/notes`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+        body: formData
+      });
+
+      if (!response.ok) throw new Error("Failed to upload solution to notes");
+
+      // 2. Post to Specific Solutions API (Logs exact text for the Solutions Provided table view)
+      const solutionRes = await fetch(`${API_BASE_URL}/api/sleads/solutions`, {
+        method: "POST",
+        headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            lead_id: leadId,
+            solution_provided: solutionData.note // Storing the exact note content
+        })
+      });
+
+      if (!solutionRes.ok) throw new Error("Failed to log solution data");
+
+      setToast({ open: true, message: "Solution Provided Successfully", severity: "success" });
+      setSolutionOpen(false);
+      setSolutionData({ title: "", note: "" });
+      setSolutionFiles([]);
+      
+      // Navigate to notes tab so they can see it instantly
+      setTabValue(1);
+      fetchNotes(); 
+    } catch (err) {
+      setToast({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setSolutionLoading(false);
     }
   };
 
-  // Priority Colors
+  const handleTransferSubmit = async () => {
+    setTransferLoading(true);
+    try {
+        const token = getToken();
+        const currentUser = getAuthUser();
+        
+        // 1. Hit API to change stage to Quotation-Team
+        const res = await fetch(`${API_BASE_URL}/api/sleads/change-stage`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lead_id: leadId,
+                new_lead_stage: 'Quotation-Team',
+                reason: 'Solutions Provided Transferring for Quotation'
+            })
+        });
+
+        if (!res.ok) throw new Error("Failed to transfer lead to Quotation Department");
+
+        // 2. Send Custom Notification to IPQS-E25015
+        try {
+            await fetch(`${API_BASE_URL}/api/notifications/send`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to_emp_id: "IPQS-E25015",
+                    title: "New Lead Ready for Quotation",
+                    message: `Create Quotation Against this lead ${leadData?.lead_name} (${leadId}). Transferred from Solutions-Team.`
+                })
+            });
+        } catch (notifErr) {
+            console.error("Error sending notification:", notifErr);
+        }
+
+        setToast({ open: true, message: "Lead transferred to Quotation Department successfully!", severity: "success" });
+        setTransferOpen(false);
+
+        // 3. Auto-redirect back to the solutions leads table after successful transfer
+        setTimeout(() => {
+            navigate('/marketing/solution/leads');
+        }, 1500);
+
+    } catch (err) {
+        setToast({ open: true, message: err.message || "Operation failed", severity: "error" });
+        setTransferLoading(false);
+    }
+  };
+
+
+  // --- Variables & UI Data ---
   const priority = leadData?.lead_priority || 'Medium';
   const priorityColor = priority === 'High' ? themeColors.danger : priority === 'Medium' ? themeColors.warning : themeColors.success;
   const priorityBg = priority === 'High' ? 'rgba(255, 69, 58, 0.2)' : priority === 'Medium' ? 'rgba(253, 203, 110, 0.2)' : 'rgba(0, 184, 148, 0.2)';
 
-  // Pipeline Logic Setup Based on User Rules
   const stage = leadData?.lead_stage || '';
-  
-  // Rule: Technical, Solutions, Quotations turn Purple ("active") when they are reached
   const techActive = stage === 'Technical-Team' || stage === 'Solutions-Team' || stage === 'Quotations';
   const solActive = stage === 'Solutions-Team' || stage === 'Quotations';
   const quotActive = stage === 'Quotations';
@@ -550,20 +587,31 @@ const CustomerInfo = () => {
     <Box sx={{ minHeight: '100vh', background: themeColors.bgGradient, color: themeColors.textPrimary, fontFamily: "'Inter', sans-serif", p: { xs: 2, md: 4 } }}>
       <Box sx={{ maxWidth: '1200px', mx: 'auto', pb: 5 }}>
         
-        {/* Actions */}
+        {/* Actions Bar */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
           <IconButton onClick={() => navigate(-1)} sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.1)' }}>
              <CaretLeft size={20} />
           </IconButton>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button 
-              onClick={() => navigate('/marketing/quotation-builder', { state: { leadId } })}
-              variant="contained" 
-              sx={{ bgcolor: themeColors.accent, '&:hover': { bgcolor: themeColors.accentGlow }, boxShadow: `0 0 10px rgba(123, 44, 191, 0.5)` }}
-            >
-              Create Quotation
-            </Button>
-          </Box>
+          
+          {/* Action Buttons specific for Solutions Team */}
+          {stage === 'Solutions-Team' && (
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button 
+                variant="contained" 
+                onClick={() => setSolutionOpen(true)}
+                sx={{ bgcolor: themeColors.success, '&:hover': { bgcolor: '#00a884' }, textTransform: 'none', fontWeight: 600, px: 3 }}
+              >
+                Provide Solution
+              </Button>
+              <Button 
+                variant="contained" 
+                onClick={() => setTransferOpen(true)}
+                sx={{ bgcolor: themeColors.blue, '&:hover': { bgcolor: '#0062cc' }, textTransform: 'none', fontWeight: 600, px: 4 }}
+              >
+                Transfer
+              </Button>
+            </Box>
+          )}
         </Box>
 
         {/* Pipeline Status */}
@@ -595,46 +643,55 @@ const CustomerInfo = () => {
 
         {/* Details Grid */}
         <Grid container spacing={3}>
+          {/* One below another clean layout (no inner split columns) */}
           <Grid item xs={12} md={6}>
             <Box sx={{ ...glassCardStyle, height: '100%' }}>
               <Typography variant="h6" sx={{ borderBottom: themeColors.glassBorder, pb: 2, mb: 2, color: themeColors.textSecondary, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <AddressBook size={20} /> Contact Information
               </Typography>
-              <FieldRow label="Customer" value={leadData?.company_name || "N/A"} />
-              <FieldRow label="Contact Person" value={leadData?.contact_person_name || "N/A"} />
-              <FieldRow label="Email" value={leadData?.company_email || leadData?.contact_person_email || "N/A"} />
-              <FieldRow label="Phone" value={leadData?.company_contact_number || leadData?.contact_person_phone || "N/A"} />
-              <FieldRow label="Address" value={[leadData?.company_address, leadData?.company_city, leadData?.company_state, leadData?.company_country].filter(Boolean).join(', ') || 'N/A'} />
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                <FieldRow label="Customer" value={leadData?.company_name || "N/A"} />
+                <FieldRow label="Contact Person" value={leadData?.contact_person_name || "N/A"} />
+                <FieldRow label="Email" value={leadData?.company_email || leadData?.contact_person_email || "N/A"} />
+                <FieldRow label="Phone" value={leadData?.company_contact_number || leadData?.contact_person_phone || "N/A"} />
+                <FieldRow label="Address" value={[leadData?.company_address, leadData?.company_city, leadData?.company_state, leadData?.company_country].filter(Boolean).join(', ') || 'N/A'} />
+                {stage === 'Solutions-Team' && (
+                   <FieldRow label="Current Department" value={leadData?.lead_stage || "N/A"} />
+                )}
+              </Box>
             </Box>
           </Grid>
 
-          <Grid item xs={12} md={6}>
-            <Box sx={{ ...glassCardStyle, height: '100%' }}>
-              <Typography variant="h6" sx={{ borderBottom: themeColors.glassBorder, pb: 2, mb: 2, color: themeColors.textSecondary, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Briefcase size={20} /> Internal Tracking
-              </Typography>
-              <FieldRow label="Salesperson" value={leadData?.assigned_employee_details?.username || "Unassigned"} isUser />
-              <FieldRow label="Field Visit Date" value={leadData?.field_visit_date ? formatReadableDate(leadData.field_visit_date) : "N/A"} />
-              <FieldRow label="Field Visit Time" value={formatTime(leadData?.field_visit_time)} />
-              <FieldRow label="Field Visit Status" value={leadData?.field_lead_visit_status || "N/A"} isWarning={leadData?.field_lead_visit_status === 'Pending'} />
-              
-              {/* Map Row */}
-              <FieldRow 
-                label="Location" 
-                value="View Map" 
-                icon={<MapPin size={16} />} 
-                isLink 
-                onClick={() => setMapModalOpen(true)} 
-              />
-            </Box>
-          </Grid>
+          {/* Conditional Rendering: Hide Internal Tracking if stage is Solutions-Team */}
+          {stage !== 'Solutions-Team' && (
+            <Grid item xs={12} md={6}>
+              <Box sx={{ ...glassCardStyle, height: '100%' }}>
+                <Typography variant="h6" sx={{ borderBottom: themeColors.glassBorder, pb: 2, mb: 2, color: themeColors.textSecondary, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Briefcase size={20} /> Internal Tracking
+                </Typography>
+                <FieldRow label="Salesperson" value={leadData?.assigned_employee_details?.username || "Unassigned"} isUser />
+                <FieldRow label="Field Visit Date" value={leadData?.field_visit_date ? formatReadableDate(leadData.field_visit_date) : "N/A"} />
+                <FieldRow label="Field Visit Time" value={formatTime(leadData?.field_visit_time)} />
+                <FieldRow label="Field Visit Status" value={leadData?.field_lead_visit_status || "N/A"} isWarning={leadData?.field_lead_visit_status === 'Pending'} />
+                
+                {/* Map Row */}
+                <FieldRow 
+                  label="Location" 
+                  value="View Map" 
+                  icon={<MapPin size={16} />} 
+                  isLink 
+                  onClick={() => setMapModalOpen(true)} 
+                />
+              </Box>
+            </Grid>
+          )}
         </Grid>
 
         {/* Collaboration Tabs */}
         <Box sx={{ ...glassCardStyle, p: 0, overflow: 'hidden' }} className="mt-4">
           <Tabs value={tabValue} onChange={handleTabChange} textColor="inherit" variant="scrollable" sx={{ borderBottom: themeColors.glassBorder, bgcolor: 'rgba(0,0,0,0.2)', '& .MuiTabs-indicator': { backgroundColor: themeColors.accent } }}>
             <Tab icon={<ChatCircleDots size={20} />} iconPosition="start" label="Discuss" sx={{ textTransform: 'none', color: themeColors.textSecondary }} />
-            <Tab icon={<Note size={20} />} iconPosition="start" label="Notes" sx={{ textTransform: 'none', color: themeColors.textSecondary }} />
+            <Tab icon={<Note size={20} />} iconPosition="start" label="Notes & Solutions" sx={{ textTransform: 'none', color: themeColors.textSecondary }} />
             <Tab icon={<ListChecks size={20} />} iconPosition="start" label="Activity" sx={{ textTransform: 'none', color: themeColors.textSecondary }} />
           </Tabs>
 
@@ -642,7 +699,6 @@ const CustomerInfo = () => {
             {/* DISCUSSION TAB */}
             {tabValue === 0 && (
               <Box>
-                {/* Dynamically Rendered Discussions */}
                 <List sx={{ maxHeight: 350, overflowY: 'auto', mb: 2, pr: 1 }}>
                   {discussions.length > 0 ? (
                     discussions.map((msg) => (
@@ -675,7 +731,6 @@ const CustomerInfo = () => {
                                     {msg.message}
                                   </Typography>
                                 )}
-                                {/* Render Attachments if any */}
                                 {msg.attachments && msg.attachments.length > 0 && (
                                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                     {msg.attachments.map(att => (
@@ -724,7 +779,7 @@ const CustomerInfo = () => {
                     <input
                       type="file"
                       hidden
-                      multiple // Allowed to select multiple files
+                      multiple 
                       ref={fileInputRef}
                       onChange={handleFileChange}
                     />
@@ -747,7 +802,6 @@ const CustomerInfo = () => {
                     </Button>
                   </Box>
 
-                  {/* Show Selected Files Queue below input */}
                   {selectedFiles.length > 0 && (
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5, pl: 6 }}>
                       {selectedFiles.map((file, idx) => (
@@ -789,7 +843,6 @@ const CustomerInfo = () => {
                     InputProps={{ disableUnderline: true, sx: { color: 'white' } }} 
                   />
                   
-                  {/* Show Selected Files Queue */}
                   {selectedNoteFiles.length > 0 && (
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
                       {selectedNoteFiles.map((file, idx) => (
@@ -808,7 +861,7 @@ const CustomerInfo = () => {
                     <input
                       type="file"
                       hidden
-                      multiple // Allowed to select multiple files
+                      multiple 
                       ref={noteFileInputRef}
                       onChange={handleNoteFileChange}
                     />
@@ -856,7 +909,6 @@ const CustomerInfo = () => {
             {/* ACTIVITY TAB */}
             {tabValue === 2 && (
               <Box sx={{ position: 'relative', pl: 1, pt: 1, maxHeight: 400, overflowY: 'auto' }}>
-                
                 {activities.length > 0 ? (
                   activities.map((act) => (
                     <ActivityLogCard key={act.id} activity={act} />
@@ -896,6 +948,65 @@ const CustomerInfo = () => {
         </Fade>
       </Modal>
 
+      {/* --- PROVIDE SOLUTION DIALOG --- */}
+      <Dialog open={solutionOpen} onClose={() => setSolutionOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: '#0f0c29', backgroundImage: 'linear-gradient(to bottom right, #1a1a35, #0f0c29)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' } }}>
+        <DialogTitle sx={{ color: "#fff", fontWeight: 700, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>Provide Solution</DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Box>
+                <InputLabel sx={{ color: "#cbd5e1", mb: 1, fontSize: "0.9rem" }}>Solution Title</InputLabel>
+                <TextField fullWidth placeholder="e.g. Recommended Architecture" value={solutionData.title} onChange={(e) => setSolutionData({...solutionData, title: e.target.value})} sx={modalInputStyle} />
+            </Box>
+            <Box>
+                <InputLabel sx={{ color: "#cbd5e1", mb: 1, fontSize: "0.9rem" }}>Solution Note</InputLabel>
+                <TextField multiline rows={4} fullWidth placeholder="Detailed description of the solution..." value={solutionData.note} onChange={(e) => setSolutionData({...solutionData, note: e.target.value})} sx={modalInputStyle} />
+            </Box>
+            <Box sx={{ border: '2px dashed rgba(255,255,255,0.2)', borderRadius: '12px', p: 3, textAlign: 'center', cursor: 'pointer', '&:hover': { borderColor: themeColors.success, bgcolor: 'rgba(0, 184, 148, 0.05)' } }} component="label">
+                <input type="file" multiple hidden ref={solutionFileRef} onChange={handleSolutionFileChange} />
+                <CloudUploadIcon sx={{ fontSize: 40, color: themeColors.success, mb: 1 }} />
+                <Typography sx={{ color: "#cbd5e1", fontSize: "0.9rem" }}>Click to upload Solution Files</Typography>
+            </Box>
+            {solutionFiles.length > 0 && (
+                <List sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                    {solutionFiles.map((file, index) => (
+                        <ListItem key={index} secondaryAction={<IconButton edge="end" onClick={() => removeSolutionFile(index)} sx={{ color: '#ef4444' }}><DeleteIcon /></IconButton>}>
+                            <ListItemIcon><InsertDriveFileIcon sx={{ color: '#cbd5e1' }} /></ListItemIcon>
+                            <ListItemText primary={file.name} primaryTypographyProps={{ style: { color: '#fff', fontSize: '0.9rem' } }} secondary={`${(file.size / 1024).toFixed(1)} KB`} secondaryTypographyProps={{ style: { color: '#94a3b8' } }} />
+                        </ListItem>
+                    ))}
+                </List>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setSolutionOpen(false)} sx={{ color: "#94a3b8" }}>Cancel</Button>
+            <Button variant="contained" onClick={handleSolutionSubmit} disabled={solutionLoading} sx={{ bgcolor: themeColors.success, '&:hover': { bgcolor: "#00a884" }, fontWeight: 600, px: 3 }}>
+                {solutionLoading ? "Sending..." : "Send Solution"}
+            </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* --- CONFIRM TRANSFER DIALOG --- */}
+      <Dialog open={transferOpen} onClose={() => setTransferOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: '#0f0c29', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' } }}>
+        <DialogTitle sx={{ color: "#fff", fontWeight: 700 }}>Confirm Transfer</DialogTitle>
+        <DialogContent>
+            <DialogContentText sx={{ color: "#cbd5e1", fontSize: '1.05rem', lineHeight: 1.6 }}>
+                Are you sure you want to transfer this lead to the <strong>Quotation Department</strong>?
+            </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+            <Button onClick={() => setTransferOpen(false)} sx={{ color: "#94a3b8", fontWeight: 600 }}>No, Cancel</Button>
+            <Button variant="contained" onClick={handleTransferSubmit} disabled={transferLoading} sx={{ bgcolor: themeColors.blue, '&:hover': { bgcolor: "#0062cc" }, fontWeight: 600, px: 3 }}>
+                {transferLoading ? "Transferring..." : "Yes, Transfer"}
+            </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} sx={{ borderRadius: '12px', width: '100%', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }} variant="filled">
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
