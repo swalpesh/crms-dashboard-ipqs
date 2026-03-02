@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -9,24 +9,29 @@ import {
   IconButton,
   Avatar,
   Chip,
+  CircularProgress,
+  Snackbar,
+  Alert,
   Modal,
-  TextField,
-  Grid,
+  Fade,
   Backdrop,
-  Fade
+  Grid,
+  TextField
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
 // Material UI Icons
 import SearchIcon from '@mui/icons-material/Search';
-import AddIcon from '@mui/icons-material/Add';
 import WhatshotIcon from '@mui/icons-material/Whatshot';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import CheckIcon from '@mui/icons-material/Check';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CloseIcon from '@mui/icons-material/Close';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import CheckIcon from '@mui/icons-material/Check';
+
+// --- API HELPERS ---
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
 // --- THEME CONSTANTS ---
 const theme = {
@@ -37,7 +42,7 @@ const theme = {
   textPrimary: '#ffffff',
   textSecondary: '#a0a0a0',
   accent: '#3b82f6',
-  success: '#00b894',
+  success: '#10b981', 
   warning: '#f1c40f',
   danger: '#e74c3c',
   info: '#3498db',
@@ -61,44 +66,6 @@ const styles = {
     boxShadow: theme.glassShadow,
     borderRadius: '16px',
   },
-  modalStyle: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: { xs: '95%', sm: 600 },
-    maxHeight: '80vh',
-    bgcolor: '#12122b',
-    border: theme.glassBorder,
-    boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-    borderRadius: '24px',
-    p: 4,
-    overflowY: 'auto',
-    outline: 'none'
-  },
-  dateTimeBox: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    width: { xs: '90%', sm: 450 }, // Slightly wider to accommodate multiline
-    bgcolor: '#1a1a35',
-    borderRadius: '24px',
-    border: '1px solid rgba(255,255,255,0.1)',
-    p: 4,
-    outline: 'none'
-  },
-  inputField: {
-    '& .MuiOutlinedInput-root': {
-      color: '#fff',
-      bgcolor: 'rgba(255,255,255,0.03)',
-      borderRadius: '12px',
-      '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-      '&:hover fieldset': { borderColor: theme.accent },
-      '&.Mui-focused fieldset': { borderColor: theme.accent },
-    },
-    '& .MuiInputLabel-root': { color: theme.textSecondary },
-  },
   headerInput: {
     background: 'rgba(0,0,0,0.2)',
     border: theme.glassBorder,
@@ -120,7 +87,7 @@ const styles = {
   },
   gridRow: {
     display: 'grid',
-    gridTemplateColumns: { xs: '1fr', md: '2.5fr 1fr 1fr 1.5fr 1.5fr' },
+    gridTemplateColumns: { xs: '1fr', md: '2.5fr 0.8fr 0.8fr 1.2fr 2fr 1.8fr' },
     alignItems: 'center',
     gap: 2,
     p: 2.5,
@@ -134,6 +101,30 @@ const styles = {
       background: 'rgba(255,255,255,0.08)'
     }
   },
+  dateTimeBox: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: { xs: '90%', sm: 500 }, 
+    bgcolor: '#1a1a35',
+    borderRadius: '24px',
+    border: '1px solid rgba(255,255,255,0.1)',
+    p: 4,
+    outline: 'none',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.8)'
+  },
+  inputField: {
+    '& .MuiOutlinedInput-root': {
+      color: '#fff',
+      bgcolor: 'rgba(255,255,255,0.03)',
+      borderRadius: '12px',
+      '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+      '&:hover fieldset': { borderColor: theme.accent },
+      '&.Mui-focused fieldset': { borderColor: theme.accent },
+    },
+    '& .MuiInputLabel-root': { color: theme.textSecondary },
+  },
   badgeHigh: { bgcolor: 'rgba(231, 76, 60, 0.2)', color: theme.danger, border: `1px solid rgba(231, 76, 60, 0.3)` },
   badgeMed: { bgcolor: 'rgba(241, 196, 15, 0.2)', color: theme.warning, border: `1px solid rgba(241, 196, 15, 0.3)` },
   badgeLow: { bgcolor: 'rgba(52, 152, 219, 0.2)', color: theme.info, border: `1px solid rgba(52, 152, 219, 0.3)` },
@@ -141,63 +132,218 @@ const styles = {
   typeService: { bgcolor: 'rgba(46, 204, 113, 0.2)', color: theme.teal, border: `1px solid rgba(46, 204, 113, 0.3)` },
 };
 
-// --- MOCK DATA ---
-const initialFollowUps = [
-  { id: 1, company: "Mahindra & Mahindra", contact: "Mr. Rahul Sharma", avatarColor: theme.danger, avatarLetter: "M", priority: "High", type: "Product", status: "overdue", date: "10 Jan 2026", activityType: "Scheduled" },
-  { id: 2, company: "Renuka Logistics", contact: "Mrs. Priya Deshmukh", avatarColor: theme.info, avatarLetter: "R", priority: "Medium", type: "Service", status: "completed", date: "09 Jan 2026", activityType: "Conducted" },
-  { id: 3, company: "Quantum Solutions", contact: "Amit Patel", avatarColor: theme.purple, avatarLetter: "Q", priority: "Low", type: "Product", status: "scheduled", date: "12 Jan 2026", activityType: "Scheduled" }
-];
+// --- HELPER FUNCTIONS ---
+const getInitials = (name) => {
+  if (!name) return "U";
+  return name.charAt(0).toUpperCase();
+};
 
-const mockLeads = [
-  { id: 101, company: "Tata Motors", contact: "Suresh P.", logo: "T", color: "#e74c3c" },
-  { id: 102, company: "Infosys Ltd", contact: "Anjali M.", logo: "I", color: "#3498db" },
-  { id: 103, company: "Reliance Ind.", contact: "Vikram S.", logo: "R", color: "#f1c40f" },
-];
+const formatFollowUpDate = (dateStr) => {
+  if (!dateStr) return "Not Set";
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+};
+
+const formatFollowUpTime = (timeStr) => {
+  if (!timeStr) return "";
+  try {
+    const [hourString, minute] = timeStr.split(':');
+    const hour = parseInt(hourString, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minute} ${ampm}`;
+  } catch {
+    return timeStr;
+  }
+};
 
 const PendingFollowup = () => {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPriority, setFilterPriority] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
   
-  // Modal states
-  const [showLeadModal, setShowLeadModal] = useState(false);
-  const [showDateTimeModal, setShowDateTimeModal] = useState(false);
+  // Reschedule & Approval States
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [activeLead, setActiveLead] = useState(null);
+  const [rescheduleData, setRescheduleData] = useState({ date: '', time: '', reason: '' });
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [approvalLoadingId, setApprovalLoadingId] = useState(null);
 
-  // --- Filtering Logic ---
-  const filteredFollowUps = initialFollowUps.filter(item => {
-    const matchesSearch = item.company.toLowerCase().includes(searchQuery.toLowerCase()) || item.contact.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPriority = filterPriority === 'all' || item.priority.toLowerCase() === filterPriority;
-    const matchesStatus = filterStatus === 'all' || item.status === filterStatus;
-    return matchesSearch && matchesPriority && matchesStatus;
-  });
+  const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
+  const navigate = useNavigate();
 
-  const handleOpenLeadModal = () => setShowLeadModal(true);
-  const handleCloseLeadModal = () => setShowLeadModal(false);
+  // --- API FETCH ---
+  const fetchFollowUps = async () => {
+    try {
+      setLoading(true);
+      const token = getToken();
+      if (!token) return;
 
-  const handleOpenSchedule = (lead) => {
-    setActiveLead(lead);
-    setShowDateTimeModal(true);
+      const response = await fetch(`${API_BASE_URL}/api/fleads/my-leads?lead_status=follow-up`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setLeads(data.leads || []);
+      } else {
+        setToast({ open: true, message: "Failed to fetch follow-ups.", severity: "error" });
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ open: true, message: "Server error while fetching leads.", severity: "error" });
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    fetchFollowUps();
+  }, []);
+
+  // --- FILTERING LOGIC ---
+  const filteredFollowUps = useMemo(() => {
+    return leads.filter(lead => {
+      const companyName = lead.company_name || "";
+      const contactPerson = lead.contact_person_name || "";
+      const priority = lead.lead_priority || "";
+
+      const matchesSearch = companyName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            contactPerson.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesPriority = filterPriority === 'all' || priority.toLowerCase() === filterPriority.toLowerCase();
+
+      return matchesSearch && matchesPriority;
+    });
+  }, [leads, searchQuery, filterPriority]);
+
+  // --- STYLING MAPPERS ---
   const getPriorityStyle = (priority) => {
-    if (priority === 'High') return styles.badgeHigh;
-    if (priority === 'Medium') return styles.badgeMed;
+    const p = priority?.toLowerCase();
+    if (p === 'high') return styles.badgeHigh;
+    if (p === 'medium') return styles.badgeMed;
     return styles.badgeLow;
   };
 
   const getPriorityIcon = (priority) => {
-    if (priority === 'High') return <WhatshotIcon sx={{ fontSize: 16 }} />;
+    if (priority?.toLowerCase() === 'high') return <WhatshotIcon sx={{ fontSize: 16 }} />;
     return undefined;
   };
 
   const getTypeBadge = (type) => {
-    return type === 'Product' ? styles.typeProduct : styles.typeService;
+    return type?.toLowerCase() === 'product' ? styles.typeProduct : styles.typeService;
+  };
+
+  const handleViewClick = (id) => navigate(`/marketing/customer-info/${id}`);
+
+  // --- APPROVE HANDLER (DUAL API CALL) ---
+  const handleApprove = async (lead) => {
+    setApprovalLoadingId(lead.lead_id);
+    try {
+      const token = getToken();
+
+      // Define both API calls
+      const changeStagePromise = fetch(`${API_BASE_URL}/api/fleads/change-stage`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          lead_id: lead.lead_id,
+          new_lead_stage: "Quotation-Team",
+          reason: "PO Confirmed"
+        })
+      });
+
+      const poStatusPromise = fetch(`${API_BASE_URL}/api/leads/po-status`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          lead_id: lead.lead_id,
+          po_confirmed: "Yes"
+        })
+      });
+
+      // Fire both concurrently
+      const [resStage, resPO] = await Promise.all([changeStagePromise, poStatusPromise]);
+
+      if (resStage.ok && resPO.ok) {
+        setToast({ open: true, message: "Lead Approved: Stage changed and PO confirmed!", severity: "success" });
+        fetchFollowUps(); // Refresh the list
+      } else {
+        throw new Error("One or more requests failed. Please check the logs.");
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ open: true, message: error.message, severity: "error" });
+    } finally {
+      setApprovalLoadingId(null);
+    }
+  };
+
+  // --- RESCHEDULE HANDLERS ---
+  const handleOpenReschedule = (lead) => {
+    setActiveLead(lead);
+    setRescheduleData({
+      date: lead.follow_up_date ? lead.follow_up_date.split('T')[0] : '',
+      time: lead.follow_up_time || '',
+      reason: lead.follow_up_reason || ''
+    });
+    setShowRescheduleModal(true);
+  };
+
+  const handleSubmitReschedule = async () => {
+    if (!rescheduleData.date || !rescheduleData.time || !rescheduleData.reason.trim()) {
+      setToast({ open: true, message: "Please fill all the required fields.", severity: "warning" });
+      return;
+    }
+
+    setRescheduleLoading(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/api/fleads/${activeLead.lead_id}/status`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          lead_status: "follow-up",
+          follow_up_reason: rescheduleData.reason,
+          follow_up_date: rescheduleData.date,
+          follow_up_time: rescheduleData.time
+        })
+      });
+
+      if (response.ok) {
+        setToast({ open: true, message: "Follow-up rescheduled successfully!", severity: "success" });
+        setShowRescheduleModal(false);
+        fetchFollowUps(); 
+      } else {
+        const errData = await response.json();
+        throw new Error(errData.message || "Failed to reschedule follow-up.");
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ open: true, message: error.message, severity: "error" });
+    } finally {
+      setRescheduleLoading(false);
+    }
   };
 
   return (
     <Box sx={styles.container}>
-      <Box sx={{ maxWidth: '1200px', mx: 'auto' }}>
+      <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
         
         {/* --- Header --- */}
         <Box sx={{ ...styles.glassPanel, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', p: 3, mb: 3, gap: 2 }}>
@@ -218,91 +364,184 @@ const PendingFollowup = () => {
               <MenuItem value="medium">Medium</MenuItem>
               <MenuItem value="low">Low</MenuItem>
             </Select>
-
-            <Select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} sx={styles.select} displayEmpty>
-              <MenuItem value="all">All Status</MenuItem>
-              <MenuItem value="scheduled">Scheduled</MenuItem>
-              <MenuItem value="overdue">Overdue</MenuItem>
-            </Select>
-
-            <Button onClick={handleOpenLeadModal} variant="contained" startIcon={<AddIcon />} sx={{ bgcolor: theme.accent, textTransform: 'none', borderRadius: '10px', '&:hover': { bgcolor: '#2563eb' } }}>
-              New Follow-Up
-            </Button>
           </Box>
         </Box>
 
         {/* --- List Header --- */}
-        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: '2.5fr 1fr 1fr 1.5fr 1.5fr', px: 3, py: 1.5, mb: 1, color: theme.textSecondary, fontSize: '0.85rem', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-          <Box>Lead / Contact Person</Box><Box>Priority</Box><Box>Lead Type</Box><Box>Activity Status</Box><Box sx={{ textAlign: 'right' }}>Actions</Box>
+        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: '2.5fr 0.8fr 0.8fr 1.2fr 2fr 1.8fr', px: 3, py: 1.5, mb: 1, color: theme.textSecondary, fontSize: '0.85rem', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+          <Box>Lead / Contact Person</Box>
+          <Box>Priority</Box>
+          <Box>Lead Type</Box>
+          <Box>Expected Rev.</Box>
+          <Box>Follow-Up Details</Box>
+          <Box sx={{ textAlign: 'right' }}>Actions</Box>
         </Box>
 
         {/* --- List Items --- */}
         <Box>
-          {filteredFollowUps.map((item) => (
-            <Box key={item.id} sx={{ ...styles.gridRow, borderLeft: item.status === 'overdue' ? `3px solid ${theme.danger}` : theme.glassBorder, opacity: item.status === 'completed' ? 0.7 : 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar sx={{ bgcolor: item.avatarColor, width: 45, height: 45, fontSize: '1.2rem', fontWeight: 700, borderRadius: '12px' }}>{item.avatarLetter}</Avatar>
-                <Box><Typography variant="h6" fontSize="1.05rem" fontWeight={600}>{item.company}</Typography><Typography variant="body2" color={theme.textSecondary}>{item.contact}</Typography></Box>
-              </Box>
-              <Box><Chip label={item.priority} icon={getPriorityIcon(item.priority)} size="small" sx={{ ...getPriorityStyle(item.priority), fontWeight: 600, borderRadius: '8px', '& .MuiChip-icon': { color: 'inherit' } }} /></Box>
-              <Box><Chip label={item.type} size="small" sx={{ ...getTypeBadge(item.type), fontWeight: 600, borderRadius: '8px' }} /></Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                {item.activityType === 'Conducted' ? <CheckCircleIcon sx={{ color: theme.success }} /> : <CalendarTodayIcon sx={{ color: item.status === 'overdue' ? theme.warning : theme.accent }} />}
-                <Box><Typography variant="body2" fontWeight={600} color="white">{item.activityType}</Typography><Typography variant="caption" color={theme.textSecondary}>on {item.date}</Typography></Box>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-                {item.status === 'completed' ? (
-                  <><Typography variant="body2" color={theme.success} fontWeight={600} sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>Completed</Typography><IconButton size="small" sx={{ bgcolor: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}><VisibilityIcon sx={{ color: theme.textSecondary }} /></IconButton></>
-                ) : (
-                  <><Button variant="contained" size="small" startIcon={<CheckIcon />} sx={{ bgcolor: theme.success, textTransform: 'none', color: 'white', borderRadius: '8px', '&:hover': { bgcolor: '#059669' } }}>Conducted</Button><Button variant="outlined" size="small" startIcon={<AccessTimeIcon />} sx={{ borderColor: 'rgba(255,255,255,0.2)', color: theme.textSecondary, textTransform: 'none', borderRadius: '8px', '&:hover': { borderColor: 'white', color: 'white', bgcolor: 'rgba(255,255,255,0.05)' } }}>Re-schedule</Button></>
-                )}
-              </Box>
-            </Box>
-          ))}
+          {loading ? (
+             <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
+          ) : filteredFollowUps.length === 0 ? (
+             <Typography variant="body1" color={theme.textSecondary} textAlign="center" mt={5}>No pending follow-ups found.</Typography>
+          ) : (
+            filteredFollowUps.map((lead) => {
+              const revenue = parseFloat(lead.expected_revenue || 0);
+              const formattedRevenue = revenue.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+              const isApproving = approvalLoadingId === lead.lead_id;
+              
+              return (
+                <Box key={lead.lead_id} sx={{ ...styles.gridRow, borderLeft: `3px solid ${theme.accent}` }}>
+                  
+                  {/* Lead Info */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: theme.accent, width: 45, height: 45, fontSize: '1.2rem', fontWeight: 700, borderRadius: '12px' }}>
+                      {getInitials(lead.company_name)}
+                    </Avatar>
+                    <Box overflow="hidden">
+                      <Typography variant="h6" fontSize="1.05rem" fontWeight={600} noWrap>{lead.company_name}</Typography>
+                      <Typography variant="body2" color={theme.textSecondary} noWrap>{lead.contact_person_name || "No Contact"}</Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Priority */}
+                  <Box>
+                    <Chip 
+                      label={lead.lead_priority || 'Medium'} 
+                      icon={getPriorityIcon(lead.lead_priority)} 
+                      size="small" 
+                      sx={{ ...getPriorityStyle(lead.lead_priority), fontWeight: 600, borderRadius: '8px', '& .MuiChip-icon': { color: 'inherit' } }} 
+                    />
+                  </Box>
+
+                  {/* Lead Type */}
+                  <Box>
+                    <Chip 
+                      label={lead.lead_type || 'N/A'} 
+                      size="small" 
+                      sx={{ ...getTypeBadge(lead.lead_type), fontWeight: 600, borderRadius: '8px' }} 
+                    />
+                  </Box>
+
+                  {/* Expected Revenue */}
+                  <Box>
+                     <Typography variant="body2" fontWeight={600} color={theme.success}>
+                       {formattedRevenue}
+                     </Typography>
+                  </Box>
+
+                  {/* Activity Details */}
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, overflow: 'hidden' }}>
+                    <CalendarTodayIcon sx={{ color: theme.accent, mt: 0.2, fontSize: 18 }} />
+                    <Box sx={{ width: '100%' }}>
+                      <Typography variant="body2" fontWeight={600} color="white">
+                        {formatFollowUpDate(lead.follow_up_date)} <span style={{ color: theme.textSecondary, fontWeight: 400 }}>at</span> {formatFollowUpTime(lead.follow_up_time)}
+                      </Typography>
+                      <Typography 
+                        variant="caption" 
+                        color={theme.textSecondary} 
+                        sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                        title={lead.follow_up_reason}
+                      >
+                        {lead.follow_up_reason || "No reason provided"}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Actions */}
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      onClick={() => handleViewClick(lead.lead_id)}
+                      startIcon={<VisibilityIcon />} 
+                      sx={{ 
+                        minWidth: 0,
+                        borderColor: 'rgba(59, 130, 246, 0.4)', 
+                        color: theme.accent, 
+                        textTransform: 'none', 
+                        borderRadius: '8px', 
+                        '&:hover': { borderColor: theme.accent, bgcolor: 'rgba(59, 130, 246, 0.1)' } 
+                      }}
+                    >
+                      View
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      onClick={() => handleOpenReschedule(lead)}
+                      startIcon={<AccessTimeIcon />} 
+                      sx={{ 
+                        minWidth: 0,
+                        borderColor: 'rgba(255,255,255,0.2)', 
+                        color: theme.textSecondary, 
+                        textTransform: 'none', 
+                        borderRadius: '8px', 
+                        '&:hover': { borderColor: 'white', color: 'white', bgcolor: 'rgba(255,255,255,0.05)' } 
+                      }}
+                    >
+                      Reschedule
+                    </Button>
+                    <Button 
+                      variant="contained" 
+                      size="small" 
+                      onClick={() => handleApprove(lead)}
+                      disabled={isApproving}
+                      startIcon={isApproving ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
+                      sx={{ 
+                        minWidth: 0,
+                        bgcolor: theme.success, 
+                        textTransform: 'none', 
+                        color: 'white', 
+                        borderRadius: '8px', 
+                        boxShadow: `0 4px 10px rgba(16, 185, 129, 0.2)`,
+                        '&:hover': { bgcolor: '#059669' } 
+                      }}
+                    >
+                      {isApproving ? 'Approving...' : 'Approve'}
+                    </Button>
+                  </Box>
+
+                </Box>
+              )
+            })
+          )}
         </Box>
 
-        {/* --- MODAL 1: SELECT LEAD --- */}
-        <Modal open={showLeadModal} onClose={handleCloseLeadModal} closeAfterTransition>
-          <Fade in={showLeadModal}>
-            <Box sx={styles.modalStyle}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="h5" fontWeight={700} color="#fff">Available Leads</Typography>
-                <IconButton onClick={handleCloseLeadModal} sx={{ color: '#fff' }}><CloseIcon /></IconButton>
-              </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {mockLeads.map((lead) => (
-                  <Box key={lead.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar sx={{ bgcolor: lead.color, fontWeight: 700 }}>{lead.logo}</Avatar>
-                      <Box><Typography fontWeight={600} color="#fff">{lead.company}</Typography><Typography variant="caption" color={theme.textSecondary}>{lead.contact}</Typography></Box>
-                    </Box>
-                    <Button variant="outlined" size="small" startIcon={<CalendarMonthIcon />} onClick={() => handleOpenSchedule(lead)} sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.2)', textTransform: 'none', '&:hover': { bgcolor: theme.accent, borderColor: theme.accent } }}>Schedule</Button>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          </Fade>
-        </Modal>
-
-        {/* --- MODAL 2: SELECT DATE, TIME & REASON --- */}
-        <Modal open={showDateTimeModal} onClose={() => setShowDateTimeModal(false)} closeAfterTransition BackdropComponent={Backdrop} BackdropProps={{ timeout: 500, style: { backgroundColor: 'rgba(0,0,0,0.8)' } }}>
-          <Fade in={showDateTimeModal}>
+        {/* --- MODAL: RESCHEDULE --- */}
+        <Modal open={showRescheduleModal} onClose={() => setShowRescheduleModal(false)} closeAfterTransition BackdropComponent={Backdrop} BackdropProps={{ timeout: 500, style: { backgroundColor: 'rgba(0,0,0,0.8)' } }}>
+          <Fade in={showRescheduleModal}>
             <Box sx={styles.dateTimeBox}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6" fontWeight={700} color="#fff">Set Follow-Up</Typography>
-                <IconButton onClick={() => setShowDateTimeModal(false)} sx={{ color: theme.textSecondary }}><CloseIcon size={20} /></IconButton>
+                <Typography variant="h6" fontWeight={700} color="#fff">Re-schedule Follow-Up</Typography>
+                <IconButton onClick={() => setShowRescheduleModal(false)} sx={{ color: theme.textSecondary }}><CloseIcon size={20} /></IconButton>
               </Box>
-              <Typography variant="body2" sx={{ color: theme.textSecondary, mb: 3 }}>Scheduling for <span style={{ color: theme.accent, fontWeight: 700 }}>{activeLead?.company}</span></Typography>
+              <Typography variant="body2" sx={{ color: theme.textSecondary, mb: 3 }}>
+                Scheduling for <span style={{ color: theme.accent, fontWeight: 700 }}>{activeLead?.company_name}</span>
+              </Typography>
+              
               <Grid container spacing={3}>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="caption" sx={{ color: theme.accent, fontWeight: 700, mb: 1, display: 'block' }}>DATE</Typography>
-                  <TextField fullWidth type="date" sx={styles.inputField} InputLabelProps={{ shrink: true }} />
+                  <TextField 
+                    fullWidth 
+                    type="date" 
+                    sx={styles.inputField} 
+                    InputLabelProps={{ shrink: true }} 
+                    value={rescheduleData.date}
+                    onChange={(e) => setRescheduleData({...rescheduleData, date: e.target.value})}
+                  />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="caption" sx={{ color: theme.accent, fontWeight: 700, mb: 1, display: 'block' }}>TIME</Typography>
-                  <TextField fullWidth type="time" sx={styles.inputField} InputLabelProps={{ shrink: true }} />
+                  <TextField 
+                    fullWidth 
+                    type="time" 
+                    sx={styles.inputField} 
+                    InputLabelProps={{ shrink: true }} 
+                    value={rescheduleData.time}
+                    onChange={(e) => setRescheduleData({...rescheduleData, time: e.target.value})}
+                  />
                 </Grid>
-                {/* NEW REASON FIELD */}
                 <Grid item xs={12}>
                   <Typography variant="caption" sx={{ color: theme.accent, fontWeight: 700, mb: 1, display: 'block' }}>REASON FOR FOLLOW-UP</Typography>
                   <TextField 
@@ -311,18 +550,38 @@ const PendingFollowup = () => {
                     rows={3} 
                     placeholder="Enter reason or next steps..." 
                     sx={styles.inputField} 
+                    value={rescheduleData.reason}
+                    onChange={(e) => setRescheduleData({...rescheduleData, reason: e.target.value})}
                   />
                 </Grid>
               </Grid>
+
               <Box sx={{ mt: 5, display: 'flex', gap: 2 }}>
-                <Button fullWidth onClick={() => setShowDateTimeModal(false)} sx={{ color: theme.textSecondary, textTransform: 'none' }}>Cancel</Button>
-                <Button fullWidth variant="contained" onClick={() => { setShowDateTimeModal(false); setShowLeadModal(false); }} sx={{ bgcolor: theme.accent, borderRadius: '12px', fontWeight: 700, textTransform: 'none' }}>Confirm</Button>
+                <Button fullWidth onClick={() => setShowRescheduleModal(false)} sx={{ color: theme.textSecondary, textTransform: 'none' }}>
+                  Cancel
+                </Button>
+                <Button 
+                  fullWidth 
+                  variant="contained" 
+                  onClick={handleSubmitReschedule} 
+                  disabled={rescheduleLoading}
+                  sx={{ bgcolor: theme.accent, borderRadius: '12px', fontWeight: 700, textTransform: 'none' }}
+                >
+                  {rescheduleLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm Reschedule'}
+                </Button>
               </Box>
             </Box>
           </Fade>
         </Modal>
 
       </Box>
+
+      {/* Global Toast */}
+      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} variant="filled" sx={{ borderRadius: '12px' }}>
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

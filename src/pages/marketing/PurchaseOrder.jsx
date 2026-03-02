@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -17,7 +17,10 @@ import {
   Chip,
   createTheme,
   ThemeProvider,
-  styled
+  styled,
+  CircularProgress,
+  Snackbar,
+  Alert
 } from '@mui/material';
 
 // Icons
@@ -97,67 +100,128 @@ const POButton = styled(Button)({
   '&:hover': {
     boxShadow: '0 6px 20px rgba(16, 185, 129, 0.6)',
   },
+  '&.Mui-disabled': {
+    background: 'rgba(16, 185, 129, 0.5)',
+    color: 'rgba(255, 255, 255, 0.7)',
+    boxShadow: 'none'
+  }
 });
 
-// --- DATA ---
-const poRows = [
-  {
-    id: 1,
-    company: 'Mahindra & Mahindra',
-    contact: 'Mr. Rahul Sharma (Procurement)',
-    location: 'Nashik',
-    type: 'Product',
-    status: 'Negotiation',
-    statusColor: '#f97316', // Orange
-    createdBy: 'Alex D.',
-    logo: 'M',
-    logoColor: '#ef4444',
-    logoShadow: 'rgba(239, 68, 68, 0.3)',
-  },
-  {
-    id: 2,
-    company: 'Renuka Logistics',
-    contact: 'Mrs. Priya Deshmukh',
-    location: 'Pune',
-    type: 'Service',
-    status: 'New',
-    statusColor: '#3b82f6', // Blue
-    createdBy: 'Maria G.',
-    logo: 'R',
-    logoColor: '#3b82f6',
-    logoShadow: 'rgba(59, 130, 246, 0.3)',
-  },
-  {
-    id: 3,
-    company: 'Quantum Solutions',
-    contact: 'Amit Patel',
-    location: 'Mumbai',
-    type: 'Product',
-    status: 'Qualified',
-    statusColor: '#10b981', // Green
-    createdBy: 'John K.',
-    logo: 'Q',
-    logoColor: '#8b5cf6', // Purple
-    logoShadow: 'rgba(139, 92, 246, 0.3)',
-  },
-  {
-    id: 4,
-    company: 'TechSpace Park',
-    contact: 'Emily Chen',
-    location: 'Bangalore',
-    type: 'Service',
-    status: 'Urgent',
-    statusColor: '#ef4444', // Red
-    createdBy: 'Alex D.',
-    logo: 'T',
-    logoColor: '#f97316', // Orange
-    logoShadow: 'rgba(249, 115, 22, 0.3)',
-  },
-];
+// --- API HELPERS ---
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+
+const getInitials = (name) => {
+  if (!name) return "U";
+  return name.charAt(0).toUpperCase();
+};
+
+const getAvatarStyles = (type) => {
+  if (type === 'Product') return { color: '#8b5cf6', shadow: 'rgba(139, 92, 246, 0.3)' };
+  if (type === 'Service') return { color: '#3b82f6', shadow: 'rgba(59, 130, 246, 0.3)' };
+  return { color: '#f97316', shadow: 'rgba(249, 115, 22, 0.3)' };
+};
 
 // --- MAIN COMPONENT ---
 const PurchaseOrder = () => {
   const [activeTab, setActiveTab] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null);
+  
+  const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
+
+  // --- FETCH API ---
+  const fetchPOLeads = async () => {
+    setLoading(true);
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/quotations/quotation-team`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setLeads(data.leads || []);
+      } else {
+        console.error("Failed to fetch leads");
+      }
+    } catch (error) {
+      console.error("API Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPOLeads();
+  }, []);
+
+  // --- PO RECEIVED HANDLER ---
+  const handlePOReceived = async (leadId) => {
+    setProcessingId(leadId);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/api/v1/quotations/send-back`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          lead_id: leadId,
+          new_lead_stage: "Won",
+          assigned_employee: "0",
+          reason: "Lead Won."
+        })
+      });
+
+      if (response.ok) {
+        setToast({ open: true, message: "Lead marked as Won successfully!", severity: "success" });
+        fetchPOLeads(); // Refresh the list to remove it
+      } else {
+        const errData = await response.json();
+        throw new Error(errData.message || "Failed to update lead status.");
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ open: true, message: error.message || "An error occurred.", severity: "error" });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // --- FILTERING LOGIC ---
+  const displayedLeads = useMemo(() => {
+    return leads.filter(lead => {
+      // 1. STRICT REQUIREMENT: Must have Quotation Created AND PO Confirmed
+      if (lead.quotation_created !== "Yes" || lead.po_confirmed !== "Yes") {
+        return false;
+      }
+
+      // 2. Tab Filter (All, Product, Service)
+      if (activeTab !== 'All' && lead.lead_type !== activeTab) {
+        return false;
+      }
+
+      // 3. Search Bar Filter
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const compName = (lead.company_name || "").toLowerCase();
+        const contactName = (lead.contact_person_name || "").toLowerCase();
+        if (!compName.includes(q) && !contactName.includes(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [leads, activeTab, searchQuery]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -195,11 +259,13 @@ const PurchaseOrder = () => {
             </Typography>
           </Box>
 
-          {/* Header Actions (No Bell/Profile as requested) */}
+          {/* Header Actions */}
           <Box display="flex" alignItems="center" gap={2} width={{ xs: '100%', md: 'auto' }}>
             <TextField
               placeholder="Search companies..."
               variant="standard"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               InputProps={{
                 disableUnderline: true,
                 startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ color: 'text.secondary' }} /></InputAdornment>),
@@ -232,6 +298,7 @@ const PurchaseOrder = () => {
                 <ShoppingCartIcon />
               </Box>
               <Typography variant="h6" fontWeight="600">New Orders</Typography>
+              <Chip label={displayedLeads.length} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff', fontWeight: 600, ml: 1 }} />
             </Box>
 
             <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', p: 0.5, borderRadius: 30, border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -257,87 +324,119 @@ const PurchaseOrder = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {poRows.map((row) => (
-                  <TableRow key={row.id}>
-                    
-                    {/* Company Info */}
-                    <GlassTableCell>
-                      <Box display="flex" alignItems="center" gap={2}>
-                        <Avatar
-                          variant="rounded"
-                          sx={{
-                            width: 44, height: 44, bgcolor: row.logoColor,
-                            boxShadow: `0 4px 12px ${row.logoShadow}`,
-                            fontWeight: 700, fontSize: 15
-                          }}
-                        >
-                          {row.logo}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body1" fontWeight={600} sx={{ lineHeight: 1.2 }}>
-                            {row.company}
+                {loading ? (
+                   <TableRow>
+                     <TableCell colSpan={6} align="center" sx={{ py: 5, borderBottom: 'none' }}>
+                       <CircularProgress sx={{ color: '#8b5cf6' }} />
+                     </TableCell>
+                   </TableRow>
+                ) : displayedLeads.length === 0 ? (
+                   <TableRow>
+                     <TableCell colSpan={6} align="center" sx={{ py: 5, color: '#a0a0c0', borderBottom: 'none' }}>
+                       No Pending Purchase Orders found.
+                     </TableCell>
+                   </TableRow>
+                ) : (
+                  displayedLeads.map((lead) => {
+                    const avatarStyle = getAvatarStyles(lead.lead_type);
+                    const isProcessing = processingId === lead.lead_id;
+
+                    return (
+                      <TableRow key={lead.lead_id}>
+                        
+                        {/* Company Info */}
+                        <GlassTableCell>
+                          <Box display="flex" alignItems="center" gap={2}>
+                            <Avatar
+                              variant="rounded"
+                              sx={{
+                                width: 44, height: 44, bgcolor: avatarStyle.color,
+                                boxShadow: `0 4px 12px ${avatarStyle.shadow}`,
+                                fontWeight: 700, fontSize: 15
+                              }}
+                            >
+                              {getInitials(lead.company_name)}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body1" fontWeight={600} sx={{ lineHeight: 1.2 }}>
+                                {lead.company_name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Contact: {lead.contact_person_name || 'N/A'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </GlassTableCell>
+
+                        {/* Location */}
+                        <GlassTableCell>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <PlaceIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                            <Typography variant="body2">
+                              {[lead.company_city, lead.company_state].filter(Boolean).join(', ') || 'N/A'}
+                            </Typography>
+                          </Box>
+                        </GlassTableCell>
+
+                        {/* Lead Type Pill */}
+                        <GlassTableCell>
+                          <Chip
+                            label={lead.lead_type || 'Unknown'}
+                            size="small"
+                            sx={{
+                              bgcolor: lead.lead_type === 'Product' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(160, 160, 192, 0.15)',
+                              color: lead.lead_type === 'Product' ? '#8b5cf6' : '#a0a0c0',
+                              border: `1px solid ${lead.lead_type === 'Product' ? 'rgba(139, 92, 246, 0.3)' : 'rgba(160, 160, 192, 0.3)'}`,
+                              fontWeight: 600, fontSize: '11px',
+                            }}
+                          />
+                        </GlassTableCell>
+
+                        {/* Status Text */}
+                        <GlassTableCell>
+                          <Typography variant="body2" fontWeight={600} sx={{ color: '#10b981' }}>
+                            PO Confirmed
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Contact: {row.contact}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </GlassTableCell>
+                        </GlassTableCell>
 
-                    {/* Location */}
-                    <GlassTableCell>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <PlaceIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                        <Typography variant="body2">{row.location}</Typography>
-                      </Box>
-                    </GlassTableCell>
+                        {/* Created By */}
+                        <GlassTableCell>
+                          <Box display="flex" alignItems="center" gap={1.5}>
+                            <Avatar sx={{ width: 32, height: 32, fontSize: 11, bgcolor: 'rgba(255,255,255,0.1)' }}>
+                              {getInitials(lead.created_by)}
+                            </Avatar>
+                            <Typography variant="body2">{lead.created_by || 'Unknown'}</Typography>
+                          </Box>
+                        </GlassTableCell>
 
-                    {/* Lead Type Pill */}
-                    <GlassTableCell>
-                      <Chip
-                        label={row.type}
-                        size="small"
-                        sx={{
-                          bgcolor: row.type === 'Product' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(160, 160, 192, 0.15)',
-                          color: row.type === 'Product' ? '#8b5cf6' : '#a0a0c0',
-                          border: `1px solid ${row.type === 'Product' ? 'rgba(139, 92, 246, 0.3)' : 'rgba(160, 160, 192, 0.3)'}`,
-                          fontWeight: 600, fontSize: '11px',
-                        }}
-                      />
-                    </GlassTableCell>
+                        {/* Action Button */}
+                        <GlassTableCell align="right">
+                          <POButton 
+                            disabled={isProcessing}
+                            startIcon={isProcessing ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon sx={{ fontSize: '16px !important' }} />}
+                            onClick={() => handlePOReceived(lead.lead_id)}
+                          >
+                            {isProcessing ? 'Processing...' : 'PO Received'}
+                          </POButton>
+                        </GlassTableCell>
 
-                    {/* Status Text */}
-                    <GlassTableCell>
-                      <Typography variant="body2" fontWeight={600} sx={{ color: row.statusColor }}>
-                        {row.status}
-                      </Typography>
-                    </GlassTableCell>
-
-                    {/* Created By */}
-                    <GlassTableCell>
-                      <Box display="flex" alignItems="center" gap={1.5}>
-                        <Avatar sx={{ width: 32, height: 32, fontSize: 11, bgcolor: 'rgba(255,255,255,0.1)' }}>
-                          {row.avatar}
-                        </Avatar>
-                        <Typography variant="body2">{row.createdBy}</Typography>
-                      </Box>
-                    </GlassTableCell>
-
-                    {/* Action Button */}
-                    <GlassTableCell align="right">
-                      <POButton startIcon={<CheckCircleIcon sx={{ fontSize: '16px !important' }} />}>
-                        PO Received
-                      </POButton>
-                    </GlassTableCell>
-
-                  </TableRow>
-                ))}
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </TableContainer>
 
         </GlassPanel>
       </Box>
+
+      {/* GLOBAL TOAST */}
+      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} variant="filled" sx={{ borderRadius: '12px' }}>
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </ThemeProvider>
   );
 };

@@ -1,550 +1,589 @@
-// src/pages/marketing/FollowUps.jsx
-import { useMemo, useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
-  Paper,
-  Stack,
   Typography,
-  TextField,
-  InputAdornment,
-  Chip,
   Button,
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  InputBase,
+  Select,
+  MenuItem,
+  IconButton,
+  Avatar,
+  Chip,
   CircularProgress,
-} from "@mui/material";
-import { useTheme } from "@mui/material/styles";
-import useMediaQuery from "@mui/material/useMediaQuery";
+  Snackbar,
+  Alert,
+  Modal,
+  Fade,
+  Backdrop,
+  Grid,
+  TextField
+} from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
-import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import UndoOutlinedIcon from "@mui/icons-material/UndoOutlined";
-import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
+// Material UI Icons
+import SearchIcon from '@mui/icons-material/Search';
+import WhatshotIcon from '@mui/icons-material/Whatshot';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
+import CheckIcon from '@mui/icons-material/Check';
 
-// ---------------- Constants & Helpers ----------------
+// --- API HELPERS ---
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-const DEPARTMENTS = [
-  "Tele Marketing",
-  "Associate Marketing",
-  "Technical Team",
-  "Solutions Team",
-];
+// --- THEME CONSTANTS ---
+const theme = {
+  bgGradient: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)',
+  glassBg: 'rgba(255, 255, 255, 0.04)',
+  glassBorder: '1px solid rgba(255, 255, 255, 0.1)',
+  glassShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+  textPrimary: '#ffffff',
+  textSecondary: '#a0a0a0',
+  accent: '#3b82f6',
+  success: '#10b981', 
+  warning: '#f1c40f',
+  danger: '#e74c3c',
+  info: '#3498db',
+  purple: '#9b59b6',
+  teal: '#2ecc71'
+};
 
-const fmtDate = (iso) =>
-  iso
-    ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-    : "-";
-
-const mapLead = (api) => ({
-  id: api.lead_id,
-  leadNo: api.lead_id,
-  company: api.company_name,
-  industry: api.industry_type,
-  contact: api.contact_person_name,
-  phone: api.contact_person_phone,
-  email: api.contact_person_email || api.company_email || "",
-  leadType: api.lead_requirement,
-  location: [api.company_city, api.company_state, api.company_country].filter(Boolean).join(", "),
-  follow: {
-    note: api.follow_up_reason || "",
-    date: api.follow_up_date || "",
-    time: api.follow_up_time || "",
+// --- STYLES ---
+const styles = {
+  container: {
+    minHeight: '100vh',
+    background: theme.bgGradient,
+    color: theme.textPrimary,
+    fontFamily: "'Inter', sans-serif",
+    p: { xs: 2, md: 4 },
   },
-  _raw: api,
-});
+  glassPanel: {
+    background: theme.glassBg,
+    backdropFilter: 'blur(16px)',
+    border: theme.glassBorder,
+    boxShadow: theme.glassShadow,
+    borderRadius: '16px',
+  },
+  headerInput: {
+    background: 'rgba(0,0,0,0.2)',
+    border: theme.glassBorder,
+    borderRadius: '10px',
+    color: 'white',
+    padding: '4px 12px',
+    display: 'flex',
+    alignItems: 'center',
+    width: { xs: '100%', sm: '300px' }
+  },
+  select: {
+    height: 40,
+    borderRadius: '10px',
+    bgcolor: 'rgba(0,0,0,0.2)',
+    border: theme.glassBorder,
+    color: 'white',
+    '& .MuiSvgIcon-root': { color: theme.textSecondary },
+    '& .MuiOutlinedInput-notchedOutline': { border: 'none' }
+  },
+  gridRow: {
+    display: 'grid',
+    gridTemplateColumns: { xs: '1fr', md: '2.5fr 0.8fr 0.8fr 1.2fr 2fr 1.8fr' },
+    alignItems: 'center',
+    gap: 2,
+    p: 2.5,
+    mb: 1.5,
+    borderRadius: '12px',
+    border: theme.glassBorder,
+    background: theme.glassBg,
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      background: 'rgba(255,255,255,0.08)'
+    }
+  },
+  dateTimeBox: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: { xs: '90%', sm: 500 }, 
+    bgcolor: '#1a1a35',
+    borderRadius: '24px',
+    border: '1px solid rgba(255,255,255,0.1)',
+    p: 4,
+    outline: 'none',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.8)'
+  },
+  inputField: {
+    '& .MuiOutlinedInput-root': {
+      color: '#fff',
+      bgcolor: 'rgba(255,255,255,0.03)',
+      borderRadius: '12px',
+      '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+      '&:hover fieldset': { borderColor: theme.accent },
+      '&.Mui-focused fieldset': { borderColor: theme.accent },
+    },
+    '& .MuiInputLabel-root': { color: theme.textSecondary },
+  },
+  badgeHigh: { bgcolor: 'rgba(231, 76, 60, 0.2)', color: theme.danger, border: `1px solid rgba(231, 76, 60, 0.3)` },
+  badgeMed: { bgcolor: 'rgba(241, 196, 15, 0.2)', color: theme.warning, border: `1px solid rgba(241, 196, 15, 0.3)` },
+  badgeLow: { bgcolor: 'rgba(52, 152, 219, 0.2)', color: theme.info, border: `1px solid rgba(52, 152, 219, 0.3)` },
+  typeProduct: { bgcolor: 'rgba(155, 89, 182, 0.2)', color: theme.purple, border: `1px solid rgba(155, 89, 182, 0.3)` },
+  typeService: { bgcolor: 'rgba(46, 204, 113, 0.2)', color: theme.teal, border: `1px solid rgba(46, 204, 113, 0.3)` },
+};
 
-// ---------------- Component ----------------
-export default function AssociateFollowUps() {
-  const theme = useTheme();
-  const isSmUp = useMediaQuery(theme.breakpoints.up("sm"));
-  const isMdUp = useMediaQuery(theme.breakpoints.up("md"));
+// --- HELPER FUNCTIONS ---
+const getInitials = (name) => {
+  if (!name) return "U";
+  return name.charAt(0).toUpperCase();
+};
 
-  const [followUps, setFollowUps] = useState([]);
-  const [loading, setLoading] = useState(false);
+const formatFollowUpDate = (dateStr) => {
+  if (!dateStr) return "Not Set";
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+};
 
-  // Filters
-  const [search, setSearch] = useState("");
-  const [personFilter, setPersonFilter] = useState("");
-  const [companyFilter, setCompanyFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [leadTypeFilter, setLeadTypeFilter] = useState("");
+const formatFollowUpTime = (timeStr) => {
+  if (!timeStr) return "";
+  try {
+    const [hourString, minute] = timeStr.split(':');
+    const hour = parseInt(hourString, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minute} ${ampm}`;
+  } catch {
+    return timeStr;
+  }
+};
 
-  // Assign dialog
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [assignLead, setAssignLead] = useState(null);
-  const [assignDept, setAssignDept] = useState("");
-  const [assignReason, setAssignReason] = useState("");
-  const [assignLoading, setAssignLoading] = useState(false);
+const AssociatePendingFollowup = () => {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterPriority, setFilterPriority] = useState('all');
+  
+  // Reschedule & Approval States
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [activeLead, setActiveLead] = useState(null);
+  const [rescheduleData, setRescheduleData] = useState({ date: '', time: '', reason: '' });
+  const [rescheduleLoading, setRescheduleLoading] = useState(false);
+  const [approvalLoadingId, setApprovalLoadingId] = useState(null);
 
-  // Back dialog
-  const [backOpen, setBackOpen] = useState(false);
-  const [backLead, setBackLead] = useState(null);
-  const [backReason, setBackReason] = useState("");
-  const [backLoading, setBackLoading] = useState(false);
+  const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
+  const navigate = useNavigate();
 
-  // Reschedule dialog
-  const [reschedOpen, setReschedOpen] = useState(false);
-  const [reschedLead, setReschedLead] = useState(null);
-  const [reschedNote, setReschedNote] = useState("");
-  const [reschedDate, setReschedDate] = useState("");
-  const [reschedTime, setReschedTime] = useState("");
-  const [reschedLoading, setReschedLoading] = useState(false);
-
-  // ---------------- API CALLS ----------------
-  async function fetchFollowUps() {
-    const token = getToken();
-    if (!token) return;
-    setLoading(true);
+  // --- API FETCH ---
+  const fetchFollowUps = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/aleads/my-leads/today-followups`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message || "Failed to fetch follow-ups");
+      setLoading(true);
+      const token = getToken();
+      if (!token) return;
 
-      const arr = Array.isArray(json?.leads) ? json.leads.map(mapLead) : [];
-      setFollowUps(arr);
-    } catch (err) {
-      console.error("Error fetching follow-ups:", err);
-      setFollowUps([]);
+      const response = await fetch(`${API_BASE_URL}/api/aleads/my-leads?lead_status=follow-up`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setLeads(data.leads || []);
+      } else {
+        setToast({ open: true, message: "Failed to fetch follow-ups.", severity: "error" });
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ open: true, message: "Server error while fetching leads.", severity: "error" });
     } finally {
       setLoading(false);
     }
-  }
-
-  async function patchStatus(leadId, payload) {
-    const token = getToken();
-    const res = await fetch(`${API_BASE_URL}/api/aleads/${leadId}/status`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || "Failed to update status");
-    return json;
-  }
-
-  async function revertLead(leadId, reason) {
-    const token = getToken();
-    const res = await fetch(`${API_BASE_URL}/api/aleads/${leadId}/revert`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ reason }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || "Failed to revert lead");
-    return json;
-  }
-
-  async function assignToDepartment(leadId, department, reason) {
-    const token = getToken();
-    const res = await fetch(`${API_BASE_URL}/api/aleads/change-stage`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        lead_id: leadId,
-        new_lead_stage: department.replace(/\s+/g, "-"),
-        reason: reason.trim(),
-      }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || "Failed to assign to another department");
-    return json;
-  }
+  };
 
   useEffect(() => {
     fetchFollowUps();
   }, []);
 
-  // ---------------- FILTERS ----------------
-  const allContacts = Array.from(new Set(followUps.map((l) => l.contact))).filter(Boolean);
-  const allLeadTypes = Array.from(new Set(followUps.map((l) => l.leadType))).filter(Boolean);
-  const allCompanies = Array.from(new Set(followUps.map((l) => l.company))).filter(Boolean);
-  const allLocations = Array.from(new Set(followUps.map((l) => l.location))).filter(Boolean);
+  // --- FILTERING LOGIC ---
+  const filteredFollowUps = useMemo(() => {
+    return leads.filter(lead => {
+      const companyName = lead.company_name || "";
+      const contactPerson = lead.contact_person_name || "";
+      const priority = lead.lead_priority || "";
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return followUps.filter((l) => {
-      const matchesSearch =
-        !q ||
-        [
-          l.leadNo,
-          l.company,
-          l.industry,
-          l.contact,
-          l.phone,
-          l.email,
-          l.leadType,
-          l.location,
-          l?.follow?.date,
-          l?.follow?.time,
-          l?.follow?.note,
-        ]
-          .filter(Boolean)
-          .some((v) => String(v).toLowerCase().includes(q));
+      const matchesSearch = companyName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            contactPerson.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesPriority = filterPriority === 'all' || priority.toLowerCase() === filterPriority.toLowerCase();
 
-      const matchesPerson = !personFilter || l.contact === personFilter;
-      const matchesCompany = !companyFilter || l.company === companyFilter;
-      const matchesLocation = !locationFilter || l.location === locationFilter;
-      const matchesLeadType = !leadTypeFilter || l.leadType === leadTypeFilter;
-
-      return matchesSearch && matchesPerson && matchesCompany && matchesLocation && matchesLeadType;
+      return matchesSearch && matchesPriority;
     });
-  }, [followUps, search, personFilter, companyFilter, locationFilter, leadTypeFilter]);
+  }, [leads, searchQuery, filterPriority]);
 
-  const clearFilters = () => {
-    setPersonFilter("");
-    setCompanyFilter("");
-    setLocationFilter("");
-    setLeadTypeFilter("");
+  // --- STYLING MAPPERS ---
+  const getPriorityStyle = (priority) => {
+    const p = priority?.toLowerCase();
+    if (p === 'high') return styles.badgeHigh;
+    if (p === 'medium') return styles.badgeMed;
+    return styles.badgeLow;
   };
 
-  // ---------------- HANDLERS ----------------
-  const openAssign = (lead) => {
-    setAssignLead(lead);
-    setAssignDept("");
-    setAssignReason("");
-    setAssignOpen(true);
+  const getPriorityIcon = (priority) => {
+    if (priority?.toLowerCase() === 'high') return <WhatshotIcon sx={{ fontSize: 16 }} />;
+    return undefined;
   };
 
-  const saveAssign = async () => {
-    if (!assignLead || !assignDept || !assignReason.trim()) return;
-    setAssignLoading(true);
+  const getTypeBadge = (type) => {
+    return type?.toLowerCase() === 'product' ? styles.typeProduct : styles.typeService;
+  };
+
+  const handleViewClick = (id) => navigate(`/marketing/customer-info/${id}`);
+
+  // --- APPROVE HANDLER (DUAL API CALL) ---
+  const handleApprove = async (lead) => {
+    setApprovalLoadingId(lead.lead_id);
     try {
-      await assignToDepartment(assignLead.id, assignDept, assignReason);
-      setAssignOpen(false);
-      await fetchFollowUps();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setAssignLoading(false);
-    }
-  };
+      const token = getToken();
 
-  const openBack = (lead) => {
-    setBackLead(lead);
-    setBackReason("");
-    setBackOpen(true);
-  };
-
-  const saveBack = async () => {
-    if (!backLead || !backReason.trim()) return;
-    setBackLoading(true);
-    try {
-      await revertLead(backLead.id, backReason);
-      setBackOpen(false);
-      await fetchFollowUps();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setBackLoading(false);
-    }
-  };
-
-  const openReschedule = (lead) => {
-    setReschedLead(lead);
-    setReschedNote(lead?.follow?.note || "");
-    setReschedDate(lead?.follow?.date || "");
-    setReschedTime(lead?.follow?.time || "");
-    setReschedOpen(true);
-  };
-
-  const saveReschedule = async () => {
-    if (!reschedLead || !reschedNote.trim() || !reschedDate || !reschedTime) return;
-    setReschedLoading(true);
-    try {
-      await patchStatus(reschedLead.id, {
-        lead_status: "follow-up",
-        follow_up_reason: reschedNote.trim(),
-        follow_up_date: reschedDate,
-        follow_up_time: reschedTime,
+      // Define both API calls
+      const changeStagePromise = fetch(`${API_BASE_URL}/api/aleads/change-stage`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          lead_id: lead.lead_id,
+          new_lead_stage: "Quotation-Team",
+          reason: "PO Confirmed"
+        })
       });
-      setReschedOpen(false);
-      await fetchFollowUps();
-    } catch (err) {
-      alert(err.message);
+
+      const poStatusPromise = fetch(`${API_BASE_URL}/api/leads/po-status`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          lead_id: lead.lead_id,
+          po_confirmed: "Yes"
+        })
+      });
+
+      // Fire both concurrently
+      const [resStage, resPO] = await Promise.all([changeStagePromise, poStatusPromise]);
+
+      if (resStage.ok && resPO.ok) {
+        setToast({ open: true, message: "Lead Approved: Stage changed and PO confirmed!", severity: "success" });
+        fetchFollowUps(); // Refresh the list
+      } else {
+        throw new Error("One or more requests failed. Please check the logs.");
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ open: true, message: error.message, severity: "error" });
     } finally {
-      setReschedLoading(false);
+      setApprovalLoadingId(null);
     }
   };
 
-  const oneLine = (max = 160) => ({
-    maxWidth: max,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  });
+  // --- RESCHEDULE HANDLERS ---
+  const handleOpenReschedule = (lead) => {
+    setActiveLead(lead);
+    setRescheduleData({
+      date: lead.follow_up_date ? lead.follow_up_date.split('T')[0] : '',
+      time: lead.follow_up_time || '',
+      reason: lead.follow_up_reason || ''
+    });
+    setShowRescheduleModal(true);
+  };
 
-  const total = followUps.length;
+  const handleSubmitReschedule = async () => {
+    if (!rescheduleData.date || !rescheduleData.time || !rescheduleData.reason.trim()) {
+      setToast({ open: true, message: "Please fill all the required fields.", severity: "warning" });
+      return;
+    }
 
-  // ---------------- UI ----------------
+    setRescheduleLoading(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/api/aleads/${activeLead.lead_id}/status`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          lead_status: "follow-up",
+          follow_up_reason: rescheduleData.reason,
+          follow_up_date: rescheduleData.date,
+          follow_up_time: rescheduleData.time
+        })
+      });
+
+      if (response.ok) {
+        setToast({ open: true, message: "Follow-up rescheduled successfully!", severity: "success" });
+        setShowRescheduleModal(false);
+        fetchFollowUps(); 
+      } else {
+        const errData = await response.json();
+        throw new Error(errData.message || "Failed to reschedule follow-up.");
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ open: true, message: error.message, severity: "error" });
+    } finally {
+      setRescheduleLoading(false);
+    }
+  };
+
   return (
-    <Box sx={{ p: { xs: 0.75, md: 1.25 }, height: "100%", display: "flex", flexDirection: "column" }}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 1, sm: 1.25, md: 2 },
-          borderRadius: 2,
-          border: "1px solid",
-          borderColor: "divider",
-          bgcolor: "background.paper",
-          display: "flex",
-          flexDirection: "column",
-          height: { xs: "calc(100vh - 110px)", md: "calc(100vh - 140px)" },
-          overflow: "hidden",
-        }}
-      >
-        <Box sx={{ pb: 1, flexShrink: 0 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="h5" fontWeight={700}>
-                Associate Marketing Follow-ups
-              </Typography>
-              <Chip size="small" label={`${total} total`} />
-              {loading && <CircularProgress size={16} sx={{ ml: 1 }} />}
-            </Stack>
-            <Button variant="outlined" size="small" onClick={fetchFollowUps}>
-              Refresh
-            </Button>
-          </Stack>
+    <Box sx={styles.container}>
+      <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
+        
+        {/* --- Header --- */}
+        <Box sx={{ ...styles.glassPanel, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', p: 3, mb: 3, gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="h4" fontWeight={700}>Follow-Up's</Typography>
+            <Chip label={`${filteredFollowUps.length} Pending`} sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white', border: theme.glassBorder, height: 28 }} />
+          </Box>
 
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-            <TextField
-              placeholder="Search in Follow-up"
-              size="small"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ width: { xs: "100%", md: 520 } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchOutlinedIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Typography color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
-              {filtered.length} Lead{filtered.length !== 1 ? "s" : ""}
-            </Typography>
-          </Stack>
-
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={1}
-            sx={{ mb: 1, "& .MuiTextField-root": { minWidth: { xs: "100%", md: 180 } } }}
-          >
-            <TextField select label="By Person" size="small" SelectProps={{ native: true }} value={personFilter} onChange={(e) => setPersonFilter(e.target.value)}>
-              <option value="" />
-              {allContacts.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </TextField>
-            <TextField select label="By Company" size="small" SelectProps={{ native: true }} value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}>
-              <option value="" />
-              {allCompanies.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </TextField>
-            <TextField select label="By Location" size="small" SelectProps={{ native: true }} value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)}>
-              <option value="" />
-              {allLocations.map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </TextField>
-            <TextField select label="By Lead Type" size="small" SelectProps={{ native: true }} value={leadTypeFilter} onChange={(e) => setLeadTypeFilter(e.target.value)}>
-              <option value="" />
-              {allLeadTypes.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </TextField>
-            <Box sx={{ display: "flex", gap: 1, ml: { xs: 0, md: "auto" } }}>
-              <Button variant="outlined" size="small" onClick={clearFilters}>
-                Clear
-              </Button>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' } }}>
+            <Box sx={styles.headerInput}>
+              <SearchIcon sx={{ color: theme.textSecondary, mr: 1 }} />
+              <InputBase placeholder="Search leads or contacts..." fullWidth sx={{ color: 'white' }} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </Box>
-          </Stack>
+
+            <Select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)} sx={styles.select} displayEmpty>
+              <MenuItem value="all">All Priorities</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="low">Low</MenuItem>
+            </Select>
+          </Box>
         </Box>
 
-        <TableContainer
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            height: "100%",
-            overflowY: "auto",
-            overflowX: "auto",
-            WebkitOverflowScrolling: "touch",
-            borderRadius: { xs: 2, md: 2 },
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Table
-            size={isSmUp ? "medium" : "small"}
-            stickyHeader
-            sx={{
-              minWidth: isMdUp ? 1200 : isSmUp ? 1050 : 900,
-              "& th": { fontWeight: 700, textTransform: "uppercase", bgcolor: "background.paper" },
-            }}
-          >
-            <TableHead>
-              <TableRow>
-                <TableCell>Assign</TableCell>
-                <TableCell>Lead #</TableCell>
-                <TableCell>Company</TableCell>
-                <TableCell>Lead Type</TableCell>
-                <TableCell>Contact Person</TableCell>
-                <TableCell>Phone</TableCell>
-                <TableCell>Next Follow-up</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
+        {/* --- List Header --- */}
+        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: '2.5fr 0.8fr 0.8fr 1.2fr 2fr 1.8fr', px: 3, py: 1.5, mb: 1, color: theme.textSecondary, fontSize: '0.85rem', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+          <Box>Lead / Contact Person</Box>
+          <Box>Priority</Box>
+          <Box>Lead Type</Box>
+          <Box>Expected Rev.</Box>
+          <Box>Follow-Up Details</Box>
+          <Box sx={{ textAlign: 'right' }}>Actions</Box>
+        </Box>
 
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    <CircularProgress size={20} />
-                  </TableCell>
-                </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    <Typography color="text.secondary">No follow-ups here yet.</Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((lead) => {
-                  const nextDate = lead?.follow?.date ? fmtDate(lead.follow.date) : "-";
-                  const nextTime = lead?.follow?.time || "-";
-                  return (
-                    <TableRow key={lead.id} hover>
-                      <TableCell>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => openAssign(lead)}
-                          sx={{ whiteSpace: "nowrap" }}
-                        >
-                          Assign to Another Department
-                        </Button>
-                      </TableCell>
-                      <TableCell sx={oneLine(90)}>{lead.leadNo}</TableCell>
-                      <TableCell sx={oneLine(160)}>{lead.company}</TableCell>
-                      <TableCell sx={oneLine(120)}>{lead.leadType}</TableCell>
-                      <TableCell sx={oneLine(140)}>{lead.contact}</TableCell>
-                      <TableCell sx={oneLine(140)}>{lead.phone}</TableCell>
-                      <TableCell sx={oneLine(180)}>
-                        {nextDate} {nextTime}
-                      </TableCell>
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<ScheduleOutlinedIcon />}
-                            onClick={() => openReschedule(lead)}
-                          >
-                            Reschedule
-                          </Button>
-                          <Tooltip title="Move back to New">
-                            <span>
-                              <Button
-                                size="small"
-                                startIcon={<UndoOutlinedIcon />}
-                                onClick={() => openBack(lead)}
-                              >
-                                Back
-                              </Button>
-                            </span>
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
+        {/* --- List Items --- */}
+        <Box>
+          {loading ? (
+             <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
+          ) : filteredFollowUps.length === 0 ? (
+             <Typography variant="body1" color={theme.textSecondary} textAlign="center" mt={5}>No pending follow-ups found.</Typography>
+          ) : (
+            filteredFollowUps.map((lead) => {
+              const revenue = parseFloat(lead.expected_revenue || 0);
+              const formattedRevenue = revenue.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+              const isApproving = approvalLoadingId === lead.lead_id;
+              
+              return (
+                <Box key={lead.lead_id} sx={{ ...styles.gridRow, borderLeft: `3px solid ${theme.accent}` }}>
+                  
+                  {/* Lead Info */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: theme.accent, width: 45, height: 45, fontSize: '1.2rem', fontWeight: 700, borderRadius: '12px' }}>
+                      {getInitials(lead.company_name)}
+                    </Avatar>
+                    <Box overflow="hidden">
+                      <Typography variant="h6" fontSize="1.05rem" fontWeight={600} noWrap>{lead.company_name}</Typography>
+                      <Typography variant="body2" color={theme.textSecondary} noWrap>{lead.contact_person_name || "No Contact"}</Typography>
+                    </Box>
+                  </Box>
 
-      {/* Assign Dialog */}
-      <Dialog open={assignOpen} onClose={() => setAssignOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Assign to Another Department</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={1.5}>
-            <TextField select label="Department" value={assignDept} onChange={(e) => setAssignDept(e.target.value)} SelectProps={{ native: true }} fullWidth>
-              <option value="" />
-              {DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </TextField>
-            <TextField label="Reason" multiline minRows={3} value={assignReason} onChange={(e) => setAssignReason(e.target.value)} fullWidth />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAssignOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={saveAssign} disabled={!assignDept || !assignReason.trim() || assignLoading}>
-            {assignLoading ? "Assigning..." : "Assign"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+                  {/* Priority */}
+                  <Box>
+                    <Chip 
+                      label={lead.lead_priority || 'Medium'} 
+                      icon={getPriorityIcon(lead.lead_priority)} 
+                      size="small" 
+                      sx={{ ...getPriorityStyle(lead.lead_priority), fontWeight: 600, borderRadius: '8px', '& .MuiChip-icon': { color: 'inherit' } }} 
+                    />
+                  </Box>
 
-      {/* Back Dialog */}
-      <Dialog open={backOpen} onClose={() => setBackOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Move Back to Previous Stage</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            This will move the lead back to <b>New</b> and remove it from this list.
-          </Typography>
-          <TextField label="Reason" multiline minRows={3} value={backReason} onChange={(e) => setBackReason(e.target.value)} fullWidth />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBackOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={saveBack} disabled={!backReason.trim() || backLoading}>
-            {backLoading ? "Moving..." : "Move Back"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+                  {/* Lead Type */}
+                  <Box>
+                    <Chip 
+                      label={lead.lead_type || 'N/A'} 
+                      size="small" 
+                      sx={{ ...getTypeBadge(lead.lead_type), fontWeight: 600, borderRadius: '8px' }} 
+                    />
+                  </Box>
 
-      {/* Reschedule Dialog */}
-      <Dialog open={reschedOpen} onClose={() => setReschedOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Reschedule Follow-up</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={1.5}>
-            <TextField label="Reason" multiline minRows={3} value={reschedNote} onChange={(e) => setReschedNote(e.target.value)} fullWidth />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <TextField label="Date" type="date" value={reschedDate} onChange={(e) => setReschedDate(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
-              <TextField label="Time" type="time" value={reschedTime} onChange={(e) => setReschedTime(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReschedOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={saveReschedule} disabled={!reschedNote.trim() || !reschedDate || !reschedTime || reschedLoading}>
-            {reschedLoading ? "Saving..." : "Reschedule"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+                  {/* Expected Revenue */}
+                  <Box>
+                     <Typography variant="body2" fontWeight={600} color={theme.success}>
+                       {formattedRevenue}
+                     </Typography>
+                  </Box>
+
+                  {/* Activity Details */}
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, overflow: 'hidden' }}>
+                    <CalendarTodayIcon sx={{ color: theme.accent, mt: 0.2, fontSize: 18 }} />
+                    <Box sx={{ width: '100%' }}>
+                      <Typography variant="body2" fontWeight={600} color="white">
+                        {formatFollowUpDate(lead.follow_up_date)} <span style={{ color: theme.textSecondary, fontWeight: 400 }}>at</span> {formatFollowUpTime(lead.follow_up_time)}
+                      </Typography>
+                      <Typography 
+                        variant="caption" 
+                        color={theme.textSecondary} 
+                        sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                        title={lead.follow_up_reason}
+                      >
+                        {lead.follow_up_reason || "No reason provided"}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Actions */}
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      onClick={() => handleViewClick(lead.lead_id)}
+                      startIcon={<VisibilityIcon />} 
+                      sx={{ 
+                        minWidth: 0,
+                        borderColor: 'rgba(59, 130, 246, 0.4)', 
+                        color: theme.accent, 
+                        textTransform: 'none', 
+                        borderRadius: '8px', 
+                        '&:hover': { borderColor: theme.accent, bgcolor: 'rgba(59, 130, 246, 0.1)' } 
+                      }}
+                    >
+                      View
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      onClick={() => handleOpenReschedule(lead)}
+                      startIcon={<AccessTimeIcon />} 
+                      sx={{ 
+                        minWidth: 0,
+                        borderColor: 'rgba(255,255,255,0.2)', 
+                        color: theme.textSecondary, 
+                        textTransform: 'none', 
+                        borderRadius: '8px', 
+                        '&:hover': { borderColor: 'white', color: 'white', bgcolor: 'rgba(255,255,255,0.05)' } 
+                      }}
+                    >
+                      Reschedule
+                    </Button>
+                    <Button 
+                      variant="contained" 
+                      size="small" 
+                      onClick={() => handleApprove(lead)}
+                      disabled={isApproving}
+                      startIcon={isApproving ? <CircularProgress size={16} color="inherit" /> : <CheckIcon />} 
+                      sx={{ 
+                        minWidth: 0,
+                        bgcolor: theme.success, 
+                        textTransform: 'none', 
+                        color: 'white', 
+                        borderRadius: '8px', 
+                        boxShadow: `0 4px 10px rgba(16, 185, 129, 0.2)`,
+                        '&:hover': { bgcolor: '#059669' } 
+                      }}
+                    >
+                      {isApproving ? 'Approving...' : 'Approve'}
+                    </Button>
+                  </Box>
+
+                </Box>
+              )
+            })
+          )}
+        </Box>
+
+        {/* --- MODAL: RESCHEDULE --- */}
+        <Modal open={showRescheduleModal} onClose={() => setShowRescheduleModal(false)} closeAfterTransition BackdropComponent={Backdrop} BackdropProps={{ timeout: 500, style: { backgroundColor: 'rgba(0,0,0,0.8)' } }}>
+          <Fade in={showRescheduleModal}>
+            <Box sx={styles.dateTimeBox}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" fontWeight={700} color="#fff">Re-schedule Follow-Up</Typography>
+                <IconButton onClick={() => setShowRescheduleModal(false)} sx={{ color: theme.textSecondary }}><CloseIcon size={20} /></IconButton>
+              </Box>
+              <Typography variant="body2" sx={{ color: theme.textSecondary, mb: 3 }}>
+                Scheduling for <span style={{ color: theme.accent, fontWeight: 700 }}>{activeLead?.company_name}</span>
+              </Typography>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" sx={{ color: theme.accent, fontWeight: 700, mb: 1, display: 'block' }}>DATE</Typography>
+                  <TextField 
+                    fullWidth 
+                    type="date" 
+                    sx={styles.inputField} 
+                    InputLabelProps={{ shrink: true }} 
+                    value={rescheduleData.date}
+                    onChange={(e) => setRescheduleData({...rescheduleData, date: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" sx={{ color: theme.accent, fontWeight: 700, mb: 1, display: 'block' }}>TIME</Typography>
+                  <TextField 
+                    fullWidth 
+                    type="time" 
+                    sx={styles.inputField} 
+                    InputLabelProps={{ shrink: true }} 
+                    value={rescheduleData.time}
+                    onChange={(e) => setRescheduleData({...rescheduleData, time: e.target.value})}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="caption" sx={{ color: theme.accent, fontWeight: 700, mb: 1, display: 'block' }}>REASON FOR FOLLOW-UP</Typography>
+                  <TextField 
+                    fullWidth 
+                    multiline 
+                    rows={3} 
+                    placeholder="Enter reason or next steps..." 
+                    sx={styles.inputField} 
+                    value={rescheduleData.reason}
+                    onChange={(e) => setRescheduleData({...rescheduleData, reason: e.target.value})}
+                  />
+                </Grid>
+              </Grid>
+
+              <Box sx={{ mt: 5, display: 'flex', gap: 2 }}>
+                <Button fullWidth onClick={() => setShowRescheduleModal(false)} sx={{ color: theme.textSecondary, textTransform: 'none' }}>
+                  Cancel
+                </Button>
+                <Button 
+                  fullWidth 
+                  variant="contained" 
+                  onClick={handleSubmitReschedule} 
+                  disabled={rescheduleLoading}
+                  sx={{ bgcolor: theme.accent, borderRadius: '12px', fontWeight: 700, textTransform: 'none' }}
+                >
+                  {rescheduleLoading ? <CircularProgress size={24} color="inherit" /> : 'Confirm Reschedule'}
+                </Button>
+              </Box>
+            </Box>
+          </Fade>
+        </Modal>
+
+      </Box>
+
+      {/* Global Toast */}
+      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} variant="filled" sx={{ borderRadius: '12px' }}>
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
-}
+};
+
+export default AssociatePendingFollowup;

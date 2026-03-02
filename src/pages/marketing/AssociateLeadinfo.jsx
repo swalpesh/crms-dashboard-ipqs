@@ -85,7 +85,7 @@ const AssociateLeadinfo = () => {
     try {
         const token = getToken();
         if(!token) return;
-        const response = await fetch(`${API_BASE_URL}/api/aleads/my-leads`, {
+        const response = await fetch(`${API_BASE_URL}/api/aleads/my-leads?lead_status=new`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -323,7 +323,7 @@ const AssociateLeadinfo = () => {
   };
 
   const handleViewClick = (id) => {
-    navigate(`/associate-marketing/customer-info/${id}`);
+    navigate(`/marketing/customer-info/${id}`);
   };
 
   return (

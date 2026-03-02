@@ -323,7 +323,7 @@ const CorporateLeadinfo = () => {
   };
 
   const handleViewClick = (id) => {
-    navigate(`/corporate-marketing/customer-info/${id}`);
+    navigate(`/marketing/customer-info/${id}`);
   };
 
   return (
