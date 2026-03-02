@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom"; 
 import {
   Box,
   Stack,
@@ -17,25 +18,18 @@ import {
   TableHead,
   TableRow,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
   FormControlLabel,
   Checkbox,
   Collapse,
-  CircularProgress,
   Alert,
+  CircularProgress
 } from "@mui/material";
-import Autocomplete from "@mui/material/Autocomplete";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
-import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
+import DownloadIcon from "@mui/icons-material/Download";
 
 /* ---------- THEME CONSTANTS ---------- */
 const theme = {
@@ -87,15 +81,14 @@ const glassStyles = {
     '& .MuiAutocomplete-popupIndicator': { color: theme.textSecondary },
     '& .MuiAutocomplete-clearIndicator': { color: theme.textSecondary },
   },
-  // FIXED TABLE STYLING
   table: {
     '& th': {
-      bgcolor: '#1e1e38', // Solid dark color for header to prevent transparency issues
+      bgcolor: '#1e1e38',
       color: '#fff',
       fontWeight: 700,
       borderBottom: '2px solid rgba(255,255,255,0.1)',
       whiteSpace: 'nowrap',
-      position: 'sticky', // Sticky header
+      position: 'sticky',
       top: 0,
       zIndex: 10,
     },
@@ -105,21 +98,11 @@ const glassStyles = {
       whiteSpace: 'nowrap'
     },
   },
-  dialog: {
-    '& .MuiDialog-paper': {
-      bgcolor: '#1a1a2e',
-      color: '#fff',
-      backgroundImage: theme.bgGradient,
-      border: theme.glassBorder,
-      borderRadius: '16px'
-    }
-  }
 };
 
 /* ---------- API helpers ---------- */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-const getToken = () =>
-  localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
 /* ---------- Assets ---------- */
 const HEADER_BANNER_SRC = "/ipqs-letter-header.png";
@@ -233,12 +216,6 @@ function money(n, currency) {
   }
 }
 
-function precise(n) {
-  const num = +n;
-  if (!isFinite(num)) return "—";
-  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 10 }).format(num);
-}
-
 /* ---------- Lazy-load html2canvas + jsPDF ---------- */
 async function ensurePdfLibs() {
   const needH2C = !window.html2canvas;
@@ -259,31 +236,12 @@ async function ensurePdfLibs() {
 
 /* ================================ MAIN ================================ */
 export default function QuotationBuilder() {
-  /* ------------------- API: leads ------------------- */
-  const [loadingLeads, setLoadingLeads] = useState(true);
-  const [leadError, setLeadError] = useState("");
-  const [leads, setLeads] = useState([]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setLeadError("");
-        const token = getToken();
-        const res = await fetch(`${API_BASE_URL}/api/leads/my-accessible-leads`, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        setLeads(data?.leads || []);
-      } catch (e) {
-        console.error(e);
-        setLeadError("Unable to load leads. Please check your token / server.");
-      } finally {
-        setLoadingLeads(false);
-      }
-    })();
-  }, []);
+  const location = useLocation();
+  const navigate = useNavigate(); 
+  
+  // Extracts data based on where user is navigating from
+  const passedLead = location.state?.lead || null; 
+  const editQuotation = location.state?.editQuotation || null; 
 
   /* ------------------- Local state ------------------- */
   const [coverFile, setCoverFile] = useState(null);
@@ -299,7 +257,7 @@ export default function QuotationBuilder() {
     discountAmount: 0,
   });
 
-  const [selectedLead, setSelectedLead] = useState(null);
+  const [leadId, setLeadId] = useState("");
 
   const [recipient, setRecipient] = useState({
     company: "",
@@ -313,17 +271,11 @@ export default function QuotationBuilder() {
     { description: "APFC Panel 25 KVAR Hybrid System", qty: 1, rate: 108500 },
   ]);
 
-  const [isSaved, setIsSaved] = useState(false); // controls Send Email
+  const [isSaved, setIsSaved] = useState(false); 
   const [saving, setSaving] = useState(false);
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false); // Used for Update flow download state
   const [saveError, setSaveError] = useState("");
-
-  // Email dialog
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [emailTo, setEmailTo] = useState("");
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailBody, setEmailBody] = useState("");
-  const [attachmentUrl, setAttachmentUrl] = useState("");
-  const [attachmentName, setAttachmentName] = useState("");
 
   // Energy section toggle (collapsed by default)
   const [energySectionEnabled, setEnergySectionEnabled] = useState(false);
@@ -345,29 +297,98 @@ export default function QuotationBuilder() {
     kwMD: 0,
   });
 
-  // --- AUTO DISMISS WARNINGS (10s) ---
+  // ==============================================================
+  //  PATCH DATA (Handles BOTH fresh lead creation & Edit Updates)
+  // ==============================================================
   useEffect(() => {
-    if (saveError || leadError || isSaved) {
+    if (editQuotation) {
+      // --- If updating from SavedQuotations ---
+      setLeadId(editQuotation.lead_number || "");
+      
+      setRecipient({
+        company: editQuotation.company_name || "",
+        attention: editQuotation.contact_person_name || "",
+        address: editQuotation.address || "",
+        subject: editQuotation.subject || "Power Factor Improvement Quotation",
+        body: editQuotation.cover_body || "Dear Sir/Madam,\n\nPlease find attached quotation...\n\nRegards,\nIPQS Private Limited",
+      });
+
+      const dateStr = editQuotation.quotation_date 
+        ? new Date(editQuotation.quotation_date).toISOString().split('T')[0] 
+        : new Date().toISOString().slice(0, 10);
+      
+      const discAmt = Number(editQuotation.discount_amount || 0);
+
+      setQuote({
+        quoteNo: editQuotation.quotation_no || "QT-0001",
+        refNo: editQuotation.reference_no || "",
+        date: dateStr,
+        validityDays: editQuotation.validity_days || 30,
+        currency: editQuotation.currency || "INR",
+        taxRate: Number(editQuotation.tax_rate || 18),
+        discountEnabled: discAmt > 0,
+        discountAmount: discAmt,
+      });
+
+      if (editQuotation.items && Array.isArray(editQuotation.items)) {
+        setItems(editQuotation.items.map(item => ({
+          description: item.particulars || "",
+          qty: Number(item.qty || 1),
+          rate: Number(item.rate || 0)
+        })));
+      }
+
+      if (editQuotation.customer_type || editQuotation.existing_kwh) {
+        setEnergySectionEnabled(true);
+        setCustomerType(editQuotation.customer_type || "");
+        setBillMonth(editQuotation.bill_reference || "");
+        
+        let dur = "";
+        if (String(editQuotation.period) === "6") dur = "6 months";
+        if (String(editQuotation.period) === "12") dur = "12 months";
+        setBillDuration(dur);
+
+        setEnergyIn({
+          kwh: Number(editQuotation.existing_kwh || 0),
+          kvah: Number(editQuotation.existing_kvah || 0),
+          pfTarget: editQuotation.effective_pf || "0.99",
+          perUnit: Number(editQuotation.per_unit_rate || 0),
+          perUnitWithTax: Number(editQuotation.per_unit_rate_with_taxes || 0),
+          demandRate: Number(editQuotation.demand_rate || 0),
+          kvaMD: Number(editQuotation.existing_kva_demand || 0),
+          kwMD: Number(editQuotation.existing_kw_demand || 0),
+        });
+      }
+
+    } else if (passedLead) {
+      // --- If creating a fresh quote from Lead Details ---
+      setLeadId(passedLead.lead_id || "");
+      setRecipient((r) => ({
+        ...r,
+        company: passedLead.company_name || "",
+        attention: passedLead.contact_person_name || "",
+        address: [
+            passedLead.company_address, 
+            passedLead.company_city, 
+            passedLead.company_state, 
+            passedLead.company_country
+        ].filter(Boolean).join(", ") || "",
+      }));
+    }
+  }, [passedLead, editQuotation]);
+
+  useEffect(() => {
+    if (saveError || isSaved) {
       const timer = setTimeout(() => {
         setSaveError("");
-        setLeadError("");
-        // Optionally auto-hide success too, but sticking to error/warnings mostly
-        // If you want to auto-hide the "success" alert (if we had one separate), handle here.
-        // Alert logic below uses native alert(), but for UI Alerts:
       }, 10000);
       return () => clearTimeout(timer);
     }
-  }, [saveError, leadError, isSaved]);
+  }, [saveError, isSaved]);
 
   /* ------------------- Derived totals ------------------- */
-  const subtotal = useMemo(
-    () => items.reduce((s, r) => s + (r.qty || 0) * (r.rate || 0), 0),
-    [items]
-  );
-  const discount = useMemo(
-    () => (quote.discountEnabled ? Math.max(0, +quote.discountAmount || 0) : 0),
-    [quote.discountEnabled, quote.discountAmount]
-  );
+  const subtotal = useMemo(() => items.reduce((s, r) => s + (r.qty || 0) * (r.rate || 0), 0), [items]);
+  const discount = useMemo(() => (quote.discountEnabled ? Math.max(0, +quote.discountAmount || 0) : 0), [quote.discountEnabled, quote.discountAmount]);
   const taxableBase = useMemo(() => Math.max(0, subtotal - discount), [subtotal, discount]);
   const tax = useMemo(() => (taxableBase * (+quote.taxRate || 0)) / 100, [taxableBase, quote.taxRate]);
   const grand_total = useMemo(() => taxableBase + tax, [taxableBase, tax]);
@@ -394,20 +415,7 @@ export default function QuotationBuilder() {
     const days = months * 30;
     const fiveYearRupees = yearly * 5;
 
-    return {
-      existingPF,
-      diffKvahKwh,
-      savKvah,
-      savKvahTax,
-      savingDemand,
-      savMD,
-      monthly,
-      yearly,
-      investment,
-      months,
-      days,
-      fiveYearRupees,
-    };
+    return { existingPF, diffKvahKwh, savKvah, savKvahTax, savingDemand, savMD, monthly, yearly, investment, months, days, fiveYearRupees };
   }, [energyIn, grand_total]);
 
   /* ------------------- Handlers ------------------- */
@@ -419,60 +427,46 @@ export default function QuotationBuilder() {
     setIsSaved(false);
   };
 
-  // Fill recipient from selected lead
-  useEffect(() => {
-    if (!selectedLead) return;
-    setRecipient((r) => ({
-      ...r,
-      company: selectedLead.company_name || "",
-      attention: selectedLead.contact_person_name || "",
-      address: selectedLead.company_address || "",
-    }));
-    setIsSaved(false);
-  }, [selectedLead]);
-
-  /* ---------- Build PDF from preview ---------- */
-  const buildPdfBlob = async () => {
+  /* ---------- Build Bulletproof PDF File ---------- */
+  const generateBulletproofPdfFile = async (fileName) => {
     const docRoot = document.querySelector(".doc");
-    if (!docRoot) return null;
+    if (!docRoot) throw new Error("Could not find document root for PDF generation");
+    
     await ensurePdfLibs();
     const h2c = window.html2canvas;
     const { jsPDF } = window.jspdf;
     const nodes = Array.from(docRoot.querySelectorAll(".page"));
     const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+    
     let first = true;
     for (const n of nodes) {
       const canvas = await h2c(n, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: "#fff",
+        backgroundColor: "#ffffff",
+        scrollY: -window.scrollY 
       });
       const img = canvas.toDataURL("image/jpeg", 1.0);
       if (!first) pdf.addPage();
       pdf.addImage(img, "JPEG", 0, 0, 210, 297, undefined, "FAST");
       first = false;
     }
-    return pdf.output("blob");
+    
+    const pdfBase64 = pdf.output('datauristring');
+    const base64Data = pdfBase64.split(',')[1];
+    
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    
+    return new File([byteArray], fileName, { type: 'application/pdf' });
   };
 
-  const makePdfFromPreview = async () => {
-    const blob = await buildPdfBlob();
-    if (!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Quotation-${quote.quoteNo || "IPQS"}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const onDownload = () =>
-    requestAnimationFrame(() => setTimeout(makePdfFromPreview, 40));
-
-  /* ------------------- SAVE -> POST /quotations ------------------- */
+  /* ------------------- SAVE / UPDATE -> API ------------------- */
   const onSave = async () => {
     setSaveError("");
     try {
@@ -480,73 +474,131 @@ export default function QuotationBuilder() {
       const token = getToken();
       if (!token) throw new Error("Missing auth token");
 
-      const form = new FormData();
-      if (coverFile) form.append("cover_photo", coverFile);
+      const isEditing = editQuotation && editQuotation.quotation_id;
+      let res;
 
-      // Customer from selected lead + editable recipient
-      form.append("lead_number", selectedLead?.lead_id || "");
-      form.append("company_name", recipient.company || selectedLead?.company_name || "");
-      form.append("contact_person_name", recipient.attention || selectedLead?.contact_person_name || "");
-      form.append("address", recipient.address || selectedLead?.company_address || "");
-
-      // Quote details
-      form.append("reference_no", quote.refNo || "");
-      form.append("quotation_date", quote.date || "");
-      form.append("validity_days", String(quote.validityDays || 0));
-      form.append("currency", quote.currency || "INR");
-      form.append("tax_rate", String(quote.taxRate || 0));
-      form.append("discount_amount", String(quote.discountEnabled ? (quote.discountAmount || 0) : 0));
-
-      // Cover letter
-      form.append("subject", recipient.subject || "");
-      form.append("cover_body", recipient.body || "");
-
-      // Items (serialize)
-      form.append(
-        "items",
-        JSON.stringify(
-          items.map((i) => ({
+      if (isEditing) {
+        // --- ✏️ UPDATE EXISTING (PUT with JSON) ---
+        const payload = {
+          lead_number: leadId,
+          company_name: recipient.company,
+          contact_person_name: recipient.attention,
+          address: recipient.address,
+          reference_no: quote.refNo || "",
+          quotation_date: quote.date || "",
+          validity_days: Number(quote.validityDays || 0),
+          currency: quote.currency || "INR",
+          tax_rate: Number(quote.taxRate || 0),
+          discount_amount: Number(quote.discountEnabled ? (quote.discountAmount || 0) : 0),
+          subject: recipient.subject || "",
+          cover_body: recipient.body || "",
+          grand_total: Number(grand_total || 0),
+          
+          // ✅ FIX: Use null instead of "" for ENUM columns if disabled or empty
+          customer_type: (energySectionEnabled && customerType) ? customerType : null,
+          bill_reference: (energySectionEnabled && billMonth) ? billMonth : null,
+          period: (energySectionEnabled && billDuration) ? (billDuration === "6 months" ? "6" : "12") : null,
+          
+          existing_kwh: energySectionEnabled ? Number(energyIn.kwh || 0) : null,
+          existing_kvah: energySectionEnabled ? Number(energyIn.kvah || 0) : null,
+          effective_pf: energySectionEnabled ? String(energyIn.pfTarget || "") : null,
+          per_unit_rate: energySectionEnabled ? Number(energyIn.perUnit || 0) : null,
+          per_unit_rate_with_taxes: energySectionEnabled ? Number(energyIn.perUnitWithTax || 0) : null,
+          demand_rate: energySectionEnabled ? Number(energyIn.demandRate || 0) : null,
+          existing_kva_demand: energySectionEnabled ? Number(energyIn.kvaMD || 0) : null,
+          existing_kw_demand: energySectionEnabled ? Number(energyIn.kwMD || 0) : null,
+          quotation_status: "saved",
+          items: items.map((i, index) => ({
+            position: index + 1,
             particulars: i.description,
             qty: Number(i.qty || 0),
             rate: Number(i.rate || 0),
             amount: Number((i.qty || 0) * (i.rate || 0)),
           }))
-        )
+        };
 
-      );
+        res = await fetch(`${API_BASE_URL}/api/v1/quotations/${editQuotation.quotation_id}`, {
+          method: "PUT",
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
 
-      form.append("grand_total", String(grand_total || 0));
+      } else {
+        // --- 🆕 CREATE NEW (POST with FormData) ---
+        const form = new FormData();
+        if (coverFile) form.append("cover_photo", coverFile);
 
-      // Energy bits (send only if section enabled; else send safe defaults)
-      form.append("customer_type", energySectionEnabled ? customerType : "");
-      form.append("bill_reference", energySectionEnabled ? billMonth : "");
-      form.append(
-        "period",
-        energySectionEnabled ? String(billDuration === "6 months" ? 6 : billDuration === "12 months" ? 12 : "") : ""
-      );
-      form.append("existing_kwh", energySectionEnabled ? String(energyIn.kwh || 0) : "");
-      form.append("existing_kvah", energySectionEnabled ? String(energyIn.kvah || 0) : "");
-      form.append("effective_pf", energySectionEnabled ? String(energyIn.pfTarget || "") : "");
-      form.append("per_unit_rate", energySectionEnabled ? String(energyIn.perUnit || 0) : "");
-      form.append("per_unit_rate_with_taxes", energySectionEnabled ? String(energyIn.perUnitWithTax || 0) : "");
-      form.append("demand_rate", energySectionEnabled ? String(energyIn.demandRate || 0) : "");
-      form.append("existing_kva_demand", energySectionEnabled ? String(energyIn.kvaMD || 0) : "");
-      form.append("existing_kw_demand", energySectionEnabled ? String(energyIn.kwMD || 0) : "");
-      form.append("quotation_status", "saved");
+        form.append("lead_number", leadId);
+        form.append("company_name", recipient.company);
+        form.append("contact_person_name", recipient.attention);
+        form.append("address", recipient.address);
+        form.append("reference_no", quote.refNo || "");
+        form.append("quotation_date", quote.date || "");
+        form.append("validity_days", String(quote.validityDays || 0));
+        form.append("currency", quote.currency || "INR");
+        form.append("tax_rate", String(quote.taxRate || 0));
+        form.append("discount_amount", String(quote.discountEnabled ? (quote.discountAmount || 0) : 0));
+        form.append("subject", recipient.subject || "");
+        form.append("cover_body", recipient.body || "");
 
-      const res = await fetch(`${API_BASE_URL}/api/v1/quotations`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
+        form.append("items", JSON.stringify(items.map((i, index) => ({
+              position: index + 1, 
+              particulars: i.description,
+              qty: Number(i.qty || 0),
+              rate: Number(i.rate || 0),
+              amount: Number((i.qty || 0) * (i.rate || 0)),
+            }))
+          )
+        );
+
+        form.append("grand_total", String(grand_total || 0));
+        
+        // ✅ FIX: Use "" for FormData if empty (Backend controller handles "" to null conversion)
+        form.append("customer_type", (energySectionEnabled && customerType) ? customerType : "");
+        form.append("bill_reference", (energySectionEnabled && billMonth) ? billMonth : "");
+        form.append("period", (energySectionEnabled && billDuration) ? (billDuration === "6 months" ? "6" : "12") : "");
+        
+        form.append("existing_kwh", energySectionEnabled ? String(energyIn.kwh || 0) : "");
+        form.append("existing_kvah", energySectionEnabled ? String(energyIn.kvah || 0) : "");
+        form.append("effective_pf", energySectionEnabled ? String(energyIn.pfTarget || "") : "");
+        form.append("per_unit_rate", energySectionEnabled ? String(energyIn.perUnit || 0) : "");
+        form.append("per_unit_rate_with_taxes", energySectionEnabled ? String(energyIn.perUnitWithTax || 0) : "");
+        form.append("demand_rate", energySectionEnabled ? String(energyIn.demandRate || 0) : "");
+        form.append("existing_kva_demand", energySectionEnabled ? String(energyIn.kvaMD || 0) : "");
+        form.append("existing_kw_demand", energySectionEnabled ? String(energyIn.kwMD || 0) : "");
+        form.append("quotation_status", "saved");
+
+        res = await fetch(`${API_BASE_URL}/api/v1/quotations`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+      }
+
       const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || data?.error || `Save failed (HTTP ${res.status})`);
 
-      if (!res.ok) {
-        throw new Error(data?.message || data?.error || `Save failed (HTTP ${res.status})`);
+      // ✅ FIX: INSTANTLY SYNC REVENUE AND PROBABILITY (Fires for both Save & Update)
+      if (leadId) {
+        const resUpdate = await fetch(`${API_BASE_URL}/api/leads/quotation-created`, {
+            method: "PUT",
+            headers: { 
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                lead_id: leadId,
+                expected_revenue: Number(grand_total || 0)
+            })
+        });
+        if (!resUpdate.ok) console.warn("Could not sync lead revenue to CRM database.");
       }
 
       setIsSaved(true);
-      alert("✅ Quotation created successfully!");
+      alert(`✅ Quotation ${isEditing ? 'updated' : 'created'} successfully! ${isEditing ? 'You can now download the PDF.' : 'You can now attach it to the lead\'s notes.'}`);
     } catch (err) {
       console.error(err);
       setSaveError(err.message || "Save failed");
@@ -556,84 +608,127 @@ export default function QuotationBuilder() {
     }
   };
 
-  /* ------------------- Email dialog ------------------- */
-  const openEmailDialog = async () => {
-    if (!isSaved) return;
-    const subj = `Quotation ${quote.quoteNo || ""}`.trim();
-    const body =
-      `Dear ${recipient.attention || "Sir/Madam"},\n\n` +
-      `Please find attached quotation ${quote.quoteNo || ""}` +
-      (quote.refNo ? ` (Ref: ${quote.refNo})` : "") +
-      `.\n\nRegards,\nIPQS Private Limited`;
-
-    const blob = await buildPdfBlob();
-    if (blob) {
-      if (attachmentUrl) URL.revokeObjectURL(attachmentUrl);
-      const url = URL.createObjectURL(blob);
-      setAttachmentUrl(url);
-      setAttachmentName(`Quotation-${quote.quoteNo || "IPQS"}.pdf`);
-    } else {
-      setAttachmentUrl("");
-      setAttachmentName("");
+  /* ------------------- ADD TO NOTES LOGIC (Used when Creating New) ------------------- */
+  const handleAddNote = async () => {
+    if (!leadId) {
+        alert("Lead ID is missing. Cannot add note.");
+        return;
     }
-    setEmailSubject(subj);
-    setEmailBody(body);
-    setEmailTo("");
-    setEmailOpen(true);
-  };
-  const closeEmailDialog = () => setEmailOpen(false);
-  const onSendEmail = () => {
-    alert(
-      `Email sent to ${emailTo || "(no-recipient)"} for Quotation # ${quote.quoteNo} (${recipient.company || "-"})`
-    );
-    setEmailOpen(false);
+    
+    try {
+        setIsAddingNote(true);
+        const token = getToken();
+        if (!token) throw new Error("Missing auth token");
+
+        const fileName = `Quotation-${quote.quoteNo || "IPQS"}.pdf`;
+        const pdfFile = await generateBulletproofPdfFile(fileName);
+        
+        if (!pdfFile || pdfFile.size === 0) throw new Error("Failed to generate a valid PDF file. Please try again.");
+
+        const notesForm = new FormData();
+        notesForm.append("title", "Quotation Created");
+        notesForm.append("note", "Please Find the attached quotation for your reference");
+        notesForm.append("attachments", pdfFile);
+
+        const resNotes = await fetch(`${API_BASE_URL}/api/leads/${leadId}/notes`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }, 
+            body: notesForm,
+        });
+
+        if (!resNotes.ok) {
+            const errData = await resNotes.json();
+            throw new Error(errData?.message || "Failed to add quotation to notes.");
+        }
+
+        alert("✅ Quotation successfully attached to notes!");
+        navigate("/marketing/quotation-team/leads");
+
+    } catch (err) {
+        console.error(err);
+        alert(err.message || "Failed to process the request.");
+    } finally {
+        setIsAddingNote(false);
+    }
   };
 
-  const footerLine =
-    "Email: sales@ipqspl.com • Website: www.ipqspl.com • Cell: 9158418924";
+  /* ------------------- DOWNLOAD PDF LOGIC (Used when Updating) ------------------- */
+  const handleDownloadPdf = async () => {
+    try {
+      setIsDownloading(true);
+      const fileName = `Quotation-${quote.quoteNo || "IPQS"}.pdf`;
+      const pdfFile = await generateBulletproofPdfFile(fileName);
+      
+      // Create a blob link and trigger an automatic click to download it
+      const url = URL.createObjectURL(pdfFile);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF Download error:", err);
+      alert("Failed to download PDF.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const footerLine = "Email: sales@ipqspl.com • Website: www.ipqspl.com • Cell: 9158418924";
 
   return (
     <Box sx={glassStyles.container}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h4" fontWeight={900} sx={{ color: '#fff', letterSpacing: -1 }}>Quotation Builder</Typography>
 
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={2}>
           <Button
             variant="contained"
-            startIcon={saving ? null : <SaveOutlinedIcon />}
+            startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveOutlinedIcon />}
             onClick={onSave}
-            disabled={saving}
+            disabled={saving || isAddingNote || isDownloading}
             sx={{ borderRadius: '12px', bgcolor: theme.accentBlue }}
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving..." : editQuotation ? "Update Quotation" : "Save Quotation"}
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<SendOutlinedIcon />}
-            onClick={openEmailDialog}
-            disabled={!isSaved}
-            sx={{
-              borderRadius: '12px',
-              // FIXED VISIBILITY FOR DISABLED STATE
-              borderColor: isSaved ? theme.accentBlue : 'rgba(255,255,255,0.3)', 
-              color: isSaved ? '#fff' : 'rgba(255,255,255,0.5)',
-              '&.Mui-disabled': { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' }
-            }}
-          >
-            Send Email
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<PictureAsPdfOutlinedIcon />}
-            onClick={onDownload}
-            sx={{ borderRadius: '12px', borderColor: 'rgba(255,255,255,0.3)', color: '#fff' }}
-          >
-            Download PDF
-          </Button>
+
+          {/* DYNAMIC SUCCESS BUTTON - Shows Download if Updating, Shows Add Note if Creating */}
+          {isSaved && (
+             editQuotation ? (
+                <Button
+                  variant="contained"
+                  startIcon={isDownloading ? <CircularProgress size={20} color="inherit" /> : <DownloadIcon />}
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloading}
+                  sx={{ 
+                    borderRadius: '12px', 
+                    bgcolor: '#f59e0b', // Amber/Orange color for downloading
+                    '&:hover': { bgcolor: '#d97706' } 
+                  }}
+               >
+                  {isDownloading ? "Generating PDF..." : "Download Quotation"}
+               </Button>
+             ) : (
+               <Button
+                  variant="contained"
+                  startIcon={isAddingNote ? <CircularProgress size={20} color="inherit" /> : <PictureAsPdfOutlinedIcon />}
+                  onClick={handleAddNote}
+                  disabled={isAddingNote}
+                  sx={{ 
+                    borderRadius: '12px', 
+                    bgcolor: '#10b981', // Green color to distinguish from save
+                    '&:hover': { bgcolor: '#059669' } 
+                  }}
+               >
+                  {isAddingNote ? "Processing..." : "Add to Notes"}
+               </Button>
+             )
+          )}
         </Stack>
       </Stack>
 
-      {leadError && <Alert severity="error" sx={{ mb: 2 }}>{leadError}</Alert>}
       {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
 
       <Grid container spacing={2.5} alignItems="flex-start">
@@ -643,81 +738,68 @@ export default function QuotationBuilder() {
           <Paper sx={glassStyles.glassCard}>
             <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Customer</Typography>
 
-            {loadingLeads ? (
-              <Box sx={{ py: 3, display: "flex", alignItems: "center", gap: 2 }}>
-                <CircularProgress size={20} /> <span>Loading leads…</span>
-              </Box>
-            ) : (
-              <>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-                    gap: 2,
-                  }}
-                >
-                  {/* Lead Number */}
-                  <Autocomplete
-                    options={leads}
-                    value={selectedLead}
-                    onChange={(_, val) => { setSelectedLead(val); setIsSaved(false); }}
-                    getOptionLabel={(o) => (o?.lead_id || "")}
-                    renderInput={(params) => (
-                      <TextField {...params} label="Lead Number" fullWidth sx={glassStyles.input} />
-                    )}
-                    isOptionEqualToValue={(o, v) => o?.lead_id === v?.lead_id}
-                    clearOnEscape
-                    sx={{ width: "100%" }}
-                  />
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+                gap: 2,
+              }}
+            >
+              {/* Lead Number */}
+              <TextField
+                label="Lead Number"
+                value={leadId}
+                onChange={(e) => { setLeadId(e.target.value); setIsSaved(false); }}
+                fullWidth
+                sx={glassStyles.input}
+              />
 
-                  {/* Company (filled from lead, but editable if needed) */}
-                  <TextField
-                    label="Company / Customer"
-                    value={recipient.company}
-                    onChange={(e) => { setRecipient((f) => ({ ...f, company: e.target.value })); setIsSaved(false); }}
-                    fullWidth
-                    sx={glassStyles.input}
-                  />
+              {/* Company */}
+              <TextField
+                label="Company / Customer"
+                value={recipient.company}
+                onChange={(e) => { setRecipient((f) => ({ ...f, company: e.target.value })); setIsSaved(false); }}
+                fullWidth
+                sx={glassStyles.input}
+              />
 
-                  {/* Attention */}
-                  <TextField
-                    label="Attention (Contact Person)"
-                    value={recipient.attention}
-                    onChange={(e) => { setRecipient((f) => ({ ...f, attention: e.target.value })); setIsSaved(false); }}
-                    fullWidth
-                    sx={glassStyles.input}
-                  />
+              {/* Attention */}
+              <TextField
+                label="Attention (Contact Person)"
+                value={recipient.attention}
+                onChange={(e) => { setRecipient((f) => ({ ...f, attention: e.target.value })); setIsSaved(false); }}
+                fullWidth
+                sx={glassStyles.input}
+              />
 
-                  {/* Upload Cover Image */}
-                  <Button
-                    component="label"
-                    startIcon={<ImageOutlinedIcon />}
-                    variant="outlined"
-                    fullWidth
-                    sx={{ height: 56, justifySelf: "stretch", borderColor: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: '12px' }}
-                  >
-                    {coverFile ? "Replace Cover Image" : "Upload Cover Image"}
-                    <input type="file" accept="image/*" hidden onChange={onPickCover} />
-                  </Button>
-                </Box>
+              {/* Upload Cover Image */}
+              <Button
+                component="label"
+                startIcon={<ImageOutlinedIcon />}
+                variant="outlined"
+                fullWidth
+                sx={{ height: 56, justifySelf: "stretch", borderColor: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: '12px' }}
+              >
+                {coverFile ? "Replace Cover Image" : "Upload Cover Image"}
+                <input type="file" accept="image/*" hidden onChange={onPickCover} />
+              </Button>
+            </Box>
 
-                {/* Address */}
-                <Box sx={{ mt: 2 }}>
-                  <TextField
-                    label="Address"
-                    multiline
-                    minRows={4}
-                    value={recipient.address}
-                    onChange={(e) => {
-                      setRecipient((f) => ({ ...f, address: e.target.value }));
-                      setIsSaved(false);
-                    }}
-                    fullWidth
-                    sx={glassStyles.input}
-                  />
-                </Box>
-              </>
-            )}
+            {/* Address */}
+            <Box sx={{ mt: 2 }}>
+              <TextField
+                label="Address"
+                multiline
+                minRows={4}
+                value={recipient.address}
+                onChange={(e) => {
+                  setRecipient((f) => ({ ...f, address: e.target.value }));
+                  setIsSaved(false);
+                }}
+                fullWidth
+                sx={glassStyles.input}
+              />
+            </Box>
           </Paper>
 
           {/* ===== Quote details ===== */}
@@ -1101,12 +1183,30 @@ export default function QuotationBuilder() {
                     <Row k="Saving in Demand" uom="" v={energyCalc.savingDemand} />
                     <Row k="Commercial Savings in KVA (MD) Charges" uom="Rs." v={money(energyCalc.savMD, quote.currency)} />
 
-                    <Row k="Total MONTHLY Savings (Approx.)" uom="" v={<b>{money(energyCalc.monthly, quote.currency)}</b>} />
-                    <Row k="Total YEARLY Savings (Approx.)" uom="" v={<b>{money(energyCalc.yearly, quote.currency)}</b>} />
-                    <Row k="Investment required as per Proposed System (Grand Total)" uom="" v={<b>{money(energyCalc.investment, quote.currency)}</b>} />
-                    <Row k="NUMBER OF MONTHS" uom="" v={energyCalc.months ? energyCalc.months.toFixed(1) : "—"} />
-                    <Row k="NUMBER OF DAYS" uom="" v={energyCalc.days ? energyCalc.days.toFixed(0) : "—"} />
-                    <Row k="Savings on Investment in 5 years (in Lakhs)" uom="" v={<b>{money(energyCalc.fiveYearRupees)}</b>} />
+                    <tr>
+                      <td colSpan={2} className="bold">Total MONTHLY Savings (Approx.) based on last Electricity bills provided, as per above calculation</td>
+                      <td className="bold">{money(energyCalc.monthly, quote.currency)}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2} className="bold">Total YEARLY Savings (Approx.) based on last Electricity bills provided, as per above calculation</td>
+                      <td className="bold">{money(energyCalc.yearly, quote.currency)}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2} className="bold">Investment required as per Proposed System. Total Value of Quotation submitted</td>
+                      <td className="bold">{money(energyCalc.investment, quote.currency)}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2} className="bold">NUMBER OF DAYS:</td>
+                      <td>{energyCalc.days ? energyCalc.days.toFixed(0) : "—"}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2} className="bold">NUMBER OF MONTHS:</td>
+                      <td>{energyCalc.months ? energyCalc.months.toFixed(1) : "—"}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={2} className="bold">Savings on Investment in 5 years (in Lakhs)</td>
+                      <td className="bold">{money(energyCalc.fiveYearRupees)}</td>
+                    </tr>
                   </TableBody>
                 </Table>
               </Box>
@@ -1197,7 +1297,7 @@ export default function QuotationBuilder() {
                           <Tr k="Difference between KWH & KVAH (D = B - A)" u="-" v={energyCalc.diffKvahKwh} />
                           <Tr k="Effective Power Factor can be achieved at" u="PF" v={energyIn.pfTarget} />
                           <Tr k="Commercial Savings in KVAH Energy Charges" u="Rs." v={money(energyCalc.savKvah, quote.currency)} />
-                          <Tr k="Commercial Savings in KVAH Energy Charges with all the taxes" u="Rs." v={money(energyCalc.savKvahTax, quote.currency)} />
+                          <Tr k="Commercial Savings in KVAH Energy Charges with all the taxes" uom="Rs." v={money(energyCalc.savKvahTax, quote.currency)} />
 
                           <Tr k="Existing KVA Demand (KVA (MD))" u="KVA" v={energyIn.kvaMD} />
                           <Tr k="Existing KW Demand (KW MD)" u="KW" v={energyIn.kwMD} />
@@ -1245,78 +1345,6 @@ export default function QuotationBuilder() {
           </Box>
         </Grid>
       </Grid>
-
-      {/* ===== Email Dialog ===== */}
-      <Dialog open={emailOpen} onClose={closeEmailDialog} fullWidth maxWidth="sm" sx={glassStyles.dialog}>
-        <DialogTitle sx={{ bgcolor: 'transparent' }}>Send Quotation by Email</DialogTitle>
-        <DialogContent dividers sx={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
-              <TextField
-                label="To"
-                placeholder="someone@company.com"
-                fullWidth
-                value={emailTo}
-                onChange={(e) => setEmailTo(e.target.value)}
-                sx={glassStyles.input}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Subject"
-                fullWidth
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-                sx={glassStyles.input}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                label="Body"
-                fullWidth
-                multiline
-                minRows={8}
-                value={emailBody}
-                onChange={(e) => setEmailBody(e.target.value)}
-                sx={{ "& .MuiInputBase-root": { overflow: "auto", ...glassStyles.input['& .MuiOutlinedInput-root'] }, ...glassStyles.input }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ mb: 0.5, color: theme.textSecondary }}>
-                Attachment
-              </Typography>
-              {attachmentUrl ? (
-                <Chip
-                  icon={<DownloadOutlinedIcon style={{ color: '#fff' }} />}
-                  label={attachmentName || "Quotation.pdf"}
-                  component="a"
-                  href={attachmentUrl}
-                  clickable
-                  download={attachmentName || "Quotation.pdf"}
-                  variant="outlined"
-                  sx={{ borderColor: theme.accentBlue, color: theme.accentBlue }}
-                />
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  (Attachment will appear here)
-                </Typography>
-              )}
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-          <Button onClick={closeEmailDialog} sx={{ color: theme.textSecondary }}>Cancel</Button>
-          <Button
-            variant="contained"
-            startIcon={<SendOutlinedIcon />}
-            onClick={onSendEmail}
-            disabled={!emailTo.trim()}
-            sx={{ bgcolor: theme.accentBlue }}
-          >
-            Send
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

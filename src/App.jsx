@@ -22,7 +22,6 @@ import Contacts from "./pages/marketing/Contacts.jsx";
 import Companies from "./pages/marketing/Companies.jsx";
 import Leads from "./pages/marketing/Leads.jsx";
 import QuotationBuilder from "./pages/employee/QuotationBuilder.jsx";
-import SavedQuotations from "./pages/marketing/SavedQuotations.jsx";
 import LeadDetail from "./pages/marketing/LeadDetail.jsx";
 import TechnicalCustomerProfile from "./pages/marketing/TechnicalCustomerProfile.jsx";
 import TechnicalVisitPlanner from "./pages/marketing/TechnicalVisitPlanner.jsx";
@@ -80,10 +79,14 @@ import SolutionMyTeam from "./pages/marketing/SolutionMyTeam.jsx";
 import SolutionFollowUps from "./pages/marketing/SolutionFollowUps.jsx";
 
 // Quotation & Payments
-import QuotationTeamAllQuotations from "./pages/marketing/Quotations.jsx";
+import QuotationTeamAllQuotations from "./pages/marketing/Quotations.jsx"; // Used for Leads
+import SavedQuotations from "./pages/marketing/SavedQuotations.jsx";
+import PurchaseOrder from "./pages/marketing/PurchaseOrder.jsx";
+import QuotationTeamDashboard from "./pages/marketing/QuotationDashboard.jsx";
+
 import PaymentsTeamQPayments from "./pages/marketing/Payments.jsx";
 import PaymentsTeamQInvoices from "./pages/marketing/Invoices.jsx";
-import QuotationTeamDashboard from "./pages/marketing/QuotationDashboard.jsx";
+
 
 // Employee legacy (optional)
 import EmployeeLayout from "./layouts/EmployeeLayout.jsx";
@@ -93,7 +96,7 @@ import EmpLeads from "./pages/employee/EmpLeads.jsx";
 import TeleLayout from "./layouts/TeleLayout.jsx";
 import LegacyTeleDashboard from "./pages/tele/TeleDashboard.jsx";
 import LegacyTeleLeads from "./pages/tele/TeleLeads.jsx";
-import PurchaseOrder from "./pages/marketing/PurchaseOrder.jsx";
+
 
 /* ---------- helpers ---------- */
 function readAuth() {
@@ -141,15 +144,6 @@ function detectTeamSlug(dept, role) {
   if (d.includes("payment")) return "payments-team";
   if (d.includes("tele")) return "tele";
 
-  if (r.includes("associate")) return "associate";
-  if (r.includes("field")) return "field";
-  if (r.includes("corporate")) return "corporate";
-  if (r.includes("technical")) return "technical";
-  if (r.includes("solution")) return "solution";
-  if (r.includes("quotation")) return "quotation-team";
-  if (r.includes("payment")) return "payments-team";
-  if (r.includes("tele")) return "tele";
-
   return "tele";
 }
 
@@ -185,7 +179,7 @@ function defaultDeptLanding(u) {
   const dept = u?.department_id || u?.department_name;
   const role = u?.role_id || u?.role_name;
   const slug = detectTeamSlug(dept, role);
-  if (slug === "quotation-team") return "/marketing/quotation-team/all-quotations";
+  if (slug === "quotation-team") return "/marketing/quotation-team/dashboard"; // Updated to map to Dashboard
   if (slug === "payments-team") return "/marketing/payments-team/q-payments";
   if (slug === "ipqshead") return "/marketing";
   return `/marketing/${slug}/dashboard`;
@@ -282,7 +276,7 @@ export default function App() {
               <Route path="contacts" element={<Contacts />} />
               <Route path="companies" element={<Companies />} />
               <Route path="quotation-builder" element={<QuotationBuilder />} />
-              <Route path="saved-quotations" element={<SavedQuotations />} />
+              <Route path="saved-quotations" element={<SavedQuotations />} /> {/* General Access if needed */}
 
               {/* Tele */}
               <Route element={<RequireDeptAccess slug="tele" />}>
@@ -323,7 +317,7 @@ export default function App() {
                   <Route path="associate/my-team" element={<AssociateMyTeam />} />
                 </Route>
                 <Route path="associate/leadinfo" element={<AssociateLeadinfo />} />
-                <Route path="associate/follow-ups" element={<AssociateFollowUps />} />
+                <Route path="associate/pending-followup" element={<AssociateFollowUps />} />
                 <Route path="associate/lead-manager" element={<AssociateLeadManager />} /> 
                 <Route path="associate/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
@@ -338,20 +332,14 @@ export default function App() {
                 </Route>
                 <Route path="corporate/leadinfo" element={<CorporateLeadinfo />} />
                 <Route path="corporate/lead-manager" element={<CorporateLeadManager />} /> 
-                <Route path="corporate/follow-ups" element={<CorporateFollowUps />} />
+                <Route path="corporate/pending-followup" element={<CorporateFollowUps />} />
                 <Route path="corporate/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
 
               {/* Technical */}
               <Route element={<RequireDeptAccess slug="technical" />}>
                 <Route path="technical/dashboard" element={<TechnicalDashboard />} />
-                
-                {/* UPDATED ROUTE: 
-                   Changed from exact path to allow optional :id parameter 
-                   so the View button navigation works correctly.
-                */}
                 <Route path="technical/customer-profile/:id" element={<TechnicalCustomerProfile />} />
-
                 <Route path="technical/customer-visit" element={<TechnicalCustomerVisit />} />
                 <Route path="technical/visit-planner" element={<TechnicalVisitPlanner />} />
                 <Route path="technical/team-manager" element={<TeamInfo />} />
@@ -376,8 +364,9 @@ export default function App() {
               {/* Quotation Team */}
               <Route element={<RequireDeptAccess slug="quotation-team" />}>
                 <Route path="quotation-team/dashboard" element={<QuotationTeamDashboard />} />
-                <Route path="quotation-team/all-quotations" element={<QuotationTeamAllQuotations />} />
-                <Route path="quotation-team/purchaseorder" element={<PurchaseOrder />} />
+                <Route path="quotation-team/leads" element={<QuotationTeamAllQuotations />} /> {/* Maps to Quotations.jsx */}
+                <Route path="quotation-team/purchase-orders" element={<PurchaseOrder />} />
+                <Route path="quotation-team/saved-quotations" element={<SavedQuotations />} />
               </Route>
 
               {/* Payments Team */}

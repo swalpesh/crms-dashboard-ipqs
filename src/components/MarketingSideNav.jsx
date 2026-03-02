@@ -270,7 +270,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     if (includeMyTeam) {
       items.splice(2, 0, { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" });
     }
-    // Added Reimbursement for all standard teams
     items.push({ path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" });
     return items;
   };
@@ -291,11 +290,8 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   // --- CUSTOM FIELD/ASSOCIATE/CORPORATE MARKETING ITEMS ---
   const fieldTeamItems = (isHeadView, currentUser) => {
     const empId = currentUser?.employee_id || "";
-    
-    // Check if the user is a special telecaller assigned to these departments
     const isSpecialTele = empId.startsWith("FTM-IPQS") || empId.startsWith("ATM-IPQS") || empId.startsWith("CTM-IPQS");
 
-    // Rule 3: Special Telecaller logic (My Leads + Reimbursement)
     if (!isHeadView && isSpecialTele) {
       return [
         { path: "/leadinfo", icon: <DescriptionOutlinedIcon />, label: "My Leads" },
@@ -303,7 +299,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
       ];
     }
 
-    // Rule 1: Standard Employees (Dashboard, My Leads, My Activity, Pending Followup's, Reimbursement)
     const items = [
       { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
       { path: "/leadinfo", icon: <DescriptionOutlinedIcon />, label: "My Leads" },
@@ -311,22 +306,28 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
       { path: "/pending-followup", icon: <AssignmentTurnedInOutlinedIcon />, label: "Pending Followup's" },
     ];
 
-    // Rule 2: Head Employees (+ Lead Manager, + My Team)
     if (isHeadView) {
       items.push({ path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" });
       items.push({ path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" });
     }
 
-    // Add Reimbursement at the end for everyone
     items.push({ path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" });
 
     return items;
   };
 
-  // --- CUSTOM SOLUTION TEAM ITEMS (Only Dashboard & Leads) ---
+  // --- CUSTOM SOLUTION TEAM ITEMS ---
   const solutionTeamItems = [
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
     { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" }
+  ];
+
+  // --- CUSTOM QUOTATION TEAM ITEMS ---
+  const quotationTeamItems = [
+    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Quotation Dashboard" },
+    { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
+    { path: "/purchase-orders", icon: <ReceiptLongOutlinedIcon />, label: "Purchase Order" },
+    { path: "/saved-quotations", icon: <RequestQuoteOutlinedIcon />, label: "Saved Quotations" }
   ];
 
   return (
@@ -383,13 +384,11 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                  ]} />
         )}
 
+        {/* Individual Quotation Team Rendering */}
         {userSlug === "quotation-team" && (
           <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
                  open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
-                 onNavigate={onNavigate} items={[
-                   { path: "/all-quotations", icon: <RequestQuoteOutlinedIcon />, label: "All Quotations" },
-                   { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" },
-                 ]} />
+                 onNavigate={onNavigate} items={quotationTeamItems} />
         )}
 
         {isIpqsHead(user) ? (
@@ -436,10 +435,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
                 <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
                       open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
-                      onNavigate={onNavigate} items={[
-                        { path: "/all-quotations", icon: <RequestQuoteOutlinedIcon />, label: "All Quotations" },
-                        { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" }
-                      ]} />
+                      onNavigate={onNavigate} items={quotationTeamItems} />
 
                 <Group title="Payments Team" icon={<PaidOutlinedIcon />} basePath="/marketing/payments-team"
                       open={openPayTeam} setOpen={setOpenPayTeam} selected={pathname.startsWith("/marketing/payments-team/")}
