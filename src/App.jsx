@@ -359,6 +359,8 @@ export default function App() {
                   <Route path="solution/my-team" element={<SolutionMyTeam />} />
                 </Route>
                 <Route path="solution/follow-ups" element={<SolutionFollowUps />} />
+                <Route path="solution/reimbursement" element={<TechnicalReimbursement />} />
+
               </Route>
 
               {/* Quotation Team */}
@@ -367,6 +369,8 @@ export default function App() {
                 <Route path="quotation-team/leads" element={<QuotationTeamAllQuotations />} /> {/* Maps to Quotations.jsx */}
                 <Route path="quotation-team/purchase-orders" element={<PurchaseOrder />} />
                 <Route path="quotation-team/saved-quotations" element={<SavedQuotations />} />
+                <Route path="quotation-team/reimbursement" element={<TechnicalReimbursement />} />
+
               </Route>
 
               {/* Payments Team */}

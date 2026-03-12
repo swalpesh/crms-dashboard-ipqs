@@ -319,7 +319,9 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   // --- CUSTOM SOLUTION TEAM ITEMS ---
   const solutionTeamItems = [
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
-    { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" }
+    { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
+    { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" }
+
   ];
 
   // --- CUSTOM QUOTATION TEAM ITEMS ---
@@ -327,7 +329,9 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Quotation Dashboard" },
     { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
     { path: "/purchase-orders", icon: <ReceiptLongOutlinedIcon />, label: "Purchase Order" },
-    { path: "/saved-quotations", icon: <RequestQuoteOutlinedIcon />, label: "Saved Quotations" }
+    { path: "/saved-quotations", icon: <RequestQuoteOutlinedIcon />, label: "Saved Quotations" },
+    { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" }
+
   ];
 
   return (

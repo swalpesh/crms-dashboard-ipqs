@@ -21,7 +21,8 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  Switch
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
@@ -41,7 +42,8 @@ import {
   X,
   Eye,
   PaperPlaneRight,
-  Users
+  Users,
+  CarProfile
 } from "@phosphor-icons/react";
 
 // --- API HELPERS ---
@@ -218,7 +220,7 @@ const DateItem = ({ day, date, active }) => (
   </Box>
 );
 
-const ActivityCard = ({ visitStatus, time, title, purpose, contact, phone, location, email, disableStart, onReschedule, onStartVisit, onViewLead, onEndVisit }) => {
+const ActivityCard = ({ visitStatus, time, title, purpose, contact, phone, location, email, disableStart, inTrip, onReschedule, onStartVisit, onViewLead, onEndVisit }) => {
   let statusColor = themeColors.blue;
   let badgeText = "Next Step";
 
@@ -229,6 +231,9 @@ const ActivityCard = ({ visitStatus, time, title, purpose, contact, phone, locat
     statusColor = themeColors.textSecondary;
     badgeText = "Completed";
   }
+
+  // Combined disable logic for Start button
+  const cannotStart = disableStart || !inTrip;
 
   return (
     <Box sx={{ ...styles.glassCard, ...(visitStatus === 'Started' ? { border: `1px solid rgba(0, 184, 148, 0.4)`, boxShadow: `0 0 20px rgba(0, 184, 148, 0.15)` } : {}) }}>
@@ -272,11 +277,11 @@ const ActivityCard = ({ visitStatus, time, title, purpose, contact, phone, locat
               fullWidth 
               variant="contained" 
               startIcon={<Play weight="fill" />} 
-              sx={{ bgcolor: disableStart ? 'rgba(255,255,255,0.1)' : themeColors.blue, color: disableStart ? 'rgba(255,255,255,0.3)' : '#fff', py: 1.5, fontWeight: 700 }} 
-              disabled={disableStart}
+              sx={{ bgcolor: cannotStart ? 'rgba(255,255,255,0.1)' : themeColors.blue, color: cannotStart ? 'rgba(255,255,255,0.3)' : '#fff', py: 1.5, fontWeight: 700 }} 
+              disabled={cannotStart}
               onClick={onStartVisit}
             >
-              Start Visit
+              {disableStart ? 'Start Visit' : (!inTrip ? 'Enable Travel Mode' : 'Start Visit')}
             </Button>
           </>
         )}
@@ -321,6 +326,8 @@ const AssociateMyactivity = () => {
   const [completedLeadsData, setCompletedLeadsData] = useState([]); // Flat array from new API
   const [selectedEmpFilter, setSelectedEmpFilter] = useState('All'); // For the completed tab filter
   
+  const [inTrip, setInTrip] = useState(false);
+
   const [loadingUnscheduled, setLoadingUnscheduled] = useState(false);
   const [loadingScheduled, setLoadingScheduled] = useState(false);
   const [loadingCompleted, setLoadingCompleted] = useState(false);
@@ -358,10 +365,11 @@ const AssociateMyactivity = () => {
     if (!token) return;
 
     try {
-      const [unSchedRes, schedRes, compRes] = await Promise.all([
+      const [unSchedRes, schedRes, compRes, statusRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/aleads/unscheduled-leads`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`${API_BASE_URL}/api/aleads/scheduled-visits`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${API_BASE_URL}/api/aleads/completed-visits`, { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch(`${API_BASE_URL}/api/aleads/completed-visits`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${API_BASE_URL}/api/v1/employees/my-trip-status`, { headers: { 'Authorization': `Bearer ${token}` } }) // NEW STATUS API
       ]);
 
       if (unSchedRes.ok) {
@@ -375,6 +383,14 @@ const AssociateMyactivity = () => {
       if (compRes.ok) {
         const d = await compRes.json();
         setCompletedLeadsData(d.leads || []);
+      }
+      if (statusRes.ok) {
+        const d = await statusRes.json();
+        if (d.in_trip === "Yes") {
+            setInTrip(true);
+        } else {
+            setInTrip(false);
+        }
       }
     } catch (error) { 
       console.error("API Fetch Error:", error); 
@@ -425,6 +441,35 @@ const AssociateMyactivity = () => {
   const handleDateClick = (dateStr) => {
     setActiveFilterDate(dateStr);
     if (activeTab !== 0) setActiveTab(0); // Auto-switch to Scheduled Tab
+  };
+
+  const handleTripToggle = async (e) => {
+    const newStatus = e.target.checked;
+    setInTrip(newStatus); 
+
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE_URL}/api/v1/employees/trip-status`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`, 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ in_trip: newStatus ? "Yes" : "No" })
+      });
+
+      if (!res.ok) throw new Error("Failed to update travel status");
+      
+      setToast({ 
+        open: true, 
+        message: newStatus ? 'Travel Mode Activated. Start driving safely!' : 'Travel Mode Deactivated.', 
+        severity: 'success' 
+      });
+
+    } catch (err) {
+      setInTrip(!newStatus); 
+      setToast({ open: true, message: err.message, severity: 'error' });
+    }
   };
 
   // --- MODAL HANDLERS ---
@@ -544,31 +589,57 @@ const AssociateMyactivity = () => {
     }
   };
 
-  // --- START VISIT ACTION ---
+  // --- MODIFIED: START VISIT ACTION ---
   const handleStartVisit = async (lead) => {
     try {
-      setToast({ open: true, message: 'Getting your location...', severity: 'info' });
+      setToast({ open: true, message: 'Starting visit and initiating reimbursement...', severity: 'info' });
       const locationCoords = await getCurrentLocation();
-
       const token = getToken();
       const currentUser = getAuthUser();
 
-      // Update Visit Status
-      const payload = {
+      // 1. Prepare Visit Status Payload
+      const visitPayload = {
         lead_id: lead.lead_id,
         status: "Started",
         location: locationCoords
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/aleads/visit-status`, {
+      // 2. Prepare Reimbursement Payload
+      const companyDisplayName = lead.company_name || lead.lead_name || "Unknown Company";
+      const reimPayload = {
+        company_name: `${companyDisplayName} Visit`,
+        start_date: getTodayString(),
+        end_date: null
+      };
+
+      // Fire both APIs simultaneously
+      const visitPromise = fetch(`${API_BASE_URL}/api/aleads/visit-status`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(visitPayload)
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      const reimPromise = fetch(`${API_BASE_URL}/api/reimbursements`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(reimPayload)
+      });
+
+      const [visitRes, reimRes] = await Promise.all([visitPromise, reimPromise]);
+
+      if (!visitRes.ok) {
+        const errorData = await visitRes.json();
         throw new Error(errorData.message || 'Failed to start visit');
+      }
+
+      // Check if Reimbursement API worked and save the returned ID to LocalStorage securely mapped to lead_id
+      if (reimRes.ok) {
+        const reimData = await reimRes.json();
+        if (reimData?.data?.reimbursement_id) {
+          localStorage.setItem(`reimbursement_${lead.lead_id}`, reimData.data.reimbursement_id);
+        }
+      } else {
+        console.warn("Failed to create reimbursement record, but visit started.");
       }
 
       // Update Local State instantly
@@ -584,7 +655,7 @@ const AssociateMyactivity = () => {
           const notificationPayload = {
             to_emp_id: "IPQS-E25017",
             title: "Visit Started",
-            message: `Lead ${lead.company_name || lead.lead_name} visit started by ${currentUser?.username || 'Employee'}. Location captured.`
+            message: `Lead ${companyDisplayName} visit started by ${currentUser?.username || 'Employee'}. Location captured.`
           };
 
           await fetch(`${API_BASE_URL}/api/notifications/send`, {
@@ -603,7 +674,7 @@ const AssociateMyactivity = () => {
     }
   };
 
-  // --- END VISIT & TRANSFER ACTION ---
+  // --- MODIFIED: END VISIT & TRANSFER ACTION ---
   const submitEndVisit = async () => {
     setIsEnding(true);
     try {
@@ -611,35 +682,51 @@ const AssociateMyactivity = () => {
       const currentUser = getAuthUser();
       const isSolutions = nextDepartment === 'Solutions-Team';
 
-      // 1. Mark Visit as Completed
-      const endResponse = await fetch(`${API_BASE_URL}/api/aleads/visit-status`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lead_id: endVisitLead.lead_id,
-          status: "Completed"
+      const promises = [];
+
+      // 1. Visit Status API
+      promises.push(
+        fetch(`${API_BASE_URL}/api/aleads/visit-status`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lead_id: endVisitLead.lead_id, status: "Completed" })
         })
-      });
+      );
 
-      if (!endResponse.ok) throw new Error('Failed to end visit status.');
+      // 2. Change Stage API
+      promises.push(
+        fetch(`${API_BASE_URL}/api/aleads/change-stage`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lead_id: endVisitLead.lead_id,
+            new_lead_stage: nextDepartment,
+            assigned_employee: isSolutions ? 'IPQS-H5000' : '0', 
+            reason: `Assigned to ${nextDepartment.replace('-', ' ')}`
+          })
+        })
+      );
 
-      // 2. Change Lead Stage AND Explicity Pass assigned_employee to override backend
-      const transferPayload = {
-        lead_id: endVisitLead.lead_id,
-        new_lead_stage: nextDepartment,
-        assigned_employee: isSolutions ? 'IPQS-H5000' : '0', // FORCING THE PAYLOAD HERE
-        reason: `Assigned to ${nextDepartment.replace('-', ' ')}`
-      };
+      // 3. Update Reimbursement API (If we have a stored ID)
+      const storedReimbursementId = localStorage.getItem(`reimbursement_${endVisitLead.lead_id}`);
+      if (storedReimbursementId) {
+        promises.push(
+          fetch(`${API_BASE_URL}/api/reimbursements/${storedReimbursementId}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ end_date: getTodayString() })
+          })
+        );
+      }
 
-      const transferResponse = await fetch(`${API_BASE_URL}/api/aleads/change-stage`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(transferPayload)
-      });
+      await Promise.all(promises);
 
-      if (!transferResponse.ok) throw new Error('Failed to transfer lead to next department.');
+      // Clear the reimbursement ID from storage once successfully submitted
+      if (storedReimbursementId) {
+        localStorage.removeItem(`reimbursement_${endVisitLead.lead_id}`);
+      }
 
-      // Update Local State instantly
+      // Update Local UI State
       setScheduledLeads(prevLeads => prevLeads.map(l => 
         l.lead_id === endVisitLead.lead_id ? { 
             ...l, 
@@ -653,7 +740,7 @@ const AssociateMyactivity = () => {
       handleCloseEndModal();
       fetchAllData();
 
-      // 3. Send Notification to target Head
+      // Trigger Notification
       setTimeout(async () => {
         try {
           const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25010'; 
@@ -777,12 +864,34 @@ const AssociateMyactivity = () => {
           50% { box-shadow: 0 0 40px rgba(0, 184, 148, 0.6); }
           100% { box-shadow: 0 0 20px rgba(0, 184, 148, 0.2); }
         }
+        @keyframes driveCar {
+          0% { left: -50px; opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { left: 100vw; opacity: 0; }
+        }
         .celebration-text {
           background: linear-gradient(to right, #00b894, #55efc4);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
         }
+        .car-animation {
+          position: absolute;
+          bottom: 20px;
+          animation: driveCar 4s linear infinite;
+          z-index: 1000;
+          color: #0984e3;
+          filter: drop-shadow(0 0 10px rgba(9, 132, 227, 0.8));
+          pointer-events: none;
+        }
       `}</style>
+
+      {/* TRAVEL MODE CAR ANIMATION OVERLAY */}
+      {inTrip && (
+        <Box className="car-animation">
+          <CarProfile size={50} weight="fill" />
+        </Box>
+      )}
 
       {/* TARGET CELEBRATION MODAL */}
       <Modal open={showCelebration} onClose={() => setShowCelebration(false)} closeAfterTransition BackdropComponent={Backdrop} BackdropProps={{ timeout: 500, style: { backgroundColor: 'rgba(0,0,0,0.85)' } }}>
@@ -822,24 +931,56 @@ const AssociateMyactivity = () => {
         </Fade>
       </Modal>
 
-      <Box sx={{ maxWidth: '850px', mx: 'auto', pb: 5 }}>
+      <Box sx={{ maxWidth: '850px', mx: 'auto', pb: 5, position: 'relative', zIndex: 2 }}>
         
-        {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        {/* Top Row: Breadcrumbs & Profile */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: themeColors.textSecondary }}>
-            <Typography variant="body2">Dashboard</Typography><CaretRight size={14} /><Typography variant="body2" color="#fff" fontWeight={600}>My Activity</Typography>
+            <Typography variant="body2">Dashboard</Typography>
+            <CaretRight size={14} />
+            <Typography variant="body2" color="#fff" fontWeight={600}>My Activity</Typography>
           </Box>
+          
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'rgba(255,255,255,0.1)', py: 0.5, px: 1, borderRadius: '30px', border: themeColors.glassBorder }}>
             <Avatar src={`https://ui-avatars.com/api/?name=${authUser?.username || 'User'}&background=0984e3&color=fff`} sx={{ width: 28, height: 28 }} />
-            <Typography variant="body2" fontWeight={600}>{authUser?.username || 'User'}</Typography>
+            <Typography variant="body2" fontWeight={600} sx={{ display: { xs: 'none', sm: 'block' } }}>
+              {authUser?.username || 'User'}
+            </Typography>
           </Box>
         </Box>
 
-        {/* Calendar Row */}
+        {/* Travel Mode Toggle Row */}
+        <Box sx={{ mb: 4 }}>
+          <Box sx={{ 
+            display: 'flex', alignItems: 'center', justifyContent: { xs: 'space-between', md: 'flex-start' }, gap: 2, 
+            bgcolor: inTrip ? 'rgba(0, 184, 148, 0.15)' : 'rgba(255,255,255,0.05)', 
+            p: 1.5, px: 2.5, borderRadius: '16px', 
+            border: inTrip ? `1px solid ${themeColors.success}` : themeColors.glassBorder,
+            transition: 'all 0.3s ease',
+            width: { xs: '100%', md: 'max-content' }
+          }}>
+             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+               {inTrip ? <CarProfile size={24} color={themeColors.success} weight="fill" /> : <MapPin size={24} color={themeColors.textSecondary} />}
+               <Typography variant="body1" fontWeight={700} color={inTrip ? themeColors.success : themeColors.textSecondary}>
+                 {inTrip ? 'In Transit' : 'Travel Mode'}
+               </Typography>
+             </Box>
+             <Switch 
+               checked={inTrip} 
+               onChange={handleTripToggle} 
+               sx={{
+                 '& .MuiSwitch-switchBase.Mui-checked': { color: themeColors.success },
+                 '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { backgroundColor: themeColors.success }
+               }} 
+             />
+          </Box>
+        </Box>
+
+        {/* Target & Calendar Row */}
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mb: 4 }}>
           {/* Target Card with Dynamic Glow if 100% */}
           <Box sx={{ 
-            ...styles.glassCard, flex: 1, mb: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            ...styles.glassCard, flex: { xs: 'none', md: 1 }, mb: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center',
             ...(progressPercent === 100 && totalVisitsCount > 0 ? { border: `1px solid rgba(0, 184, 148, 0.5)`, animation: 'pulseGlow 2s infinite' } : {})
           }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
@@ -854,9 +995,15 @@ const AssociateMyactivity = () => {
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', bgcolor: 'rgba(0,0,0,0.2)', p: 1, borderRadius: '20px', border: themeColors.glassBorder, justifyContent: 'space-between' }}>
+          {/* Calendar Selector */}
+          <Box sx={{ 
+            display: 'flex', gap: { xs: 0.5, sm: 1 }, alignItems: 'center', 
+            bgcolor: 'rgba(0,0,0,0.2)', p: { xs: 0.5, sm: 1 }, borderRadius: '20px', 
+            border: themeColors.glassBorder, justifyContent: 'space-between',
+            overflowX: 'auto', '&::-webkit-scrollbar': { display: 'none' }
+          }}>
             <IconButton onClick={() => shiftDate(-1)} sx={{ color: '#fff', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }}><CaretLeft size={20} weight="bold" /></IconButton>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 1 } }}>
               {dateRange.map((item, idx) => (
                 <Box key={idx} onClick={() => handleDateClick(item.dateStr)}>
                   <DateItem day={item.day} date={item.date} active={item.dateStr === activeFilterDate} />
@@ -868,8 +1015,15 @@ const AssociateMyactivity = () => {
         </Box>
 
         {/* Tab Selection Row */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-          <Box sx={{ display: 'inline-flex', gap: 1, p: 0.8, bgcolor: 'rgba(0,0,0,0.3)', borderRadius: '18px', border: themeColors.glassBorder }}>
+        <Box sx={{ 
+          display: 'flex', justifyContent: { xs: 'flex-start', md: 'center' }, mb: 4, 
+          overflowX: 'auto', '&::-webkit-scrollbar': { display: 'none' }, width: '100%' 
+        }}>
+          <Box sx={{ 
+            display: 'flex', gap: 1, p: 0.8, bgcolor: 'rgba(0,0,0,0.3)', 
+            borderRadius: '16px', border: themeColors.glassBorder, 
+            width: { xs: '100%', md: 'auto' } 
+          }}>
             {[ {n:1, l:'Scheduled'}, {n:2, l:'Plan Visit'}, {n:3, l:'Completed'} ].map((tab, i) => (
               <Button key={i} onClick={() => setActiveTab(i)} sx={{ ...styles.tabBtn, bgcolor: activeTab === i ? themeColors.blue : 'transparent', color: activeTab === i ? '#fff' : themeColors.textSecondary }}>
                 <Box sx={{ ...styles.tabNumber, bgcolor: activeTab === i ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)' }}>{tab.n}</Box> {tab.l}
@@ -880,7 +1034,7 @@ const AssociateMyactivity = () => {
 
         {/* --- Tab Content --- */}
         
-        {/* SCHEDULED TAB (Active Tab 0) - FILTERED BY SELECTED DATE */}
+        {/* SCHEDULED TAB (Active Tab 0) */}
         {activeTab === 0 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             
@@ -919,8 +1073,9 @@ const AssociateMyactivity = () => {
                   phone={lead.contact_person_phone} 
                   location={lead.company_city && lead.company_state ? `${lead.company_city}, ${lead.company_state}` : 'Location N/A'} 
                   email={lead.company_email || lead.contact_person_email} 
-                  disableStart={!lead.associate_visit_date?.startsWith(todayStr)} // Disable if not today
-                  onReschedule={() => handleOpenSchedule(lead, true)} // <--- Passes 'true' for isRescheduleMode
+                  disableStart={!lead.associate_visit_date?.startsWith(todayStr)} 
+                  inTrip={inTrip} 
+                  onReschedule={() => handleOpenSchedule(lead, true)} 
                   onStartVisit={() => handleStartVisit(lead)}
                   onEndVisit={() => handleOpenEndModal(lead)}
                   onViewLead={() => navigate(`/marketing/customer-info/${lead.lead_id}`)}
