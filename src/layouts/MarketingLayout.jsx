@@ -43,15 +43,15 @@ const glassBorder = "rgba(255, 255, 255, 0.08)";
 const glassBgHover = "rgba(255, 255, 255, 0.1)";
 const accentBlue = "#3b82f6";
 
-// Style for the square icon buttons
+// Style for the square icon buttons (Responsive spacing added for mobile)
 const actionBtnStyle = {
-  width: "40px",
-  height: "40px",
+  width: { xs: "36px", sm: "40px" },
+  height: { xs: "36px", sm: "40px" },
   borderRadius: "12px",
   border: `1px solid ${glassBorder}`,
   backgroundColor: "rgba(255, 255, 255, 0.03)", 
   color: "rgba(255, 255, 255, 0.7)", 
-  marginLeft: "12px",
+  marginLeft: { xs: "6px", sm: "12px" },
   transition: "all 0.2s ease-in-out",
   "&:hover": {
     backgroundColor: glassBgHover,
@@ -262,25 +262,27 @@ export default function MarketingLayout() {
             }}
           >
             {/* 1. Left: Hamburger (Mobile) */}
-            <Box sx={{ display: "flex", alignItems: "center", width: "50px" }}>
+            <Box sx={{ display: "flex", alignItems: "center", width: { xs: "auto", md: "50px" } }}>
               {!isMdUp && (
                 <IconButton
                   aria-label="open navigation"
                   onClick={() => setOpen(true)}
-                  sx={{ color: "#fff" }}
+                  sx={{ color: "#fff", mr: 1 }}
                 >
                   <MenuIcon />
                 </IconButton>
               )}
             </Box>
 
-            {/* 2. Center: Logo */}
+            {/* 2. Center: Logo (Responsive placement to prevent merging) */}
             <Box
               sx={{
-                position: "absolute",
-                left: "50%",
-                transform: "translateX(-50%)",
+                position: { xs: "relative", md: "absolute" },
+                left: { md: "50%" },
+                transform: { md: "translateX(-50%)" },
                 display: "flex",
+                flexGrow: { xs: 1, md: 0 },
+                justifyContent: { xs: "flex-start", md: "center" },
                 alignItems: "center",
                 pointerEvents: "none",
               }}
@@ -359,7 +361,7 @@ export default function MarketingLayout() {
                 <IconButton
                   onClick={handleLogout}
                   sx={{
-                    marginLeft: "15px",
+                    marginLeft: { xs: "6px", sm: "15px" },
                     color: "rgba(255,255,255,0.4)",
                     transition: "color 0.2s",
                     "&:hover": { color: "#ef4444" }, 

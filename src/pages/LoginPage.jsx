@@ -17,6 +17,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -25,8 +26,7 @@ import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 function readStoredAuth() {
   const ls = window.localStorage;
@@ -41,8 +41,42 @@ function readStoredAuth() {
   return { token, role, user };
 }
 
+// --- THEME CONSTANTS ---
+const themeColors = {
+  bgGradient: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)',
+  glassBg: 'rgba(25, 25, 55, 0.65)',
+  glassBorder: '1px solid rgba(255, 255, 255, 0.1)',
+  textSecondary: '#a0a0c0',
+  blue: '#3b82f6',
+  brandRed: '#d71914',
+  brandRedHover: '#bf1511'
+};
+
+const inputStyle = {
+  "& .MuiOutlinedInput-root": { 
+      color: "#fff", 
+      bgcolor: "rgba(0,0,0,0.3)", 
+      borderRadius: '12px',
+      transition: 'all 0.3s ease',
+      "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, 
+      "&:hover fieldset": { borderColor: "rgba(255,255,255,0.3)" }, 
+      "&.Mui-focused": {
+        bgcolor: "rgba(0,0,0,0.5)",
+      },
+      "&.Mui-focused fieldset": { 
+        borderColor: themeColors.blue,
+        borderWidth: '1px',
+        boxShadow: `0 0 0 3px rgba(59, 130, 246, 0.2)`
+      } 
+  },
+  "& .MuiInputLabel-root": { color: themeColors.textSecondary }, 
+  "& .MuiSvgIcon-root": { color: themeColors.textSecondary, transition: 'color 0.3s ease' },
+  "& .MuiOutlinedInput-root.Mui-focused .MuiSvgIcon-root": { color: themeColors.blue }
+};
+
 export default function LoginPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
 
   const [accountType, setAccountType] = useState("employee");
   const [showPwd, setShowPwd] = useState(false);
@@ -54,7 +88,9 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
-  const [serverSuccess, setServerSuccess] = useState("");
+  
+  // State for the Sexy Splash Screen
+  const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
     const { token, role } = readStoredAuth();
@@ -84,7 +120,6 @@ export default function LoginPage() {
 
     setSubmitting(true);
     setServerError("");
-    setServerSuccess("");
 
     try {
       const isAdmin = accountType === "admin";
@@ -118,129 +153,246 @@ export default function LoginPage() {
         localStorage.removeItem("remember_email");
       }
 
-      setServerSuccess(data.message || "Login successful");
+      // Trigger the sexy splash screen animation
+      setShowSplash(true);
 
+      // Wait for the 2.5-second animation to finish before routing
       setTimeout(() => {
         navigate(isAdmin ? "/super-admin" : "/marketing", { replace: true });
-      }, 120);
+      }, 2500);
+
     } catch (err) {
       setServerError(err.message || "Something went wrong");
-    } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        bgcolor: "#f5f5f5",
-        px: { xs: 2, md: 4 },
-        py: { xs: 2, md: 3 },
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Box
-        component="form"
-        onSubmit={handleSubmit}
-        sx={{
-          width: "100%",
-          maxWidth: { xs: 400, md: "none" },
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          gap: { xs: 2, md: 3 },
-          alignItems: "stretch",
-          justifyContent: "center",
-        }}
-      >
-        {/* LEFT: form */}
+    <>
+      {/* CSS For Sexy Splash Animations */}
+      <style>{`
+        @keyframes splashBgFadeIn {
+          0% { opacity: 0; backdrop-filter: blur(0px); }
+          100% { opacity: 1; backdrop-filter: blur(25px); }
+        }
+        @keyframes spotlightPulse {
+          0% { transform: scale(0.5); opacity: 0; }
+          20% { transform: scale(1.2); opacity: 1; }
+          50% { transform: scale(1); opacity: 0.85; }
+          85% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(0.5); opacity: 0; }
+        }
+        @keyframes logoScaleUp {
+          0% { transform: scale(0.85); opacity: 0; }
+          20% { transform: scale(1.05); opacity: 1; }
+          50% { transform: scale(1); opacity: 1; }
+          85% { transform: scale(1.05); opacity: 1; }
+          100% { transform: scale(1.3); opacity: 0; }
+        }
+        @keyframes textSlideFade {
+          0% { opacity: 0; transform: translateY(15px); }
+          20% { opacity: 1; transform: translateY(0); }
+          85% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-15px); }
+        }
+        @keyframes spinnerFadeOut {
+          0% { opacity: 0; }
+          20% { opacity: 1; }
+          85% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+      `}</style>
+
+      {/* SPLASH SCREEN OVERLAY */}
+      {showSplash && (
         <Box
           sx={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "flex-start",
-            height: { md: "100%" },
-            flexBasis: { md: "40%" },
-            flexGrow: 0,
-            flexShrink: 0,
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            zIndex: 9999,
+            background: 'rgba(10, 10, 22, 0.95)', // Deep dark overlay for spotlight contrast
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            animation: 'splashBgFadeIn 0.4s ease-out forwards'
           }}
         >
-          <Card
-            sx={{
-              width: "100%",
-              height: "100%",
-              borderRadius: 3,
-              border: "1px solid",
-              borderColor: "divider",
-              boxShadow: "0 10px 24px rgba(0,0,0,.08)",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
+          {/* Logo Container with Spotlight */}
+          <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '120px' }}>
+            
+            {/* The Sexy Spotlight (Glowing Orb behind the logo) */}
+            <Box sx={{
+              position: 'absolute',
+              width: { xs: '280px', md: '350px' },
+              height: '140px',
+              background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.95) 0%, rgba(59,130,246,0.6) 45%, rgba(0,0,0,0) 75%)',
+              filter: 'blur(25px)',
+              zIndex: 0,
+              animation: 'spotlightPulse 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+            }} />
+            
+            {/* Original Colored Logo */}
+            <Box
+              component="img"
+              src="/logo.png"
+              alt="Engage Logo"
+              sx={{
+                width: { xs: 160, md: 220 },
+                zIndex: 1,
+                position: 'relative',
+                filter: 'drop-shadow(0px 4px 15px rgba(0,0,0,0.5))', // Adds depth over the bright spotlight
+                animation: 'logoScaleUp 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+              }}
+            />
+          </Box>
+
+          <Typography 
+            variant="h5" 
+            sx={{ 
+                mt: 5, 
+                color: '#fff', 
+                fontWeight: 700, 
+                letterSpacing: '1px',
+                animation: 'textSlideFade 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
             }}
           >
-            <CardContent
-              sx={{
-                p: { xs: 3, sm: 4, md: 5 },
-                display: "flex",
-                flexDirection: "column",
-                gap: 2.25,
-                flex: 1,
-                minHeight: 0,
-                overflow: { xs: "visible", md: "auto" },
-              }}
-            >
-              {/* Logo */}
-              <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-start" }}>
+            Welcome back{values.email ? `, ${values.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ')}` : ''}
+          </Typography>
+          
+          <CircularProgress 
+            size={30} 
+            thickness={5}
+            sx={{ 
+                mt: 4, 
+                color: themeColors.blue,
+                animation: 'spinnerFadeOut 2.5s ease-in-out forwards'
+            }} 
+          />
+        </Box>
+      )}
+
+      {/* MAIN LOGIN PAGE */}
+      <Box
+        sx={{
+          minHeight: "100vh",
+          background: themeColors.bgGradient,
+          px: { xs: 2, md: 4 },
+          py: { xs: 2, md: 3 },
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "'Inter', sans-serif",
+          position: "relative",
+          overflow: "hidden"
+        }}
+      >
+        {/* Decorative Orbs */}
+        <Box sx={{ position: 'absolute', top: '-10%', left: '-5%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(40px)', zIndex: 0 }} />
+        <Box sx={{ position: 'absolute', bottom: '-10%', right: '-5%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(215, 25, 20, 0.1) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', zIndex: 0 }} />
+
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{
+            width: "100%",
+            maxWidth: { xs: 450, md: 1000 },
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            alignItems: "stretch",
+            justifyContent: "center",
+            background: themeColors.glassBg,
+            backdropFilter: 'blur(20px)',
+            border: themeColors.glassBorder,
+            borderRadius: '24px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            overflow: "hidden",
+            zIndex: 1
+          }}
+        >
+          {/* LEFT: form */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexBasis: { md: "50%" },
+              p: { xs: 4, md: 6 },
+            }}
+          >
+            <Box sx={{ width: '100%', maxWidth: '380px' }}>
+              
+              {/* Logo in Form (White inverted version for sleek dark mode) */}
+              <Box sx={{ mb: 4 }}>
                 <img
                   src="/logo.png"
                   alt="IPQS Logo"
-                  style={{ width: 130, height: "auto", display: "block" }}
+                  style={{ 
+                      width: 140, 
+                      height: "auto", 
+                      display: "block",
+                      filter: "brightness(0) invert(1) drop-shadow(0 0 10px rgba(255, 255, 255, 0.2))"
+                  }}
                 />
               </Box>
 
-              <Box>
-                <Typography
-                  variant="h4"
-                  sx={{ mb: 1, fontWeight: 800, lineHeight: 1.15 }}
-                >
-                  Sign In
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h4" sx={{ mb: 1.5, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>
+                  Welcome Back
                 </Typography>
-                <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  Choose account type and enter your credentials.
+                <Typography variant="body2" sx={{ color: themeColors.textSecondary, fontSize: '0.95rem' }}>
+                  Log in to access your dashboard.
                 </Typography>
-
-                {/* Account type switch */}
-                <ToggleButtonGroup
-                  value={accountType}
-                  exclusive
-                  onChange={(_, v) => v && setAccountType(v)}
-                  size="small"
-                  sx={{ mb: 1 }}
-                >
-                  <ToggleButton value="employee" aria-label="Employee">
-                    <BadgeOutlinedIcon fontSize="small" style={{ marginRight: 6 }} />
-                    Employee
-                  </ToggleButton>
-                  <ToggleButton value="admin" aria-label="Admin">
-                    <AdminPanelSettingsIcon fontSize="small" style={{ marginRight: 6 }} />
-                    Admin
-                  </ToggleButton>
-                </ToggleButtonGroup>
               </Box>
 
-              {!!serverError && <Alert severity="error">{serverError}</Alert>}
-              {!!serverSuccess && <Alert severity="success">{serverSuccess}</Alert>}
+              {/* Account type switch */}
+              <Box sx={{ mb: 4, p: 0.5, bgcolor: 'rgba(0,0,0,0.3)', borderRadius: '12px', display: 'flex', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <Button
+                      fullWidth
+                      disableElevation
+                      onClick={() => setAccountType('employee')}
+                      sx={{
+                          borderRadius: '10px',
+                          py: 1,
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          color: accountType === 'employee' ? '#fff' : themeColors.textSecondary,
+                          bgcolor: accountType === 'employee' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                          transition: 'all 0.2s ease',
+                          '&:hover': { bgcolor: accountType === 'employee' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)' }
+                      }}
+                  >
+                      <BadgeOutlinedIcon fontSize="small" sx={{ mr: 1, opacity: 0.8 }} /> Employee
+                  </Button>
+                  <Button
+                      fullWidth
+                      disableElevation
+                      onClick={() => setAccountType('admin')}
+                      sx={{
+                          borderRadius: '10px',
+                          py: 1,
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          color: accountType === 'admin' ? '#fff' : themeColors.textSecondary,
+                          bgcolor: accountType === 'admin' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                          transition: 'all 0.2s ease',
+                          '&:hover': { bgcolor: accountType === 'admin' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)' }
+                      }}
+                  >
+                      <AdminPanelSettingsIcon fontSize="small" sx={{ mr: 1, opacity: 0.8 }} /> Admin
+                  </Button>
+              </Box>
+
+              {!!serverError && <Alert severity="error" sx={{ mb: 3, borderRadius: '10px', bgcolor: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5', '& .MuiAlert-icon': { color: '#ef4444' } }}>{serverError}</Alert>}
 
               {/* Email */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
+              <Box sx={{ mb: 2.5 }}>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: themeColors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.75rem' }}>
                   Email Address
                 </Typography>
                 <TextField
                   name="email"
-                  placeholder="you@company.com"
+                  placeholder="Enter your email"
                   type="email"
                   fullWidth
                   value={values.email}
@@ -248,6 +400,7 @@ export default function LoginPage() {
                   error={!!errors.email}
                   helperText={errors.email || " "}
                   autoComplete="email"
+                  sx={inputStyle}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -259,8 +412,8 @@ export default function LoginPage() {
               </Box>
 
               {/* Password */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700 }}>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: themeColors.textSecondary, textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: '0.75rem' }}>
                   Password
                 </Typography>
                 <TextField
@@ -273,6 +426,7 @@ export default function LoginPage() {
                   error={!!errors.password}
                   helperText={errors.password || " "}
                   autoComplete="current-password"
+                  sx={inputStyle}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -280,12 +434,9 @@ export default function LoginPage() {
                           aria-label="toggle password visibility"
                           onClick={() => setShowPwd((p) => !p)}
                           edge="end"
+                          sx={{ color: themeColors.textSecondary, '&:hover': { color: '#fff' } }}
                         >
-                          {showPwd ? (
-                            <VisibilityOutlinedIcon />
-                          ) : (
-                            <VisibilityOffOutlinedIcon />
-                          )}
+                          {showPwd ? <VisibilityOutlinedIcon /> : <VisibilityOffOutlinedIcon />}
                         </IconButton>
                       </InputAdornment>
                     ),
@@ -294,96 +445,102 @@ export default function LoginPage() {
               </Box>
 
               {/* Remember / Forgot */}
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ mt: 0.5 }}
-              >
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 4 }}>
                 <FormControlLabel
                   control={
                     <Checkbox
                       checked={remember}
                       onChange={(e) => setRemember(e.target.checked)}
                       size="small"
+                      sx={{ color: themeColors.textSecondary, '&.Mui-checked': { color: themeColors.blue } }}
                     />
                   }
-                  label="Remember Me"
+                  label={<Typography variant="body2" sx={{ color: themeColors.textSecondary, fontWeight: 500 }}>Remember Me</Typography>}
                 />
                 <Link
                   href="#"
-                  underline="hover"
-                  sx={{ fontWeight: 700, color: "#d71914" }}
+                  underline="none"
+                  sx={{ 
+                    fontWeight: 600, 
+                    color: themeColors.blue, 
+                    fontSize: '0.85rem',
+                    transition: 'color 0.2s ease',
+                    '&:hover': { color: '#60a5fa' }
+                  }}
                 >
                   Forgot Password?
                 </Link>
               </Stack>
 
-              {/* Sign In */}
+              {/* Sign In Button */}
               <Button
                 type="submit"
+                fullWidth
                 size="large"
                 variant="contained"
                 disabled={submitting}
                 sx={{
-                  bgcolor: "#d71914",
-                  "&:hover": { bgcolor: "#bf1511" },
-                  py: 1,
-                  borderRadius: 2,
-                  fontSize: "0.95rem",
+                  background: `linear-gradient(135deg, ${themeColors.blue}, #2563eb)`,
+                  color: '#fff',
+                  py: 1.5,
+                  borderRadius: '12px',
+                  fontSize: "1rem",
                   fontWeight: 700,
+                  textTransform: 'none',
+                  boxShadow: '0 8px 20px rgba(59, 130, 246, 0.3)',
+                  transition: 'all 0.3s ease',
+                  "&:hover": { 
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 12px 25px rgba(59, 130, 246, 0.4)',
+                  },
+                  "&.Mui-disabled": {
+                      background: 'rgba(255,255,255,0.1)',
+                      color: 'rgba(255,255,255,0.3)'
+                  }
                 }}
-                startIcon={submitting ? <CircularProgress size={18} /> : null}
+                startIcon={submitting ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : null}
               >
-                {submitting ? "Signing In..." : "Sign In"}
+                {submitting ? "Authenticating..." : "Sign In to Account"}
               </Button>
 
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ mt: "auto" }}
-              >
+              <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 4, color: 'rgba(255,255,255,0.3)', fontWeight: 500 }}>
                 Copyright © 2025 – IPQS
               </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* RIGHT: image column */}
-        <Box
-          sx={{
-            display: { xs: "none", md: "flex" },
-            flexBasis: { md: "60%" },
-            flexGrow: 0,
-            flexShrink: 0,
-            minWidth: 0,
-            height: "100%",
-          }}
-        >
-          <Box sx={{ pr: { md: 0 }, pl: 0, width: "100%", height: "100%" }}>
-            <Box
-              sx={{
-                width: "100%",
-                height: "100%",
-                borderRadius: 3,
-                overflow: "hidden",
-                boxShadow: "0 10px 24px rgba(0,0,0,.08)",
-              }}
-            >
-              <img
-                src="/loginmain.png"
-                alt="Working professional"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
             </Box>
           </Box>
+
+          {/* RIGHT: image column */}
+          <Box
+            sx={{
+              display: { xs: "none", md: "flex" },
+              flexBasis: { md: "50%" },
+              position: 'relative',
+              bgcolor: '#0a0a16',
+              borderLeft: '1px solid rgba(255,255,255,0.05)'
+            }}
+          >
+            {/* Overlay to blend image with dark theme */}
+            <Box sx={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                background: 'linear-gradient(to right, rgba(10,10,22,1) 0%, rgba(10,10,22,0.4) 50%, rgba(10,10,22,0.1) 100%)',
+                zIndex: 1
+            }} />
+            <img
+              src="/loginmain.png"
+              alt="Working professional"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+                opacity: 0.8
+              }}
+            />
+          </Box>
+
         </Box>
       </Box>
-    </Box>
+    </>
   );
 }

@@ -11,7 +11,6 @@ import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 import CorporateFareOutlinedIcon from "@mui/icons-material/CorporateFareOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
-import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import SpaceDashboardOutlinedIcon from "@mui/icons-material/SpaceDashboardOutlined";
 import AssignmentTurnedInOutlinedIcon from "@mui/icons-material/AssignmentTurnedInOutlined";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
@@ -26,8 +25,6 @@ import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 // --- NEW ICONS FOR TECHNICAL TEAM ---
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"; 
 import EditCalendarOutlinedIcon from "@mui/icons-material/EditCalendarOutlined"; 
-import PostAddOutlinedIcon from "@mui/icons-material/PostAddOutlined"; 
-import SnippetFolderOutlinedIcon from "@mui/icons-material/SnippetFolderOutlined"; 
 
 import logoUrl from "../assets/logo.png";
 
@@ -49,8 +46,6 @@ function detectTeamSlug(dept, role) {
     "associate-marketing": "associate",
     "corporate-marketing": "corporate",
     "technical-team": "technical",
-    "solution-team": "solution",
-    "solutions-team": "solution",
     "quotation-team": "quotation-team",
     "payments-team": "payments-team",
   };
@@ -61,7 +56,6 @@ function detectTeamSlug(dept, role) {
   if (d.includes("field")) return "field";
   if (d.includes("corporate")) return "corporate";
   if (d.includes("technical")) return "technical";
-  if (d.includes("solution")) return "solution";
   if (d.includes("quotation")) return "quotation-team";
   if (d.includes("payment")) return "payments-team";
   if (d.includes("tele")) return "tele";
@@ -70,7 +64,6 @@ function detectTeamSlug(dept, role) {
   if (r.includes("field")) return "field";
   if (r.includes("corporate")) return "corporate";
   if (r.includes("technical")) return "technical";
-  if (r.includes("solution")) return "solution";
   if (r.includes("quotation")) return "quotation-team";
   if (r.includes("payment")) return "payments-team";
   if (r.includes("tele")) return "tele";
@@ -91,23 +84,6 @@ function readAuthUser() {
 }
 
 const GROUP_LABEL_TYPO_SX = { fontSize: 13, fontWeight: 700, letterSpacing: '0.5px', whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
-
-const LS_KEYS = {
-  all: "msn-openAll",
-  tele: "msn-openTele",
-  field: "msn-openField",
-  assoc: "msn-openAssoc",
-  corp: "msn-openCorp",
-  tech: "msn-openTech",
-  sol: "msn-openSol",
-  qteam: "msn-openQTeam",
-  payteam: "msn-openPayTeam",
-};
-const getLSBool = (k, fallback) => {
-  const v = window.localStorage.getItem(k);
-  return v === null ? fallback : v === "true";
-};
-const setLSBool = (k, v) => window.localStorage.setItem(k, String(v));
 
 // --- STYLING CONSTANTS ---
 const activeGradient = "linear-gradient(90deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.8) 100%)";
@@ -219,49 +195,38 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const assocActive = /\/marketing\/associate\//.test(pathname);
   const corpActive = /\/marketing\/corporate\//.test(pathname);
   const techActive = /\/marketing\/technical\//.test(pathname);
-  const solActive = /\/marketing\/solution\//.test(pathname);
   const qTeamActive = pathname.startsWith("/marketing/quotation-team/");
   const payTeamActive = pathname.startsWith("/marketing/payments-team/");
 
-  const anyAllActive =
-    teleActive || fieldActive || assocActive || corpActive || techActive || solActive ||
-    qTeamActive || payTeamActive;
+  // open state (Strictly defaults to active route only, ignoring localStorage)
+  const [openTele, setOpenTele] = useState(teleActive);
+  const [openField, setOpenField] = useState(fieldActive);
+  const [openAssoc, setOpenAssoc] = useState(assocActive);
+  const [openCorp, setOpenCorp] = useState(corpActive);
+  const [openTech, setOpenTech] = useState(techActive);
+  const [openQTeam, setOpenQTeam] = useState(qTeamActive);
+  const [openPayTeam, setOpenPayTeam] = useState(payTeamActive);
 
-  // open state
-  const [openAll, setOpenAll] = useState(() => getLSBool(LS_KEYS.all, anyAllActive || true));
-  const [openTele, setOpenTele] = useState(() => getLSBool(LS_KEYS.tele, teleActive));
-  const [openField, setOpenField] = useState(() => getLSBool(LS_KEYS.field, fieldActive));
-  const [openAssoc, setOpenAssoc] = useState(() => getLSBool(LS_KEYS.assoc, assocActive));
-  const [openCorp, setOpenCorp] = useState(() => getLSBool(LS_KEYS.corp, corpActive));
-  const [openTech, setOpenTech] = useState(() => getLSBool(LS_KEYS.tech, techActive));
-  const [openSol, setOpenSol] = useState(() => getLSBool(LS_KEYS.sol, solActive));
-  const [openQTeam, setOpenQTeam] = useState(() => getLSBool(LS_KEYS.qteam, qTeamActive));
-  const [openPayTeam, setOpenPayTeam] = useState(() => getLSBool(LS_KEYS.payteam, payTeamActive));
-
-  useEffect(() => setLSBool(LS_KEYS.all, openAll), [openAll]);
-  useEffect(() => setLSBool(LS_KEYS.tele, openTele), [openTele]);
-  useEffect(() => setLSBool(LS_KEYS.field, openField), [openField]);
-  useEffect(() => setLSBool(LS_KEYS.assoc, openAssoc), [openAssoc]);
-  useEffect(() => setLSBool(LS_KEYS.corp, openCorp), [openCorp]);
-  useEffect(() => setLSBool(LS_KEYS.tech, openTech), [openTech]);
-  useEffect(() => setLSBool(LS_KEYS.sol, openSol), [openSol]);
-  useEffect(() => setLSBool(LS_KEYS.qteam, openQTeam), [openQTeam]);
-  useEffect(() => setLSBool(LS_KEYS.payteam, openPayTeam), [openPayTeam]);
-
+  // Sync open state when navigation happens
   useEffect(() => {
-    setOpenAll((prev) => prev || anyAllActive);
     setOpenTele((prev) => prev || teleActive);
     setOpenField((prev) => prev || fieldActive);
     setOpenAssoc((prev) => prev || assocActive);
     setOpenCorp((prev) => prev || corpActive);
     setOpenTech((prev) => prev || techActive);
-    setOpenSol((prev) => prev || solActive);
     setOpenQTeam((prev) => prev || qTeamActive);
     setOpenPayTeam((prev) => prev || payTeamActive);
-  }, [anyAllActive, teleActive, fieldActive, assocActive, corpActive, techActive, solActive, qTeamActive, payTeamActive]);
+  }, [teleActive, fieldActive, assocActive, corpActive, techActive, qTeamActive, payTeamActive]);
 
   // --- STANDARD ITEMS ---
-  const mkTeamItems = (includeMyTeam) => {
+  const mkTeamItems = (includeMyTeam, roleSlug) => {
+    // If Tele Marketing employee or head, ONLY show Leads.
+    if (roleSlug === "tele") {
+      return [
+        { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" }
+      ];
+    }
+
     const items = [
       { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
       { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
@@ -274,7 +239,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     return items;
   };
   
-  const stdItemsForUser = mkTeamItems(userIsHead);
+  const stdItemsForUser = mkTeamItems(userIsHead, userSlug);
 
   // --- CUSTOM TECHNICAL TEAM ITEMS ---
   const techTeamItems = (isHeadView) => [
@@ -316,14 +281,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     return items;
   };
 
-  // --- CUSTOM SOLUTION TEAM ITEMS ---
-  const solutionTeamItems = [
-    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
-    { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
-    { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" }
-
-  ];
-
   // --- CUSTOM QUOTATION TEAM ITEMS ---
   const quotationTeamItems = [
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Quotation Dashboard" },
@@ -331,7 +288,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     { path: "/purchase-orders", icon: <ReceiptLongOutlinedIcon />, label: "Purchase Order" },
     { path: "/saved-quotations", icon: <RequestQuoteOutlinedIcon />, label: "Saved Quotations" },
     { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" }
-
   ];
 
   return (
@@ -397,59 +353,25 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
         {isIpqsHead(user) ? (
           <>
-            <ListItemButton 
-              onClick={() => setOpenAll((p) => !p)} 
-              sx={{ 
-                borderRadius: '12px', mb: 0.5, mx: 1, color: textSecondary, 
-                "&:hover": { bgcolor: hoverBg, color: "#fff" } 
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}><CampaignOutlinedIcon /></ListItemIcon>
-              <ListItemText primary="All Departments" primaryTypographyProps={{fontWeight: 700, fontSize: '0.9rem'}} />
-              {openAll ? <ExpandLess sx={{ color: 'rgba(255,255,255,0.5)' }} /> : <ExpandMore sx={{ color: 'rgba(255,255,255,0.5)' }} />}
-            </ListItemButton>
-
+            {/* IPQS Head Specific Direct Links */}
             <NavItem to="/marketing/masterleads" icon={<AssignmentTurnedInOutlinedIcon />} label="Master Leads" onNavigate={onNavigate} />
+            <NavItem to="/marketing/lead-management" icon={<ManageAccountsIcon />} label="Lead Management" onNavigate={onNavigate} />
 
-            <Collapse in={openAll}>
-              <Box sx={{ pl: 0 }}> 
-                <Group title="Tele Marketing" icon={<SupportAgentOutlinedIcon />} basePath="/marketing/tele"
-                      open={openTele} setOpen={setOpenTele} selected={/\/marketing\/tele\//.test(pathname)}
-                      onNavigate={onNavigate} items={mkTeamItems(true)} />
-                
-                <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
-                      open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
-                      onNavigate={onNavigate} items={fieldTeamItems(true, user)} />
+            <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
+                  open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
+                  onNavigate={onNavigate} items={[ { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } ]} />
 
-                <Group title="Associate Marketing" icon={<GroupsOutlinedIcon />} basePath="/marketing/associate"
-                      open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
-                      onNavigate={onNavigate} items={fieldTeamItems(true, user)} />
+            <Group title="Associate Marketing" icon={<GroupsOutlinedIcon />} basePath="/marketing/associate"
+                  open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
+                  onNavigate={onNavigate} items={[ { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } ]} />
 
-                <Group title="Corporate Marketing" icon={<CorporateFareOutlinedIcon />} basePath="/marketing/corporate"
-                      open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
-                      onNavigate={onNavigate} items={fieldTeamItems(true, user)} />
-                
-                <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
-                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
-                      onNavigate={onNavigate} items={techTeamItems(true)} />
-                
-                <Group title="Solution Team" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
-                      open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
-                      onNavigate={onNavigate} items={solutionTeamItems} />
-
-                <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
-                      open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
-                      onNavigate={onNavigate} items={quotationTeamItems} />
-
-                <Group title="Payments Team" icon={<PaidOutlinedIcon />} basePath="/marketing/payments-team"
-                      open={openPayTeam} setOpen={setOpenPayTeam} selected={pathname.startsWith("/marketing/payments-team/")}
-                      onNavigate={onNavigate} items={[
-                        { path: "/q-payments", icon: <PaidOutlinedIcon />, label: "Q-Payments" },
-                        { path: "/q-invoices", icon: <ReceiptLongOutlinedIcon />, label: "Q-Invoices" },
-                        { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" }
-                      ]} />
-              </Box>
-            </Collapse>
+            <Group title="Corporate Marketing" icon={<CorporateFareOutlinedIcon />} basePath="/marketing/corporate"
+                  open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
+                  onNavigate={onNavigate} items={[ { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } ]} />
+            
+            <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
+                  open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
+                  onNavigate={onNavigate} items={[ { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" } ]} />
           </>
         ) : (
           <>
@@ -470,6 +392,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
                      onNavigate={onNavigate} items={fieldTeamItems(userIsHead, user)} />
             )}
+            
             {userSlug === "corporate" && (
               <Group title="Corporate Marketing" icon={<CorporateFareOutlinedIcon />} basePath="/marketing/corporate"
                      open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
@@ -480,12 +403,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
               <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
                      onNavigate={onNavigate} items={techTeamItems(userIsHead)} />
-            )}
-            
-            {userSlug === "solution" && (
-              <Group title="Solution Team" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
-                     open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
-                     onNavigate={onNavigate} items={solutionTeamItems} />
             )}
           </>
         )}

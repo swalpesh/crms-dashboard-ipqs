@@ -141,7 +141,7 @@ useEffect(() => {
       >
         <Tab value="activities" label="Activities" />
         <Tab value="notes" label="Notes" />
-        <Tab value="followup" label="Follow-Up History" />
+        <Tab value="followup" label="Follow-Up History new" />
       </Tabs>
       <Divider />
 

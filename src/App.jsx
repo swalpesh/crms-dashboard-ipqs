@@ -96,6 +96,7 @@ import EmpLeads from "./pages/employee/EmpLeads.jsx";
 import TeleLayout from "./layouts/TeleLayout.jsx";
 import LegacyTeleDashboard from "./pages/tele/TeleDashboard.jsx";
 import LegacyTeleLeads from "./pages/tele/TeleLeads.jsx";
+import LeadManagement from "./pages/marketing/leadmanagement.jsx";
 
 
 /* ---------- helpers ---------- */
@@ -179,9 +180,12 @@ function defaultDeptLanding(u) {
   const dept = u?.department_id || u?.department_name;
   const role = u?.role_id || u?.role_name;
   const slug = detectTeamSlug(dept, role);
+  
+  if (slug === "tele") return "/marketing/tele/leads"; // <--- NEW OVERRIDE FOR TELE
   if (slug === "quotation-team") return "/marketing/quotation-team/dashboard"; // Updated to map to Dashboard
   if (slug === "payments-team") return "/marketing/payments-team/q-payments";
   if (slug === "ipqshead") return "/marketing";
+  
   return `/marketing/${slug}/dashboard`;
 }
 
@@ -273,6 +277,7 @@ export default function App() {
               <Route path="my-activity" element={<MyActivity />} />
               <Route path="lead/:id" element={<LeadDetail />} />
               <Route path="masterleads" element={<Leads />} />
+              <Route path="lead-management" element={<LeadManagement />} />
               <Route path="contacts" element={<Contacts />} />
               <Route path="companies" element={<Companies />} />
               <Route path="quotation-builder" element={<QuotationBuilder />} />
@@ -282,7 +287,7 @@ export default function App() {
               <Route element={<RequireDeptAccess slug="tele" />}>
                 <Route path="tele/dashboard" element={<TeleDashboard />} />
                 <Route path="tele/leads" element={<TeleLeads />} />
-                <Route element={<RequireHead redirectTo="/marketing/tele/dashboard" />}>
+                <Route element={<RequireHead redirectTo="/marketing/tele/leads" />}>
                   <Route path="tele/my-team" element={<TeleMyTeam />} />
                 </Route>
                 <Route path="tele/follow-ups" element={<TeleFollowUps />} />

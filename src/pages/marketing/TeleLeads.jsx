@@ -1,48 +1,39 @@
-// src/pages/marketing/TeleLeads.jsx
-import { useMemo, useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  Box, Stack, Typography, Tabs, Tab, TextField, IconButton, Button, Chip, Paper, Menu,
-  MenuItem, Divider, Dialog, DialogTitle, DialogContent, DialogActions, InputAdornment,
-  TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
-  Autocomplete, FormHelperText, CircularProgress
+  Box, Stack, Typography, Button, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
+  TableContainer, CircularProgress, Avatar, InputBase, TextField,
+  Select, FormControl, Snackbar, Alert, IconButton, Menu, MenuItem, Divider
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useNavigate } from "react-router-dom";
 
-import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import MoreVertOutlinedIcon from "@mui/icons-material/MoreVertOutlined";
-import AddCircleOutlineOutlinedIcon from "@mui/icons-material/AddCircleOutlineOutlined";
-import UndoOutlinedIcon from "@mui/icons-material/UndoOutlined";
-import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
-import CloseOutlinedIcon from "@mui/icons-material/CloseOutlined";
-import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
+// Phosphor Icons
+import {
+  CaretRight,
+  Trophy,
+  Fire,
+  Plus,
+  MagnifyingGlass,
+  DotsThreeVertical
+} from "@phosphor-icons/react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 /* ----------------- helpers ----------------- */
-const getToken = () =>
-  localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
+const getRole = () => localStorage.getItem("auth_role") || sessionStorage.getItem("auth_role") || "";
 
-const getRole = () =>
-  localStorage.getItem("auth_role") || sessionStorage.getItem("auth_role") || "";
-
-// NEW: Try to read employee id from storage or JWT
 const getEmployeeId = () => {
-  const direct =
-    localStorage.getItem("auth_employee_id") ||
-    sessionStorage.getItem("auth_employee_id");
+  const direct = localStorage.getItem("auth_employee_id") || sessionStorage.getItem("auth_employee_id");
   if (direct) return direct;
-
   try {
-    const rawUser =
-      localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
+    const rawUser = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
     if (rawUser) {
       const u = JSON.parse(rawUser);
       return u.employee_id || u.employeeId || u.emp_id || u.id || "";
     }
   } catch {}
-
   const token = getToken();
   if (token && token.split(".").length === 3) {
     try {
@@ -53,21 +44,22 @@ const getEmployeeId = () => {
   return "";
 };
 
-const fmtDate = (iso) =>
-  iso
-    ? new Date(iso).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-    : "-";
+const getAuthUser = () => {
+  const userStr = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
+  try { return userStr ? JSON.parse(userStr) : null; } catch (e) { return null; }
+};
 
-/** Map API lead -> row object used by the table */
+const getInitials = (name) => {
+  if (!name) return "U";
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
+
 function mapLead(api) {
-  const location = [api.company_city, api.company_state, api.company_country]
-    .filter(Boolean)
-    .join(", ");
-
+  // Map full location
+  const location = [api.company_address, api.company_city, api.company_state, api.company_country].filter(Boolean).join(", ");
+  
   return {
     id: api.lead_id,
     leadNo: api.lead_id,
@@ -77,1547 +69,525 @@ function mapLead(api) {
     contact: api.contact_person_name,
     phone: api.contact_person_phone,
     email: api.contact_person_email || api.company_email || "",
-    leadType: api.lead_requirement,
+    leadType: api.lead_type || api.lead_requirement || "N/A", // Adjust based on your API response
+    requirement: api.lead_requirement || "Unknown",
     location,
-    follow: {
-      note: api.follow_up_reason || "",
-      date: api.follow_up_date || "",
-      time: api.follow_up_time || "",
-    },
+    priority: api.lead_priority || "Medium",
     _raw: api,
   };
 }
 
-/* ---------------------- FREE Country/State/City API hooks ----------------------
-   API: https://countriesnow.space
------------------------------------------------------------------------------ */
-function useCountries() {
-  const [countries, setCountries] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
+const AnimatedCounter = ({ end, duration = 1500 }) => {
+  const [count, setCount] = useState(0);
   useEffect(() => {
-    let ok = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setErr("");
-        const res = await fetch("https://countriesnow.space/api/v0.1/countries/iso");
-        const json = await res.json();
-        if (!ok) return;
-        const list = (json?.data || []).map((c) => c.name).sort();
-        setCountries(list);
-      } catch {
-        setErr("Failed to load countries.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-    return () => {
-      ok = false;
+    let startTimestamp = null;
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      setCount(Math.floor(progress * end));
+      if (progress < 1) window.requestAnimationFrame(step);
     };
-  }, []);
-  return { countries, loading, err };
-}
+    window.requestAnimationFrame(step);
+  }, [end, duration]);
+  return <>{count.toLocaleString()}</>;
+};
 
-function useStates(country) {
-  const [states, setStates] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  useEffect(() => {
-    let ok = true;
-    if (!country) {
-      setStates([]);
-      setErr("");
-      setLoading(false);
-      return;
-    }
-    (async () => {
-      try {
-        setLoading(true);
-        setErr("");
-        const res = await fetch("https://countriesnow.space/api/v0.1/countries/states", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ country }),
-        });
-        const json = await res.json();
-        if (!ok) return;
-        const list = (json?.data?.states || []).map((s) => s.name).sort();
-        setStates(list);
-      } catch {
-        setErr("Failed to load states.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-    return () => {
-      ok = false;
-    };
-  }, [country]);
-  return { states, loading, err };
-}
-
-function useCities(country, state) {
-  const [cities, setCities] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  useEffect(() => {
-    let ok = true;
-    if (!country || !state) {
-      setCities([]);
-      setErr("");
-      setLoading(false);
-      return;
-    }
-    (async () => {
-      try {
-        setLoading(true);
-        setErr("");
-        const res = await fetch("https://countriesnow.space/api/v0.1/countries/state/cities", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ country, state }),
-        });
-        const json = await res.json();
-        if (!ok) return;
-        const list = (json?.data || []).slice().sort();
-        setCities(list);
-      } catch {
-        setErr("Failed to load cities.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-    return () => {
-      ok = false;
-    };
-  }, [country, state]);
-  return { cities, loading, err };
-}
-
-/* ---------------- mobile header ---------------- */
-function MobileHeader({ total, onAdd }) {
-  return (
-    <Stack direction="row" alignItems="flex-start" justifyContent="space-between" sx={{ mb: 1 }}>
-      <Box>
-        <Typography variant="subtitle1" fontWeight={800} lineHeight={1.2}>
-          Tele Marketing
-          <br />
-          Leads
-        </Typography>
-        <Chip label={`${total} total`} size="small" sx={{ mt: 0.75 }} />
-      </Box>
-      <Button
-        variant="contained"
-        startIcon={<AddCircleOutlineOutlinedIcon />}
-        sx={{
-          borderRadius: 999,
-          bgcolor: "error.main",
-          px: 1.5,
-          py: 0.6,
-          fontWeight: 700,
-          boxShadow: "none",
-          "&:hover": { boxShadow: "none", bgcolor: "error.dark" },
-        }}
-        onClick={onAdd}
-      >
-        Add Lead
-      </Button>
-    </Stack>
-  );
-}
+// --- THEME CONSTANTS ---
+const themeColors = {
+  bgGradient: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)',
+  glassBg: 'rgba(255, 255, 255, 0.03)',
+  glassBorder: '1px solid rgba(255, 255, 255, 0.08)',
+  textSecondary: '#a0a0c0',
+  blue: '#3b82f6',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+};
 
 /* ================================ main page ================================ */
 export default function TeleLeads() {
   const theme = useTheme();
-  const isSmUp = useMediaQuery(theme.breakpoints.up("sm"));
-  const isMdUp = useMediaQuery(theme.breakpoints.up("md"));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const navigate = useNavigate();
 
-    const navigate = useNavigate();
-    const goDetail = (lead) =>
-      navigate(`/marketing/lead/${encodeURIComponent(lead?.id || lead?.leadNo)}`);
+  const authUser = getAuthUser();
 
-  // role → hide Assign column for Tele-Marketing Head/Employee
-  const role = (getRole() || "").toLowerCase();
-  const hideAssignCol =
-    role === "tele-marketing-head" || role === "tele-marketing-employee";
-  const showAssignCol = !hideAssignCol;
-
-  // Tabs: 0 = New, 1 = Follow-up, 2 = Lost
-  const [tab, setTab] = useState(0);
-
-  // Data buckets
+  // Data buckets (Only fetching "New" leads)
   const [newLeads, setNewLeads] = useState([]);
-  const [followUps, setFollowUps] = useState([]);
-  const [lost, setLost] = useState([]);
-
-  // Loading flags (per tab)
   const [loadingNew, setLoadingNew] = useState(false);
-  const [loadingFU, setLoadingFU] = useState(false);
-  const [loadingLost, setLoadingLost] = useState(false);
 
-  // Search & filters
+  // Search
   const [search, setSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [personFilter, setPersonFilter] = useState("");
-  const [companyFilter, setCompanyFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [leadTypeFilter, setLeadTypeFilter] = useState("");
 
-  // Menus / dialogs
-  const [menuAnchor, setMenuAnchor] = useState(null);
-  const [activeLead, setActiveLead] = useState(null);
+  // Add Lead Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [isHotLead, setIsHotLead] = useState(false); 
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState({ open: false, message: "", severity: "success" });
 
-  const [followDialogOpen, setFollowDialogOpen] = useState(false);
-  const [fuNote, setFuNote] = useState("");
-  const [fuDate, setFuDate] = useState("");
-  const [fuTime, setFuTime] = useState("");
+  const [countries, setCountries] = useState([]); 
+  const [formStates, setFormStates] = useState([]);
+  const [formCities, setFormCities] = useState([]);
+  const [loadingFormLoc, setLoadingFormLoc] = useState({ states: false, cities: false });
 
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [assignLead, setAssignLead] = useState(null);
-  const [assignDept, setAssignDept] = useState("");
-  const [assignReason, setAssignReason] = useState("");
+  const [formData, setFormData] = useState({
+    lead_name: '', company_name: '', company_contact_number: '', company_email: '',
+    company_website: 'https://www.', contact_person_name: '', contact_person_phone: '',
+    contact_person_email: '', company_address: '', company_country: 'India', 
+    company_state: '', company_city: '', zipcode: '', industry_type: '', 
+    lead_requirement: '', lead_type: 'Product', lead_priority: 'Medium'
+  });
 
-  const [backOpen, setBackOpen] = useState(false);
-  const [backLead, setBackLead] = useState(null);
-  const [backReason, setBackReason] = useState("");
-
-  // --- Reschedule (API: same PATCH /status) ---
-  const [reschedOpen, setReschedOpen] = useState(false);
-  const [reschedLead, setReschedLead] = useState(null);
-  const [reschedNote, setReschedNote] = useState("");
-  const [reschedDate, setReschedDate] = useState("");
-  const [reschedTime, setReschedTime] = useState("");
-
-  // ---- Add Lead dialog state ----
-  const [addOpen, setAddOpen] = useState(false);
-  const fileInputRef = useRef(null);
-
-  const initialForm = {
-    leadName: "",
-    companyName: "",
-    contactPerson: "",
-    contactPhone: "",
-    contactEmail: "",
-    companyPhone: "",
-    companyEmail: "",
-    companyWebsite: "",
-    address: "",
-    state: "",
-    city: "",
-    country: "",
-    zip: "",
-    industryType: "",
-    leadType: "",
-    notes: "",
-    attachments: [],
-  };
-  const [form, setForm] = useState(initialForm);
-  const [touched, setTouched] = useState({});
-  const [formError, setFormError] = useState("");
-  const [savingLead, setSavingLead] = useState(false);
-
-  // Counts + colSpans
-  const counts = { new: newLeads.length, fu: followUps.length, lost: lost.length };
-  const total = counts.new + counts.fu + counts.lost;
-
-  const colSpanByTab = useMemo(
-    () => ({
-      0: showAssignCol ? 10 : 9, // New
-      1: showAssignCol ? 8 : 7,  // Follow-up
-      2: showAssignCol ? 9 : 8,  // Lost
-    }),
-    [showAssignCol]
-  );
-
-  // Current list by tab
-  const currentList = tab === 0 ? newLeads : tab === 1 ? followUps : lost;
-
-  // Dropdown options for filters & typeahead (from live data)
-  const allContacts = Array.from(
-    new Set([...newLeads, ...followUps, ...lost].map((l) => l.contact))
-  ).filter(Boolean);
-  const allLeadTypes = Array.from(
-    new Set([...newLeads, ...followUps, ...lost].map((l) => l.leadType))
-  )
-    .concat(["Technical Visit", "Audit", "Panel Requirement", "Re-Engineering"])
-    .filter(Boolean);
-  const allCompanies = Array.from(
-    new Set([...newLeads, ...followUps, ...lost].map((l) => l.company))
-  ).filter(Boolean);
-  const allLocations = Array.from(
-    new Set([...newLeads, ...followUps, ...lost].map((l) => l.location))
-  ).filter(Boolean);
-
-  // Filter + search (works across all tabs)
+  // Dynamic Filtering (Only searching text)
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return currentList.filter((l) => {
-      const matchesSearch =
-        !q ||
-        [
-          l.leadNo,
-          l.company,
-          l.createdAt,
-          l.industry,
-          l.contact,
-          l.phone,
-          l.email,
-          l.leadType,
-          l.location,
-          l?.follow?.date,
-          l?.follow?.time,
-          l?.follow?.note,
-        ]
-          .filter(Boolean)
-          .some((v) => String(v).toLowerCase().includes(q));
-
-      const created = l.createdAt ? new Date(l.createdAt) : null;
-      const afterFrom = !dateFrom || (created && created >= new Date(dateFrom));
-      const beforeTo = !dateTo || (created && created <= new Date(dateTo));
-
-      const matchesPerson = !personFilter || l.contact === personFilter;
-      const matchesCompany = !companyFilter || l.company === companyFilter;
-      const matchesLocation = !locationFilter || l.location === locationFilter;
-      const matchesLeadType = !leadTypeFilter || l.leadType === leadTypeFilter;
-
-      return (
-        matchesSearch &&
-        afterFrom &&
-        beforeTo &&
-        matchesPerson &&
-        matchesCompany &&
-        matchesLocation &&
-        matchesLeadType
-      );
+    return newLeads.filter((l) => {
+      if (!q) return true;
+      return [l.leadNo, l.company, l.contact, l.phone, l.email, l.leadType, l.location, l.requirement]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [currentList, search, dateFrom, dateTo, personFilter, companyFilter, locationFilter, leadTypeFilter]);
+  }, [newLeads, search]);
 
-  const clearFilters = () => {
-    setDateFrom("");
-    setDateTo("");
-    setPersonFilter("");
-    setCompanyFilter("");
-    setLocationFilter("");
-    setLeadTypeFilter("");
-  };
-
-  /* ================== API: list ================== */
+  /* ================== API FETCHING ================== */
   async function fetchLeadsBy(status) {
     const token = getToken();
     if (!token) return [];
     const url = `${API_BASE_URL}/api/leads/my-leads?lead_status=${encodeURIComponent(status)}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error((await res.json())?.message || "Failed to fetch");
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error("Failed to fetch");
     const json = await res.json();
-    const arr = Array.isArray(json?.leads) ? json.leads : [];
-    return arr.map(mapLead);
+    return (Array.isArray(json?.leads) ? json.leads : []).map(mapLead);
   }
 
   async function refreshAll() {
     try {
-      setLoadingNew(true);
-      setLoadingFU(true);
-      setLoadingLost(true);
-      const [n, f, l] = await Promise.all([
-        fetchLeadsBy("new"),
-        fetchLeadsBy("follow-up"),
-        fetchLeadsBy("lost"),
-      ]);
-      setNewLeads(n);
-      setFollowUps(f);
-      setLost(l);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingNew(false);
-      setLoadingFU(false);
-      setLoadingLost(false);
+      setLoadingNew(true); 
+      const n = await fetchLeadsBy("new");
+      setNewLeads(n); 
+    } catch (e) { 
+      console.error(e); 
+    } finally { 
+      setLoadingNew(false); 
     }
   }
 
+  useEffect(() => { refreshAll(); }, []);
+
+  // Countries Initializer
   useEffect(() => {
-    refreshAll(); // load counts & data on mount
-  }, []);
+    fetch("https://countriesnow.space/api/v0.1/countries/iso")
+      .then(res => res.json())
+      .then(result => {
+          setCountries(result.data || []);
+          if(showModal) handleFormCountryChange("India");
+      }).catch(err => console.error(err));
+  }, [showModal]);
 
-  /* ================== API: status changes ================== */
-  async function patchStatus(leadId, payload) {
-    const token = getToken();
-    const res = await fetch(`${API_BASE_URL}/api/leads/${leadId}/status`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || "Failed to update status");
-    return json;
-  }
-
-  async function revertLead(leadId) {
-    const token = getToken();
-    const res = await fetch(`${API_BASE_URL}/api/leads/${leadId}/revert`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json?.message || "Failed to revert lead");
-    return json;
-  }
-
-  // --- New tab context menu actions ---
-  const openMenu = (anchor, lead) => {
-    setMenuAnchor(anchor);
-    setActiveLead(lead);
-  };
-  const closeMenu = () => setMenuAnchor(null);
-
-  const startFollowUp = () => {
-    setFollowDialogOpen(true);
-    closeMenu();
+  /* ================== ADD LEAD FORM ================== */
+  const handleFormCountryChange = (countryName) => {
+    setFormData(prev => ({ ...prev, company_country: countryName, company_state: '', company_city: '' }));
+    setFormStates([]); setFormCities([]);
+    if(!countryName) return;
+    setLoadingFormLoc(prev => ({ ...prev, states: true }));
+    fetch("https://countriesnow.space/api/v0.1/countries/states", {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country: countryName })
+    }).then(res => res.json()).then(result => { setFormStates(result.data?.states || []); setLoadingFormLoc(prev => ({ ...prev, states: false })); });
   };
 
-  const saveFollowUp = async () => {
-    if (!activeLead) return;
+  const handleFormStateChange = (stateName) => {
+    setFormData(prev => ({ ...prev, company_state: stateName, company_city: '' }));
+    setFormCities([]);
+    if(!stateName) return;
+    setLoadingFormLoc(prev => ({ ...prev, cities: true }));
+    fetch("https://countriesnow.space/api/v0.1/countries/state/cities", {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ country: formData.company_country, state: stateName })
+    }).then(res => res.json()).then(result => { setFormCities(result.data || []); setLoadingFormLoc(prev => ({ ...prev, cities: false })); });
+  };
+
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const submitNewLead = async (e) => {
+    e.preventDefault(); 
+    if (!formData.company_name || !formData.lead_name) {
+        setToast({ open: true, message: "Lead Name and Company Name are required", severity: "warning" });
+        return;
+    }
+    setSubmitting(true);
     try {
-      await patchStatus(activeLead.id, {
-        lead_status: "follow-up",
-        follow_up_reason: fuNote.trim(),
-        follow_up_date: fuDate, // YYYY-MM-DD
-        follow_up_time: fuTime, // HH:mm:ss
-      });
-      setFuNote("");
-      setFuDate("");
-      setFuTime("");
-      setFollowDialogOpen(false);
-      setActiveLead(null);
-      await refreshAll();
-      setTab(1); // jump to Follow-up
-    } catch (e) {
-      console.error(e);
+        const token = getToken();
+        const empId = getEmployeeId();
+        const currentUser = getAuthUser(); 
+        
+        const fd = new FormData();
+        fd.append("lead_name", formData.lead_name);
+        fd.append("company_name", formData.company_name);
+        fd.append("contact_person_name", formData.contact_person_name);
+        fd.append("contact_person_phone", formData.contact_person_phone);
+        fd.append("contact_person_email", formData.contact_person_email);
+        fd.append("company_contact_number", formData.company_contact_number);
+        fd.append("company_email", formData.company_email);
+        fd.append("company_website", formData.company_website);
+        fd.append("company_address", formData.company_address);
+        fd.append("company_country", formData.company_country);
+        fd.append("company_state", formData.company_state);
+        fd.append("company_city", formData.company_city);
+        fd.append("zipcode", formData.zipcode);
+        fd.append("industry_type", formData.industry_type);
+        fd.append("lead_requirement", formData.lead_requirement);
+        fd.append("lead_type", formData.lead_type);
+        fd.append("lead_priority", formData.lead_priority);
+        fd.append("mark_as_hot_lead", isHotLead ? 1 : 0);
+        fd.append("assigned_employee", empId || "0");
+        fd.append("lead_status", "new");
+        fd.append("lead_stage", "Tele-Marketing");
+
+        const response = await fetch(`${API_BASE_URL}/api/leads`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }, 
+            body: fd
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) {
+            setToast({ open: true, message: "Lead Created Successfully!", severity: "success" });
+            setShowModal(false);
+            refreshAll(); 
+            setFormData({
+                lead_name: '', company_name: '', company_contact_number: '', company_email: '',
+                company_website: 'https://www.', contact_person_name: '', contact_person_phone: '',
+                contact_person_email: '', company_address: '', company_country: 'India', company_state: '',
+                company_city: '', zipcode: '', industry_type: '', lead_requirement: '',
+                lead_type: 'Product', lead_priority: 'Medium'
+            });
+            setIsHotLead(false);
+
+            // --- NOTIFICATION TO TELEMARKETING HEAD ---
+            setTimeout(async () => {
+                try {
+                    const notificationPayload = {
+                        to_emp_id: "IPQS-H25001",
+                        title: "New Lead Created",
+                        message: `Lead ${formData.lead_name} created by Tele Marketing department (${currentUser?.username || 'Employee'}). Needs to be assigned.`
+                    };
+
+                    await fetch(`${API_BASE_URL}/api/notifications/send`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(notificationPayload)
+                    });
+                } catch (e) {
+                    console.error("Error sending notification:", e);
+                }
+            }, 1500);
+
+            // Force navigation just in case
+            navigate('/marketing/tele/leads');
+
+        } else {
+            throw new Error(data.message || "Failed to create lead");
+        }
+    } catch (error) {
+        setToast({ open: true, message: error.message, severity: "error" });
+    } finally {
+        setSubmitting(false);
     }
   };
 
-  const markLost = async () => {
-    if (!activeLead) return;
-    try {
-      await patchStatus(activeLead.id, { lead_status: "lost" });
-      setActiveLead(null);
-      setMenuAnchor(null);
-      await refreshAll();
-      setTab(2);
-    } catch (e) {
-      console.error(e);
+  // --- Styles ---
+  const glassPanel = { background: 'rgba(255, 255, 255, 0.04)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)', borderRadius: '16px' };
+  
+  const getPriorityColor = (p) => {
+    switch(p?.toLowerCase()) {
+        case 'high': return { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' };
+        case 'medium': return { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b' };
+        case 'low': return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981' };
+        default: return { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6' };
     }
   };
 
-  // --- Assign flow (UI-only placeholder) ---
-  const openAssign = (lead) => {
-    setAssignLead(lead);
-    setAssignDept("");
-    setAssignReason("");
-    setAssignOpen(true);
-  };
-  const saveAssign = () => {
-    // Placeholder: annotate locally
-    const annotate = (l) =>
-      l.id === assignLead.id ? { ...l, assignedTo: assignDept, assignedReason: assignReason } : l;
-    if (tab === 0) setNewLeads((arr) => arr.map(annotate));
-    else if (tab === 1) setFollowUps((arr) => arr.map(annotate));
-    else setLost((arr) => arr.map(annotate));
-    setAssignOpen(false);
-    setAssignLead(null);
-  };
-
-  // --- Back flow (Follow-up -> New via /revert) ---
-  const openBack = (lead) => {
-    setBackLead(lead);
-    setBackReason("");
-    setBackOpen(true);
-  };
-  const saveBack = async () => {
-    if (!backLead) return;
-    try {
-      await revertLead(backLead.id);
-      setBackOpen(false);
-      setBackLead(null);
-      await refreshAll();
-      setTab(0);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  // --- Reschedule (Follow-up tab) -> uses PATCH /status with 'follow-up' payload ---
-  const openReschedule = (lead) => {
-    setReschedLead(lead);
-    setReschedNote(lead?.follow?.note || "");
-    setReschedDate(lead?.follow?.date || "");
-    setReschedTime(lead?.follow?.time || "");
-    setReschedOpen(true);
-  };
-  const saveReschedule = async () => {
-    if (!reschedLead) return;
-    try {
-      await patchStatus(reschedLead.id, {
-        lead_status: "follow-up",
-        follow_up_reason: reschedNote.trim(),
-        follow_up_date: reschedDate,
-        follow_up_time: reschedTime,
-      });
-      setReschedOpen(false);
-      setReschedLead(null);
-      await refreshAll();
-      setTab(1);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  /* ================== Add Lead (POST multipart/form-data) ================== */
-  const validateForm = () => {
-    const required = {
-      leadName: "Lead Name",
-      companyName: "Company Name",
-      contactPerson: "Contact Person Name",
-      contactPhone: "Contact Person Phone",
-      contactEmail: "Contact Person Email",
-      leadType: "Lead Requirement",
-    };
-    const missing = Object.entries(required)
-      .filter(([k]) => !String(form[k] || "").trim())
-      .map(([, label]) => label);
-    if (missing.length) return `Please fill required fields: ${missing.join(", ")}.`;
-    const emailLike = (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-    if (!emailLike(form.contactEmail)) return "Contact Person Email looks invalid.";
-    if (form.companyEmail && !emailLike(form.companyEmail)) return "Company Email looks invalid.";
-    if (form.companyWebsite && !/^https?:\/\//i.test(form.companyWebsite)) {
-      return "Company Website should start with http:// or https://";
-    }
-    return "";
-  };
-
-  const handleOpenAdd = () => {
-    setForm(initialForm);
-    setTouched({});
-    setFormError("");
-    setAddOpen(true);
-  };
-  const handleCloseAdd = () => setAddOpen(false);
-  const handleFilesChosen = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    setForm((f) => ({ ...f, attachments: [...f.attachments, ...files] }));
-    e.target.value = "";
-  };
-  const removeAttachment = (idx) => {
-    setForm((f) => ({ ...f, attachments: f.attachments.filter((_, i) => i !== idx) }));
-  };
-
-  const saveLead = async () => {
-    const err = validateForm();
-    if (err) {
-      setFormError(err);
-      return;
-    }
-    setFormError("");
-    setSavingLead(true);
-    try {
-      const fd = new FormData();
-      fd.append("lead_name", form.leadName.trim());
-      fd.append("company_name", form.companyName.trim());
-      fd.append("contact_person_name", form.contactPerson.trim());
-      fd.append("contact_person_phone", form.contactPhone.trim());
-      fd.append("contact_person_email", form.contactEmail.trim());
-      fd.append("company_contact_number", form.companyPhone.trim());
-      fd.append("company_email", form.companyEmail.trim());
-      fd.append("company_website", form.companyWebsite.trim());
-      fd.append("company_address", form.address.trim());
-      fd.append("company_country", form.country.trim());
-      fd.append("company_state", form.state.trim());
-      fd.append("company_city", form.city.trim());
-      fd.append("zipcode", form.zip.trim());
-      fd.append("industry_type", form.industryType || "");
-      fd.append("lead_requirement", form.leadType || "");
-      fd.append("notes", form.notes || "");
-
-      // Defaults (assigned_employee now = current user's employee id)
-      const creatorId = getEmployeeId() || "0";
-      fd.append("assigned_employee", creatorId);
-      fd.append("lead_status", "new");
-      fd.append("follow_up_reason", "");
-      fd.append("follow_up_date", "");
-      fd.append("follow_up_time", "");
-      fd.append("lead_stage", "Tele-Marketing");
-      // If your backend wants explicit created_by, uncomment:
-      // fd.append("created_by", creatorId);
-
-      (form.attachments || []).forEach((file) => {
-        fd.append("attachments", file);
-      });
-
-      const token = getToken();
-      const res = await fetch(`${API_BASE_URL}/api/leads`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
-
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message || "Failed to create lead");
-
-      setAddOpen(false);
-      setSavingLead(false);
-      await refreshAll();
-      setTab(0); // newly created -> New
-    } catch (e) {
-      console.error(e);
-      setSavingLead(false);
-      setFormError(e.message || "Failed to create lead");
-    }
-  };
-
-  /* ------------------------ responsive table ------------------------ */
-  const oneLine = (max = 160) => ({
-    maxWidth: max,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  });
-
-  // Country/State/City data
-  const { countries, loading: loadingCountries, err: errorCountries } = useCountries();
-  const { states, loading: loadingStates, err: errorStates } = useStates(form.country);
-  const { cities, loading: loadingCities, err: errorCities } = useCities(form.country, form.state);
-
-  /* ================================== UI ================================== */
   return (
-    <Box sx={{ p: { xs: 0.75, md: 1.25 }, height: "100%", display: "flex", flexDirection: "column" }}>
-      {!isMdUp && <MobileHeader total={total} onAdd={handleOpenAdd} />}
+    <Box sx={{ minHeight: '100vh', width: '100%', background: themeColors.bgGradient, color: '#fff', p: { xs: 1, md: 4 }, fontFamily: "'Inter', sans-serif" }}>
+      
+      {/* --- INJECTED CSS FOR MODAL --- */}
+      <style>{`
+        .modal-content { background: #0f1028 !important; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px; box-shadow: 0 0 40px rgba(0, 0, 0, 0.8); }
+        .modal-header { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 1.5rem; }
+        .modal-body { padding: 2rem; }
+        .sexy-input { background-color: rgba(30, 32, 55, 0.7) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: #f1f5f9 !important; border-radius: 10px !important; padding: 12px 16px !important; font-size: 0.95rem !important; transition: all 0.25s ease; }
+        .sexy-input:focus { background-color: rgba(30, 32, 55, 1) !important; border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important; outline: none; }
+        .sexy-input::placeholder { color: rgba(255, 255, 255, 0.3) !important; }
+        .sexy-label { color: #94a3b8; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+        .sexy-header { color: #3b82f6; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 30px; margin-bottom: 15px; border-bottom: 1px solid rgba(59, 130, 246, 0.2); padding-bottom: 5px; display: inline-block; }
+        .sexy-input option { background-color: #1a1a2e; color: #fff; padding: 10px; }
+        .hot-lead-box { background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(249, 115, 22, 0.05)); border: 1px solid rgba(249, 115, 22, 0.4); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between; margin-top: 25px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.1); }
+        .btn-sexy-primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; border-radius: 10px; padding: 12px 24px; color: white; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.2s ease; }
+        .btn-sexy-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
+        .btn-sexy-secondary { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; border-radius: 10px; padding: 12px 24px; font-weight: 600; transition: all 0.2s ease; }
+        .btn-sexy-secondary:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: #fff; }
+        .modal-body::-webkit-scrollbar { width: 6px; }
+        .modal-body::-webkit-scrollbar-thumb { background: rgba(59, 130, 246, 0.3); border-radius: 10px; }
+      `}</style>
 
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 1, sm: 1.25, md: 2 },
-          borderRadius: 2,
-          border: "1px solid",
-          borderColor: "divider",
-          bgcolor: "background.paper",
-          display: "flex",
-          flexDirection: "column",
-          height: { xs: "calc(100vh - 110px)", md: "calc(100vh - 140px)" },
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <Box sx={{ pb: 1, flexShrink: 0 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            {isMdUp && (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="h5" fontWeight={700}>
-                  Tele Marketing Leads
-                </Typography>
-                <Chip size="small" label={`${total} total`} />
-              </Stack>
-            )}
-            {isMdUp && (
-              <Button
-                variant="contained"
-                startIcon={<AddCircleOutlineOutlinedIcon />}
-                sx={{
-                  borderRadius: 999,
-                  bgcolor: "error.main",
-                  px: 1.75,
-                  py: 0.75,
-                  fontWeight: 700,
-                  boxShadow: "none",
-                  "&:hover": { boxShadow: "none", bgcolor: "error.dark" },
-                }}
-                onClick={handleOpenAdd}
-              >
-                Add Lead
-              </Button>
-            )}
-          </Stack>
+      {/* --- CREATE LEAD MODAL --- */}
+      {showModal && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1300 }} tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title fw-bold text-white fs-4">Create New Lead</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <form onSubmit={submitNewLead}>
+                  {/* Section 1 */}
+                  <div className="sexy-header mt-0">Company Details</div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Lead Name <span className="text-danger">*</span></label>
+                    <input type="text" className="form-control sexy-input" name="lead_name" value={formData.lead_name} onChange={handleChange} placeholder="Give Your Lead a Name" required />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Company Name <span className="text-danger">*</span></label>
+                    <input type="text" className="form-control sexy-input" name="company_name" value={formData.company_name} onChange={handleChange} placeholder="Company Name" required />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Company Contact Number</label>
+                    <input type="text" className="form-control sexy-input" name="company_contact_number" value={formData.company_contact_number} onChange={handleChange} placeholder="Direct Line" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Company Email</label>
+                    <input type="email" className="form-control sexy-input" name="company_email" value={formData.company_email} onChange={handleChange} placeholder="info@company.com" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Company Website</label>
+                    <input type="text" className="form-control sexy-input" name="company_website" value={formData.company_website} onChange={handleChange} placeholder="https://www.company.com" />
+                  </div>
 
-          {/* Tabs */}
-          <Box sx={{ flex: 1, overflowX: "auto", mb: 1 }}>
-            <Tabs
-              value={tab}
-              onChange={(_, v) => {
-                setTab(v);
-                setSearch("");
-              }}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{
-                minHeight: 36,
-                "& .MuiTab-root": { textTransform: "none", minHeight: 36, fontWeight: 700 },
-              }}
-            >
-              <Tab
-                label={
-                  <Stack direction="row" spacing={0.75} alignItems="center">
-                    <Typography>New</Typography>
-                    <Chip size="small" label={counts.new} />
-                    {loadingNew && <CircularProgress size={12} sx={{ ml: 0.5 }} />}
-                  </Stack>
-                }
-              />
-              <Tab
-                label={
-                  <Stack direction="row" spacing={0.75} alignItems="center">
-                    <Typography>Follow-up</Typography>
-                    <Chip size="small" label={counts.fu} color="success" />
-                    {loadingFU && <CircularProgress size={12} sx={{ ml: 0.5 }} />}
-                  </Stack>
-                }
-              />
-              <Tab
-                label={
-                  <Stack direction="row" spacing={0.75} alignItems="center">
-                    <Typography>Lost</Typography>
-                    <Chip size="small" label={counts.lost} color="error" />
-                    {loadingLost && <CircularProgress size={12} sx={{ ml: 0.5 }} />}
-                  </Stack>
-                }
-              />
-            </Tabs>
+                  {/* Section 2 */}
+                  <div className="sexy-header">Contact Person</div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Person Name</label>
+                    <input type="text" className="form-control sexy-input" name="contact_person_name" value={formData.contact_person_name} onChange={handleChange} placeholder="John Doe" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Person Phone</label>
+                    <input type="text" className="form-control sexy-input" name="contact_person_phone" value={formData.contact_person_phone} onChange={handleChange} placeholder="Direct line" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Person Email</label>
+                    <input type="email" className="form-control sexy-input" name="contact_person_email" value={formData.contact_person_email} onChange={handleChange} placeholder="john@company.com" />
+                  </div>
+
+                  {/* Section 3 */}
+                  <div className="sexy-header">Location & Industry</div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Address</label>
+                    <textarea className="form-control sexy-input" rows="2" name="company_address" value={formData.company_address} onChange={handleChange} placeholder="Full street address"></textarea>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Country</label>
+                    <select className="form-select sexy-input" name="company_country" value={formData.company_country} onChange={(e) => handleFormCountryChange(e.target.value)}>
+                        {countries.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">{loadingFormLoc.states ? "Loading States..." : "State"}</label>
+                    <select className="form-select sexy-input" name="company_state" value={formData.company_state} onChange={(e) => handleFormStateChange(e.target.value)} disabled={!formData.company_country}>
+                        <option value="">Select State</option>
+                        {formStates.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">{loadingFormLoc.cities ? "Loading Cities..." : "City"}</label>
+                    <select className="form-select sexy-input" name="company_city" value={formData.company_city} onChange={(e) => setFormData({...formData, company_city: e.target.value})} disabled={!formData.company_state}>
+                        <option value="">Select City</option>
+                        {formCities.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Zipcode</label>
+                    <input type="text" className="form-control sexy-input" name="zipcode" value={formData.zipcode} onChange={handleChange} placeholder="123456" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Industry Type</label>
+                    <input type="text" className="form-control sexy-input" name="industry_type" value={formData.industry_type} onChange={handleChange} placeholder="e.g. Manufacturing" />
+                  </div>
+
+                  {/* Section 4 */}
+                  <div className="sexy-header">Lead Specifics</div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Requirement</label>
+                    <textarea className="form-control sexy-input" rows="3" name="lead_requirement" value={formData.lead_requirement} onChange={handleChange} placeholder="Describe the client requirement..."></textarea>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Lead Type</label>
+                    <select className="form-select sexy-input" name="lead_type" value={formData.lead_type} onChange={handleChange}>
+                        <option value="Product">Product</option>
+                        <option value="Service">Service</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Priority</label>
+                    <select className="form-select sexy-input" name="lead_priority" value={formData.lead_priority} onChange={handleChange}>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                  </div>
+
+                  {/* Hot Lead Switch */}
+                  <div className="hot-lead-box">
+                    <div>
+                        <div className="text-warning fw-bold mb-1" style={{ fontSize: '0.9rem' }}><Fire weight="fill" style={{ marginRight: '8px' }} /> Mark as Hot Lead</div>
+                        <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>Prioritize this lead for immediate attention</div>
+                    </div>
+                    <div className="form-check form-switch">
+                        <input className="form-check-input" type="checkbox" role="switch" style={{ width: '3.5em', height: '1.8em', cursor: 'pointer', backgroundColor: isHotLead ? '#f97316' : '#475569', borderColor: 'transparent' }} checked={isHotLead} onChange={(e) => setIsHotLead(e.target.checked)} />
+                    </div>
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="d-grid gap-3 d-md-flex justify-content-md-end mt-4 pt-3 border-top border-secondary">
+                    <button type="button" className="btn btn-sexy-secondary px-4" onClick={() => setShowModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-sexy-primary px-5" disabled={submitting}>
+                      {submitting ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</> : 'Save Lead'}
+                    </button>
+                  </div>
+
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- DASHBOARD HEADER --- */}
+      <Box sx={{ maxWidth: 1400, mx: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: themeColors.textSecondary }}>
+            <Typography variant="body2">Dashboard</Typography>
+            <CaretRight size={14} />
+            <Typography variant="body2" color="#fff" fontWeight={600}>Tele Marketing Leads</Typography>
           </Box>
-
-          {/* Search & quick count */}
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ mb: 1.5 }}
-          >
-            <TextField
-              placeholder={`Search in ${tab === 0 ? "New" : tab === 1 ? "Follow-up" : "Lost"}`}
-              size="small"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ width: { xs: "100%", md: 520 } }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchOutlinedIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ display: { xs: "none", sm: "flex" } }}>
-              <Typography color="text.secondary">
-                {filtered.length} Lead{filtered.length !== 1 ? "s" : ""}
-              </Typography>
-              <Button size="small" onClick={refreshAll}>Refresh</Button>
-            </Stack>
-          </Stack>
-
-          {/* Filters */}
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={1}
-            sx={{ mb: 1, "& .MuiTextField-root": { minWidth: { xs: "100%", md: 180 } } }}
-          >
-            <Stack direction="row" spacing={1} sx={{ width: { xs: "100%", md: "auto" } }}>
-              <TextField
-                label="Date From"
-                type="date"
-                size="small"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                label="Date To"
-                type="date"
-                size="small"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Stack>
-            <TextField
-              label="By Person"
-              size="small"
-              select
-              SelectProps={{ native: true }}
-              value={personFilter}
-              onChange={(e) => setPersonFilter(e.target.value)}
-            >
-              <option value="" />
-              {allContacts.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </TextField>
-            <TextField
-              label="By Company"
-              size="small"
-              select
-              SelectProps={{ native: true }}
-              value={companyFilter}
-              onChange={(e) => setCompanyFilter(e.target.value)}
-            >
-              <option value="" />
-              {allCompanies.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </TextField>
-            <TextField
-              label="By Location"
-              size="small"
-              select
-              SelectProps={{ native: true }}
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-            >
-              <option value="" />
-              {allLocations.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </TextField>
-            <TextField
-              label="By Lead Type"
-              size="small"
-              select
-              SelectProps={{ native: true }}
-              value={leadTypeFilter}
-              onChange={(e) => setLeadTypeFilter(e.target.value)}
-            >
-              <option value="" />
-              {allLeadTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </TextField>
-            <Box sx={{ display: "flex", gap: 1, ml: { xs: 0, md: "auto" } }}>
-              <Button variant="outlined" size="small" onClick={clearFilters}>
-                Clear
-              </Button>
-            </Box>
-          </Stack>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'rgba(255,255,255,0.1)', py: 0.5, px: 1, borderRadius: '30px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <Avatar src={`https://ui-avatars.com/api/?name=${authUser?.username || 'User'}&background=0984e3&color=fff`} sx={{ width: 28, height: 28 }} />
+            <Typography variant="body2" fontWeight={600} sx={{ display: { xs: 'none', sm: 'block' } }}>
+              {authUser?.username || 'User'}
+            </Typography>
+          </Box>
         </Box>
 
-        {/* TABLE */}
-        <TableContainer
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            height: "100%",
-            overflowY: "auto",
-            overflowX: "auto",
-            WebkitOverflowScrolling: "touch",
-            borderRadius: { xs: 2, md: 2 },
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Table
-            size={isSmUp ? "medium" : "small"}
-            stickyHeader
-            sx={{
-              minWidth: isMdUp ? 1280 : isSmUp ? 1100 : 920,
-              "& th": {
-                fontWeight: 700,
-                fontSize: { xs: 11.5, sm: 12 },
-                textTransform: "uppercase",
-                whiteSpace: "nowrap",
-                py: { xs: 0.75, sm: 1 },
-                bgcolor: "background.paper",
-              },
-              "& td": { whiteSpace: "nowrap", fontSize: { xs: 13, sm: 14 }, py: { xs: 0.6, sm: 1 } },
-            }}
-          >
-            {/* Dynamic head */}
-            <TableHead>
-              {tab === 1 ? (
-                <TableRow>
-                  {showAssignCol && <TableCell>Assign</TableCell>}
-                  <TableCell>Lead #</TableCell>
-                  <TableCell>Company</TableCell>
-                  <TableCell>Lead Type</TableCell>
-                  <TableCell>Contact Person</TableCell>
-                  <TableCell>Phone</TableCell>
-                  <TableCell>Next Follow-up</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              ) : (
-                <TableRow>
-                  {showAssignCol && <TableCell>Assign</TableCell>}
-                  <TableCell>Lead #</TableCell>
-                  <TableCell>Company</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell>Industry</TableCell>
-                  <TableCell>Contact</TableCell>
-                  <TableCell>Phone</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Lead Type</TableCell>
-                  {tab === 0 && <TableCell align="right">Actions</TableCell>}
-                </TableRow>
-              )}
-            </TableHead>
+        {/* --- STATS & ACTIONS ROW --- */}
+        <Box sx={{ ...glassPanel, p: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 3 }}>
+          <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
+            <Typography variant="h5" fontWeight={600}>Tele Marketing Leads</Typography>
+            <Typography variant="body2" sx={{ color: '#a0a0c0' }}>Manage new tele marketing leads</Typography>
+          </Box>
+          {!isMobile && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="caption" sx={{ color: '#a0a0c0', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Total New Leads</Typography>
+                <Typography variant="h5" fontWeight={800} sx={{ mt: 0.5 }}><AnimatedCounter end={filtered.length} /></Typography>
+              </Box>
+            </Box>
+          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 2, px: 2, py: 1, border: '1px solid rgba(255,255,255,0.05)', flex: 1, minWidth: { md: 200 } }}>
+              <MagnifyingGlass size={20} color="#a0a0c0" />
+              <InputBase placeholder="Search leads..." value={search} onChange={(e) => setSearch(e.target.value)} sx={{ ml: 1, color: '#fff', fontSize: 14, width: '100%' }} />
+            </Box>
+            <Button variant="contained" startIcon={<Plus weight="bold" />} onClick={() => setShowModal(true)} sx={{ bgcolor: themeColors.danger, color: '#fff', textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 3, py: 1, height: 42, whiteSpace: 'nowrap', '&:hover': { bgcolor: '#dc2626' } }}>
+              Add Lead
+            </Button>
+          </Box>
+        </Box>
 
-            <TableBody>
-              {(tab === 0 && loadingNew) ||
-              (tab === 1 && loadingFU) ||
-              (tab === 2 && loadingLost) ? (
-                <TableRow>
-                  <TableCell colSpan={colSpanByTab[tab]}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <CircularProgress size={18} />
-                      <Typography color="text.secondary">Loading…</Typography>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={colSpanByTab[tab]}>
-                    <Typography color="text.secondary">No leads here yet.</Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((lead) => {
-                  if (tab === 1) {
-                    // FOLLOW-UP rows
-                    const nextDate = lead?.follow?.date ? fmtDate(lead.follow.date) : "-";
-                    const nextTime = lead?.follow?.time || "-";
+        {/* --- DYNAMIC TABLE --- */}
+        <TableContainer sx={{ ...glassPanel, p: 0, maxHeight: '65vh', overflowY: 'auto', '&::-webkit-scrollbar': { width: '8px' }, '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.1)', borderRadius: '10px' } }}>
+            {!isMobile && (
+                <Box sx={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr 3fr 2.5fr 1fr 1fr 2fr', 
+                    alignItems: 'center', pb: 2, mb: 2, 
+                    borderBottom: '1px solid rgba(255,255,255,0.1)', 
+                    color: '#a0a0c0', fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', 
+                    position: 'sticky', top: 0, zIndex: 2, backdropFilter: 'blur(10px)', background: 'rgba(25, 25, 55, 0.9)', pl: 2 
+                }}>
+                    <Box>Lead ID</Box>
+                    <Box>Company & Contact</Box>
+                    <Box>Location</Box>
+                    <Box>Lead Type</Box>
+                    <Box>Priority</Box>
+                    <Box>Requirements</Box>
+                </Box>
+            )}
+            
+            {loadingNew ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
+            ) : filtered.length === 0 ? (
+                <Box sx={{ textAlign: 'center', p: 5, color: '#a0a0c0' }}>No leads found matching your search.</Box>
+            ) : (
+                filtered.map(lead => {
+                    const priorityStyle = getPriorityColor(lead.priority);
                     return (
-                      <TableRow key={lead.id} hover>
-                        {showAssignCol && (
-                          <TableCell>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => openAssign(lead)}
-                              sx={{ whiteSpace: "nowrap", px: { xs: 1, sm: 1.5 } }}
-                            >
-                              {isSmUp ? "Assign to Another Department" : "Assign"}
-                            </Button>
-                          </TableCell>
-                        )}
-                        <TableCell sx={oneLine(110)}>
-  <Button size="small" onClick={() => goDetail(lead)}>
-    {lead.leadNo}
-  </Button>
-</TableCell>
-                        <TableCell sx={oneLine(160)} title={lead.company}>
-                          {lead.company}
-                        </TableCell>
-                        <TableCell sx={oneLine(120)} title={lead.leadType}>
-                          {lead.leadType}
-                        </TableCell>
-                        <TableCell sx={oneLine(140)} title={lead.contact}>
-                          {lead.contact}
-                        </TableCell>
-                        <TableCell sx={oneLine(140)} title={lead.phone}>
-                          {lead.phone}
-                        </TableCell>
-                        <TableCell sx={oneLine(180)} title={`${nextDate} ${nextTime}`}>
-                          {nextDate} {nextTime}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={<ScheduleOutlinedIcon />}
-                              onClick={() => openReschedule(lead)}
-                              sx={{ minWidth: { xs: 0, sm: 64 }, px: { xs: 1, sm: 1.5 } }}
-                            >
-                              {isSmUp ? "Reschedule" : ""}
-                            </Button>
-                            <Tooltip title="Move back to New">
-                              <span>
-                                <Button
-                                  size="small"
-                                  startIcon={<UndoOutlinedIcon />}
-                                  onClick={() => openBack(lead)}
-                                  sx={{ minWidth: { xs: 0, sm: 64 }, px: { xs: 1, sm: 1.5 } }}
-                                >
-                                  {isSmUp ? "Back" : ""}
-                                </Button>
-                              </span>
-                            </Tooltip>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
+                        <Box key={lead.id} sx={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: { xs: '1fr', md: '1fr 3fr 2.5fr 1fr 1fr 2fr' }, 
+                            alignItems: 'center', gap: { xs: 1, md: 0 }, p: 2, mb: 1.5, 
+                            bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 3, transition: 'all 0.2s ease', border: '1px solid transparent', 
+                            '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.2)', transform: 'translateY(-2px)' } 
+                        }}>
+                            
+                            {/* Lead ID */}
+                            <Box>
+                                <Button size="small"  sx={{ color: themeColors.blue, fontWeight: 700, p: 0, minWidth: 0, ml: {md: 2} }}>{lead.leadNo}</Button>
+                            </Box>
+
+                            {/* Company & Contact */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 2 }}>
+                                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 16, fontWeight: 700, width: 36, height: 36 }}>
+                                    {lead.company?.charAt(0).toUpperCase()}
+                                </Avatar>
+                                <Box overflow="hidden">
+                                    <Typography variant="body2" fontWeight={600} noWrap>{lead.company}</Typography>
+                                    <Typography variant="caption" sx={{ color: '#a0a0c0', display: 'block' }} noWrap>{lead.contact} • {lead.phone}</Typography>
+                                </Box>
+                            </Box>
+
+                            {/* Location */}
+                            <Box sx={{ color: '#ddd', fontSize: 13, pr: 2 }}>
+                                <Typography variant="body2" noWrap sx={{ fontSize: 13 }}>{lead.location || '-'}</Typography>
+                            </Box>
+
+                            {/* Lead Type */}
+                            <Box>
+                                <Chip label={lead.leadType || 'N/A'} size="small" sx={{ height: 22, fontSize: 10, fontWeight: 600, bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} />
+                            </Box>
+
+                            {/* Priority */}
+                            <Box>
+                                <Chip label={lead.priority} size="small" sx={{ height: 22, fontSize: 10, fontWeight: 600, bgcolor: priorityStyle.bg, color: priorityStyle.text }} />
+                            </Box>
+
+                            {/* Requirements (Clean Text Only) */}
+                            <Box sx={{ pr: 2 }}>
+                                <Typography variant="body2" fontSize={13} color="#e2e8f0" sx={{ whiteSpace: 'normal', wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                                    {lead.requirement || '-'}
+                                </Typography>
+                            </Box>
+
+                        </Box>
                     );
-                  }
-
-                  // NEW / LOST rows
-                  return (
-                    <TableRow key={lead.id} hover>
-                      {showAssignCol && (
-                        <TableCell>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => openAssign(lead)}
-                            sx={{ whiteSpace: "nowrap", px: { xs: 1, sm: 1.5 } }}
-                          >
-                            {isSmUp ? "Assign to Another Department" : "Assign"}
-                          </Button>
-                        </TableCell>
-                      )}
-                      <TableCell sx={oneLine(110)}>
-  <Button size="small" onClick={() => goDetail(lead)}>
-    {lead.leadNo}
-  </Button>
-</TableCell>
-                      <TableCell sx={oneLine(160)} title={lead.company}>
-                        {lead.company}
-                      </TableCell>
-                      <TableCell sx={oneLine(110)} title={fmtDate(lead.createdAt)}>
-                        {fmtDate(lead.createdAt)}
-                      </TableCell>
-                      <TableCell sx={oneLine(140)} title={lead.industry}>
-                        {lead.industry}
-                      </TableCell>
-                      <TableCell sx={oneLine(140)} title={lead.contact}>
-                        {lead.contact}
-                      </TableCell>
-                      <TableCell sx={oneLine(140)} title={lead.phone}>
-                        {lead.phone}
-                      </TableCell>
-                      <TableCell sx={oneLine(220)} title={lead.email}>
-                        {lead.email}
-                      </TableCell>
-                      <TableCell sx={oneLine(120)} title={lead.leadType}>
-                        {lead.leadType}
-                      </TableCell>
-                      {tab === 0 && (
-                        <TableCell align="right">
-                          <IconButton onClick={(e) => openMenu(e.currentTarget, lead)}>
-                            <MoreVertOutlinedIcon />
-                          </IconButton>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  );
                 })
-              )}
-            </TableBody>
-          </Table>
+            )}
         </TableContainer>
-      </Paper>
 
-      {/* Overflow menu (New tab) */}
-      <Menu
-        open={Boolean(menuAnchor)}
-        anchorEl={menuAnchor}
-        onClose={closeMenu}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <MenuItem onClick={startFollowUp}>Add to Follow-ups</MenuItem>
-        <Divider />
-        <MenuItem onClick={markLost} sx={{ color: "error.main" }}>
-          Mark as Lost
-        </MenuItem>
-      </Menu>
+      </Box>
 
-      {/* Follow-up dialog */}
-      <Dialog open={followDialogOpen} onClose={() => setFollowDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Add to Follow-ups</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={1.5}>
-            <TextField
-              label="Reason / Note"
-              multiline
-              minRows={3}
-              value={fuNote}
-              onChange={(e) => setFuNote(e.target.value)}
-            />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <TextField
-                label="Date"
-                type="date"
-                value={fuDate}
-                onChange={(e) => setFuDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
-              <TextField
-                label="Time"
-                type="time"
-                value={fuTime}
-                onChange={(e) => setFuTime(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setFollowDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={saveFollowUp}
-            disabled={!fuNote.trim() || !fuDate || !fuTime}
-          >
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <Snackbar open={toast.open} autoHideDuration={6000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} sx={{ borderRadius: '12px', width: '100%', border: '1px solid rgba(255,255,255,0.1)' }} variant="filled">{toast.message}</Alert>
+      </Snackbar>
 
-      {/* Reschedule dialog */}
-      <Dialog open={reschedOpen} onClose={() => setReschedOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Reschedule Follow-up</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={1.5}>
-            <TextField
-              label="Reason"
-              multiline
-              minRows={3}
-              value={reschedNote}
-              onChange={(e) => setReschedNote(e.target.value)}
-              fullWidth
-            />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <TextField
-                label="Date"
-                type="date"
-                value={reschedDate}
-                onChange={(e) => setReschedDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
-              <TextField
-                label="Time"
-                type="time"
-                value={reschedTime}
-                onChange={(e) => setReschedTime(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-              />
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReschedOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={saveReschedule}
-            disabled={!reschedNote.trim() || !reschedDate || !reschedTime}
-            startIcon={<ScheduleOutlinedIcon />}
-          >
-            Reschedule
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Assign dialog */}
-      <Dialog open={assignOpen} onClose={() => setAssignOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Assign to Another Department</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={1.5}>
-            <TextField
-              select
-              label="Department"
-              value={assignDept}
-              onChange={(e) => setAssignDept(e.target.value)}
-              SelectProps={{ native: true }}
-              fullWidth
-            >
-              <option value="" />
-              {[
-                "Field Marketing",
-                "Associate Marketing",
-                "Corporate Marketing",
-                "Technical Team",
-                "Solutions Team",
-              ].map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </TextField>
-            <TextField
-              label="Reason"
-              multiline
-              minRows={3}
-              value={assignReason}
-              onChange={(e) => setAssignReason(e.target.value)}
-              fullWidth
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAssignOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={saveAssign} disabled={!assignDept || !assignReason.trim()}>
-            Assign
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Back dialog */}
-      <Dialog open={backOpen} onClose={() => setBackOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Move Back to Previous Stage</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            This will move the lead back to <b>New</b>.
-          </Typography>
-          <TextField
-            label="Reason"
-            multiline
-            minRows={3}
-            value={backReason}
-            onChange={(e) => setBackReason(e.target.value)}
-            fullWidth
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBackOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={saveBack} disabled={!backReason.trim()}>
-            Move Back
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Add Lead dialog — SINGLE COLUMN with live Country/State/City */}
-      <Dialog open={addOpen} onClose={handleCloseAdd} fullWidth maxWidth="sm">
-        <DialogTitle>
-          Create New Lead
-          <Typography variant="body2" color="text.secondary">
-            Fill details below. Fields marked * are required.
-          </Typography>
-        </DialogTitle>
-
-        <DialogContent dividers sx={{ pt: 1 }}>
-          <Stack spacing={1.25}>
-            {/* Lead & Company */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              Lead & Company
-            </Typography>
-            <TextField
-              label="Lead Name *"
-              value={form.leadName}
-              onChange={(e) => setForm((f) => ({ ...f, leadName: e.target.value }))}
-              onBlur={() => setTouched((t) => ({ ...t, leadName: true }))}
-              error={touched.leadName && !form.leadName.trim()}
-              fullWidth
-              size="small"
-            />
-            {touched.leadName && !form.leadName.trim() && (
-              <FormHelperText error>Lead Name is required.</FormHelperText>
-            )}
-
-            <Autocomplete
-              freeSolo
-              options={allCompanies}
-              value={form.companyName}
-              onChange={(_, v) => setForm((f) => ({ ...f, companyName: v || "" }))}
-              onInputChange={(_, v) => setForm((f) => ({ ...f, companyName: v }))}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Company Name *"
-                  onBlur={() => setTouched((t) => ({ ...t, companyName: true }))}
-                  error={touched.companyName && !form.companyName.trim()}
-                  fullWidth
-                  size="small"
-                />
-              )}
-            />
-            {touched.companyName && !form.companyName.trim() && (
-              <FormHelperText error>Company Name is required.</FormHelperText>
-            )}
-
-            <Autocomplete
-              freeSolo
-              options={allContacts}
-              value={form.contactPerson}
-              onChange={(_, v) => setForm((f) => ({ ...f, contactPerson: v || "" }))}
-              onInputChange={(_, v) => setForm((f) => ({ ...f, contactPerson: v }))}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Contact Person Name *"
-                  onBlur={() => setTouched((t) => ({ ...t, contactPerson: true }))}
-                  error={touched.contactPerson && !form.contactPerson.trim()}
-                  fullWidth
-                  size="small"
-                />
-              )}
-            />
-            {touched.contactPerson && !form.contactPerson.trim() && (
-              <FormHelperText error>Contact Person Name is required.</FormHelperText>
-            )}
-
-            {/* Contact (Person) */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 0.5 }}>
-              Contact (Person)
-            </Typography>
-            <TextField
-              label="Contact Person Phone *"
-              value={form.contactPhone}
-              onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))}
-              onBlur={() => setTouched((t) => ({ ...t, contactPhone: true }))}
-              error={touched.contactPhone && !form.contactPhone.trim()}
-              placeholder="+1 555-555-5555"
-              fullWidth
-              size="small"
-            />
-            {touched.contactPhone && !form.contactPhone.trim() && (
-              <FormHelperText error>Contact phone is required.</FormHelperText>
-            )}
-            <TextField
-              label="Contact Person Email *"
-              type="email"
-              value={form.contactEmail}
-              onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))}
-              onBlur={() => setTouched((t) => ({ ...t, contactEmail: true }))}
-              error={touched.contactEmail && !form.contactEmail.trim()}
-              placeholder="name@example.com"
-              fullWidth
-              size="small"
-            />
-            {touched.contactEmail && !form.contactEmail.trim() && (
-              <FormHelperText error>Contact email is required.</FormHelperText>
-            )}
-
-            {/* Contact (Company) */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 0.5 }}>
-              Contact (Company)
-            </Typography>
-            <TextField
-              label="Company Contact Number"
-              value={form.companyPhone}
-              onChange={(e) => setForm((f) => ({ ...f, companyPhone: e.target.value }))}
-              placeholder="+1 555-555-5555"
-              fullWidth
-              size="small"
-            />
-            <TextField
-              label="Company Email"
-              type="email"
-              value={form.companyEmail}
-              onChange={(e) => setForm((f) => ({ ...f, companyEmail: e.target.value }))}
-              placeholder="info@company.com"
-              fullWidth
-              size="small"
-            />
-            <TextField
-              label="Company Website"
-              value={form.companyWebsite}
-              onChange={(e) => setForm((f) => ({ ...f, companyWebsite: e.target.value }))}
-              placeholder="https://example.com"
-              fullWidth
-              size="small"
-            />
-
-            {/* Address */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 0.5 }}>
-              Address
-            </Typography>
-            <TextField
-              label="Address"
-              value={form.address}
-              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-              placeholder="Street, Area"
-              fullWidth
-              size="small"
-            />
-
-            {/* Country / State / City via FREE API */}
-            <Autocomplete
-              options={countries}
-              loading={loadingCountries}
-              value={form.country || null}
-              onChange={(_, v) => {
-                setForm((f) => ({ ...f, country: v || "", state: "", city: "" }));
-              }}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Country"
-                  size="small"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loadingCountries ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                  helperText={errorCountries || ""}
-                  error={Boolean(errorCountries)}
-                />
-              )}
-            />
-
-            <Autocomplete
-              options={states}
-              loading={loadingStates}
-              value={form.state || null}
-              onChange={(_, v) => setForm((f) => ({ ...f, state: v || "", city: "" }))}
-              disabled={!form.country || !!errorCountries}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="State"
-                  size="small"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loadingStates ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                  helperText={errorStates || (!form.country ? "Select country first" : "")}
-                  error={Boolean(errorStates)}
-                />
-              )}
-            />
-
-            <Autocomplete
-              options={cities}
-              loading={loadingCities}
-              value={form.city || null}
-              onChange={(_, v) => setForm((f) => ({ ...f, city: v || "" }))}
-              disabled={!form.country || !form.state || !!errorStates}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="City"
-                  size="small"
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {loadingCities ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                  helperText={errorCities || (!form.state ? "Select state first" : "")}
-                  error={Boolean(errorCities)}
-                />
-              )}
-            />
-
-            <TextField
-              label="Zip Code"
-              value={form.zip}
-              onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))}
-              fullWidth
-              size="small"
-            />
-
-            {/* Classification */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 0.5 }}>
-              Classification
-            </Typography>
-            <TextField
-              label="Industry Type"
-              value={form.industryType}
-              onChange={(e) => setForm((f) => ({ ...f, industryType: e.target.value }))}
-              fullWidth
-              size="small"
-            />
-            <TextField
-              label="Lead Requirement *"
-              value={form.leadType}
-              onChange={(e) => setForm((f) => ({ ...f, leadType: e.target.value }))}
-              onBlur={() => setTouched((t) => ({ ...t, leadType: true }))}
-              error={touched.leadType && !form.leadType}
-              fullWidth
-              size="small"
-            />
-            {touched.leadType && !form.leadType && (
-              <FormHelperText error>Lead Type is required.</FormHelperText>
-            )}
-
-            {/* Notes & Attachments */}
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 0.5 }}>
-              Notes
-            </Typography>
-            <TextField
-              label="Notes"
-              multiline
-              minRows={4}
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              placeholder="Long text..."
-              fullWidth
-              size="small"
-            />
-
-            {/* <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              style={{ display: "none" }}
-              onChange={handleFilesChosen}
-            /> */}
-            {/* <Button
-              variant="outlined"
-              startIcon={<AttachFileOutlinedIcon />}
-              onClick={() => fileInputRef.current?.click()}
-              sx={{ alignSelf: "flex-start" }}
-              size="small"
-            >
-              Add Attachments
-            </Button> */}
-            <Stack direction="row" gap={1} flexWrap="wrap">
-              {form.attachments.map((f, idx) => (
-                <Chip
-                  key={idx}
-                  label={`${f.name} (${Math.ceil(f.size / 1024)} KB)`}
-                  onDelete={() => removeAttachment(idx)}
-                  deleteIcon={<CloseOutlinedIcon />}
-                  variant="outlined"
-                  sx={{ maxWidth: "100%" }}
-                />
-              ))}
-            </Stack>
-
-            {formError && (
-              <Typography color="error" variant="body2">
-                {formError}
-              </Typography>
-            )}
-            {/* <FormHelperText>Multiple files supported.</FormHelperText> */}
-          </Stack>
-        </DialogContent>
-
-        <DialogActions sx={{ gap: 1 }}>
-          <Button onClick={handleCloseAdd} disabled={savingLead}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={saveLead}
-            disabled={
-              savingLead ||
-              !form.leadName.trim() ||
-              !form.companyName.trim() ||
-              !form.contactPerson.trim() ||
-              !form.contactPhone.trim() ||
-              !form.contactEmail.trim() ||
-              !form.leadType
-            }
-          >
-            {savingLead ? "Saving..." : "Save Lead"}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

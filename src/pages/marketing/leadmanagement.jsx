@@ -31,7 +31,7 @@ function mapLead(api) {
     requirement: api.lead_requirement || "Unknown",
     location,
     priority: api.lead_priority || "Medium",
-    stage: api.lead_stage || "Unassigned", // Used for department filtering
+    stage: api.lead_stage || "Unassigned", 
     _raw: api,
   };
 }
@@ -69,23 +69,34 @@ const glassPanel = {
   borderRadius: '16px' 
 };
 
-// PERFECT ALIGNMENT GRID: Fixed widths for buttons/IDs/Chips, Flexible (fr) for text.
+// PERFECT ALIGNMENT GRID
 const tableGridCols = { xs: '1fr', md: '130px 80px 2fr 2fr 100px 100px 2.5fr' };
 
+const filterInputStyle = {
+  "& .MuiOutlinedInput-root": { 
+      color: "#fff", bgcolor: "rgba(0,0,0,0.2)", borderRadius: '8px', height: '40px', fontSize: '0.85rem',
+      "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, 
+      "&:hover fieldset": { borderColor: "#3b82f6" }, 
+      "&.Mui-focused fieldset": { borderColor: "#3b82f6" } 
+  },
+  "& .MuiInputLabel-root": { color: "#a0a0c0", fontSize: '0.8rem', top: '-4px' }, 
+  "& .MuiSvgIcon-root": { color: "#3b82f6" }
+};
+
 /* ================================ main page ================================ */
-export default function MasterLeads() {
+export default function LeadManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const navigate = useNavigate();
   const authUser = getAuthUser();
 
   // Data buckets 
-  const [newLeads, setNewLeads] = useState([]);
+  const [allLeads, setAllLeads] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Search & Filter
+  // Search & Filters (Dept is hardcoded to Tele-Marketing)
   const [search, setSearch] = useState("");
-  const [deptFilter, setDeptFilter] = useState("All");
+  const DEFAULT_DEPT = "Tele-Marketing";
 
   // Assign Modal State
   const [assignOpen, setAssignOpen] = useState(false);
@@ -96,26 +107,21 @@ export default function MasterLeads() {
 
   const [snack, setSnack] = useState({ open: false, type: "success", msg: "" });
 
-  // Get unique departments for the dropdown dynamically
-  const allDepartments = useMemo(() => {
-    return Array.from(new Set(newLeads.map(l => l.stage))).filter(Boolean).sort();
-  }, [newLeads]);
-
-  // Dynamic Filtering (Search Text + Department Dropdown)
+  // Dynamic Filtering (Search Text + Default Department)
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return newLeads.filter((l) => {
-      // Text Search
+    return allLeads.filter((l) => {
+      // 1. Text Search
       const matchesSearch = !q || [l.leadNo, l.company, l.contact, l.phone, l.leadType, l.location, l.requirement]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
       
-      // Department Filter
-      const matchesDept = deptFilter === "All" || !deptFilter || l.stage === deptFilter;
+      // 2. Exact Department Match
+      const matchesDept = l.stage === DEFAULT_DEPT;
 
       return matchesSearch && matchesDept;
     });
-  }, [newLeads, search, deptFilter]);
+  }, [allLeads, search]);
 
   /* ================== API FETCHING ================== */
   async function fetchAllLeads() {
@@ -131,10 +137,10 @@ export default function MasterLeads() {
       
       const json = await res.json();
       const arr = Array.isArray(json?.leads) ? json.leads : [];
-      setNewLeads(arr.map(mapLead)); 
+      setAllLeads(arr.map(mapLead)); 
     } catch (e) { 
       console.error(e); 
-      setNewLeads([]);
+      setAllLeads([]);
     } finally { 
       setLoading(false); 
     }
@@ -216,17 +222,6 @@ export default function MasterLeads() {
     }
   };
 
-  const filterInputStyle = {
-    "& .MuiOutlinedInput-root": { 
-        color: "#fff", bgcolor: "rgba(0,0,0,0.2)", borderRadius: '8px', height: '40px', fontSize: '0.85rem',
-        "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, 
-        "&:hover fieldset": { borderColor: "#3b82f6" }, 
-        "&.Mui-focused fieldset": { borderColor: "#3b82f6" } 
-    },
-    "& .MuiInputLabel-root": { color: "#a0a0c0", fontSize: '0.8rem', top: '-4px' }, 
-    "& .MuiSvgIcon-root": { color: "#3b82f6" }
-  };
-
   return (
     <Box sx={{ minHeight: '100vh', width: '100%', background: themeColors.bgGradient, color: '#fff', p: { xs: 1, md: 4 }, fontFamily: "'Inter', sans-serif" }}>
       
@@ -289,7 +284,7 @@ export default function MasterLeads() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: themeColors.textSecondary }}>
             <Typography variant="body2">Dashboard</Typography>
             <CaretRight size={14} />
-            <Typography variant="body2" color="#fff" fontWeight={600}>Master Leads</Typography>
+            <Typography variant="body2" color="#fff" fontWeight={600}>Lead Management</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'rgba(255,255,255,0.1)', py: 0.5, px: 1, borderRadius: '30px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <Avatar src={`https://ui-avatars.com/api/?name=${authUser?.username || 'User'}&background=0984e3&color=fff`} sx={{ width: 28, height: 28 }} />
@@ -300,31 +295,19 @@ export default function MasterLeads() {
         {/* STATS & ACTIONS ROW */}
         <Box sx={{ ...glassPanel, p: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 3 }}>
           <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
-            <Typography variant="h5" fontWeight={600}>Master Leads</Typography>
-            <Typography variant="body2" sx={{ color: '#a0a0c0' }}>Manage and assign departmental leads</Typography>
+            <Typography variant="h5" fontWeight={600}>Lead Management</Typography>
+            <Typography variant="body2" sx={{ color: '#a0a0c0' }}>Manage and assign Tele departmental leads</Typography>
           </Box>
           {!isMobile && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="caption" sx={{ color: '#a0a0c0', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Total Leads</Typography>
+                {/* Dynamically display filtered count */}
                 <Typography variant="h5" fontWeight={800} sx={{ mt: 0.5 }}><AnimatedCounter end={filtered.length} /></Typography>
               </Box>
             </Box>
           )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
-            
-            {/* NEW DEPARTMENT FILTER */}
-            <TextField 
-                select 
-                size="small" 
-                value={deptFilter} 
-                onChange={(e) => setDeptFilter(e.target.value)} 
-                sx={{ minWidth: { xs: '100%', sm: 180 }, ...filterInputStyle }}
-            >
-                <MenuItem value="All">All Departments</MenuItem>
-                {allDepartments.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
-            </TextField>
-
             <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 2, px: 2, py: 1, border: '1px solid rgba(255,255,255,0.05)', flex: 1, minWidth: { md: 300 }, width: '100%' }}>
               <MagnifyingGlass size={20} color="#a0a0c0" />
               <InputBase placeholder="Search leads by name, company, etc..." value={search} onChange={(e) => setSearch(e.target.value)} sx={{ ml: 1, color: '#fff', fontSize: 14, width: '100%' }} />
@@ -413,7 +396,7 @@ export default function MasterLeads() {
                                 <Chip label={lead.priority} size="small" sx={{ height: 22, fontSize: 10, fontWeight: 600, bgcolor: priorityStyle.bg, color: priorityStyle.text }} />
                             </Box>
 
-                            {/* Requirements (Clean Text Only, No Avatar, Full Visibility) */}
+                            {/* Requirements (Clean Text Only) */}
                             <Box>
                                 <Typography variant="body2" fontSize={13} color="#e2e8f0" sx={{ whiteSpace: 'normal', wordWrap: 'break-word', lineHeight: 1.4 }}>
                                     {lead.requirement || '-'}
