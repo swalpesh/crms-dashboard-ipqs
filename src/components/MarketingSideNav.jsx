@@ -21,6 +21,7 @@ import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import ExpandLess from "@mui/icons-material/ExpandLess";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'; 
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 
 // --- NEW ICONS FOR TECHNICAL TEAM ---
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"; 
@@ -39,6 +40,7 @@ function detectTeamSlug(dept, role) {
   const d = norm(dept);
   const r = norm(role);
 
+  // Added solution-team and solutions-team exact matches
   const exact = {
     "ipqshead": "ipqshead",
     "tele-marketing": "tele",
@@ -46,16 +48,18 @@ function detectTeamSlug(dept, role) {
     "associate-marketing": "associate",
     "corporate-marketing": "corporate",
     "technical-team": "technical",
+    "solution-team": "solution",
+    "solutions-team": "solution",
     "quotation-team": "quotation-team",
     "payments-team": "payments-team",
   };
   if (exact[d]) return exact[d];
 
-  if (d.includes("assoicate") || d.includes("associate") || d.includes("assoc"))
-    return "associate";
+  if (d.includes("assoicate") || d.includes("associate") || d.includes("assoc")) return "associate";
   if (d.includes("field")) return "field";
   if (d.includes("corporate")) return "corporate";
   if (d.includes("technical")) return "technical";
+  if (d.includes("solution")) return "solution"; // <-- ADDED MISSING CHECK
   if (d.includes("quotation")) return "quotation-team";
   if (d.includes("payment")) return "payments-team";
   if (d.includes("tele")) return "tele";
@@ -64,11 +68,12 @@ function detectTeamSlug(dept, role) {
   if (r.includes("field")) return "field";
   if (r.includes("corporate")) return "corporate";
   if (r.includes("technical")) return "technical";
+  if (r.includes("solution")) return "solution"; // <-- ADDED MISSING CHECK
   if (r.includes("quotation")) return "quotation-team";
   if (r.includes("payment")) return "payments-team";
   if (r.includes("tele")) return "tele";
 
-  return "tele";
+  return "tele"; // Default fallback
 }
 const isIpqsHead = (u) =>
   norm(u?.department_id || u?.department_name) === "ipqshead" &&
@@ -195,6 +200,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const assocActive = /\/marketing\/associate\//.test(pathname);
   const corpActive = /\/marketing\/corporate\//.test(pathname);
   const techActive = /\/marketing\/technical\//.test(pathname);
+  const solActive = /\/marketing\/solution\//.test(pathname);
   const qTeamActive = pathname.startsWith("/marketing/quotation-team/");
   const payTeamActive = pathname.startsWith("/marketing/payments-team/");
 
@@ -204,6 +210,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const [openAssoc, setOpenAssoc] = useState(assocActive);
   const [openCorp, setOpenCorp] = useState(corpActive);
   const [openTech, setOpenTech] = useState(techActive);
+  const [openSol, setOpenSol] = useState(solActive);
   const [openQTeam, setOpenQTeam] = useState(qTeamActive);
   const [openPayTeam, setOpenPayTeam] = useState(payTeamActive);
 
@@ -214,9 +221,10 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     setOpenAssoc((prev) => prev || assocActive);
     setOpenCorp((prev) => prev || corpActive);
     setOpenTech((prev) => prev || techActive);
+    setOpenSol((prev) => prev || solActive);
     setOpenQTeam((prev) => prev || qTeamActive);
     setOpenPayTeam((prev) => prev || payTeamActive);
-  }, [teleActive, fieldActive, assocActive, corpActive, techActive, qTeamActive, payTeamActive]);
+  }, [teleActive, fieldActive, assocActive, corpActive, techActive, solActive, qTeamActive, payTeamActive]);
 
   // --- STANDARD ITEMS ---
   const mkTeamItems = (includeMyTeam, roleSlug) => {
@@ -280,6 +288,12 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
     return items;
   };
+
+  // --- CUSTOM SOLUTION TEAM ITEMS ---
+  const solutionTeamItems = [
+    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
+    { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "My Leads" }
+  ];
 
   // --- CUSTOM QUOTATION TEAM ITEMS ---
   const quotationTeamItems = [
@@ -403,6 +417,12 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
               <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                      open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
                      onNavigate={onNavigate} items={techTeamItems(userIsHead)} />
+            )}
+
+            {userSlug === "solution" && (
+              <Group title="Solution Department" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
+                     open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
+                     onNavigate={onNavigate} items={solutionTeamItems} />
             )}
           </>
         )}
