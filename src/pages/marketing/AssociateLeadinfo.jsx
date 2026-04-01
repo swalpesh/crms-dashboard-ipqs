@@ -157,6 +157,16 @@ const AssociateLeadinfo = () => {
   // ==========================================
   //  📝 CREATE FORM HANDLERS (External API)
   // ==========================================
+
+  // Custom handler for Lead Name to automatically sync with Company Name
+  const handleLeadNameChange = (e) => {
+    const val = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      lead_name: val,
+      company_name: val // Syncing company name
+    }));
+  };
   
   const handleFormCountryChange = (countryName) => {
     setFormData(prev => ({ ...prev, company_country: countryName, company_state: '', company_city: '' }));
@@ -362,6 +372,12 @@ const AssociateLeadinfo = () => {
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
             outline: none;
         }
+        .sexy-input:disabled {
+            background-color: rgba(255,255,255,0.05) !important;
+            color: #64748b !important;
+            border-color: rgba(255,255,255,0.05) !important;
+            cursor: not-allowed;
+        }
         .sexy-input::placeholder {
             color: rgba(255, 255, 255, 0.3) !important;
         }
@@ -465,11 +481,11 @@ const AssociateLeadinfo = () => {
                   <div className="sexy-header mt-0">Company Details</div>
                   <div className="mb-3">
                     <label className="sexy-label">Lead Name <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control sexy-input" name="lead_name" value={formData.lead_name} onChange={handleChange} placeholder="Give Your Lead a Name" required />
+                    <input type="text" className="form-control sexy-input" name="lead_name" value={formData.lead_name} onChange={handleLeadNameChange} placeholder="Give Your Lead a Name" required />
                   </div>
                   <div className="mb-3">
                     <label className="sexy-label">Company Name <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control sexy-input" name="company_name" value={formData.company_name} onChange={handleChange} placeholder="Company Name" required />
+                    <input type="text" className="form-control sexy-input" name="company_name" value={formData.company_name} onChange={handleChange} placeholder="Auto-fills from Lead Name" required disabled />
                   </div>
                   <div className="mb-3">
                     <label className="sexy-label">Company Contact Number</label>

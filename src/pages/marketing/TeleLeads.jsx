@@ -185,6 +185,17 @@ export default function TeleLeads() {
   }, [showModal]);
 
   /* ================== ADD LEAD FORM ================== */
+
+  // Custom handler for Lead Name to automatically sync with Company Name
+  const handleLeadNameChange = (e) => {
+    const val = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      lead_name: val,
+      company_name: val // Syncing company name
+    }));
+  };
+
   const handleFormCountryChange = (countryName) => {
     setFormData(prev => ({ ...prev, company_country: countryName, company_state: '', company_city: '' }));
     setFormStates([]); setFormCities([]);
@@ -316,6 +327,7 @@ export default function TeleLeads() {
         .modal-body { padding: 2rem; }
         .sexy-input { background-color: rgba(30, 32, 55, 0.7) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; color: #f1f5f9 !important; border-radius: 10px !important; padding: 12px 16px !important; font-size: 0.95rem !important; transition: all 0.25s ease; }
         .sexy-input:focus { background-color: rgba(30, 32, 55, 1) !important; border-color: #3b82f6 !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important; outline: none; }
+        .sexy-input:disabled { background-color: rgba(255,255,255,0.05) !important; color: #64748b !important; border-color: rgba(255,255,255,0.05) !important; cursor: not-allowed; }
         .sexy-input::placeholder { color: rgba(255, 255, 255, 0.3) !important; }
         .sexy-label { color: #94a3b8; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
         .sexy-header { color: #3b82f6; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; margin-top: 30px; margin-bottom: 15px; border-bottom: 1px solid rgba(59, 130, 246, 0.2); padding-bottom: 5px; display: inline-block; }
@@ -344,11 +356,11 @@ export default function TeleLeads() {
                   <div className="sexy-header mt-0">Company Details</div>
                   <div className="mb-3">
                     <label className="sexy-label">Lead Name <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control sexy-input" name="lead_name" value={formData.lead_name} onChange={handleChange} placeholder="Give Your Lead a Name" required />
+                    <input type="text" className="form-control sexy-input" name="lead_name" value={formData.lead_name} onChange={handleLeadNameChange} placeholder="Give Your Lead a Name" required />
                   </div>
                   <div className="mb-3">
                     <label className="sexy-label">Company Name <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control sexy-input" name="company_name" value={formData.company_name} onChange={handleChange} placeholder="Company Name" required />
+                    <input type="text" className="form-control sexy-input" name="company_name" value={formData.company_name} onChange={handleChange} placeholder="Auto-fills from Lead Name" required disabled />
                   </div>
                   <div className="mb-3">
                     <label className="sexy-label">Company Contact Number</label>

@@ -157,6 +157,16 @@ const CorporateLeadinfo = () => {
   // ==========================================
   //  📝 CREATE FORM HANDLERS (External API)
   // ==========================================
+
+  // Custom handler for Lead Name to automatically sync with Company Name
+  const handleLeadNameChange = (e) => {
+    const val = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      lead_name: val,
+      company_name: val // Syncing company name
+    }));
+  };
   
   const handleFormCountryChange = (countryName) => {
     setFormData(prev => ({ ...prev, company_country: countryName, company_state: '', company_city: '' }));
@@ -362,6 +372,12 @@ const CorporateLeadinfo = () => {
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
             outline: none;
         }
+        .sexy-input:disabled {
+            background-color: rgba(255,255,255,0.05) !important;
+            color: #64748b !important;
+            border-color: rgba(255,255,255,0.05) !important;
+            cursor: not-allowed;
+        }
         .sexy-input::placeholder {
             color: rgba(255, 255, 255, 0.3) !important;
         }
@@ -465,11 +481,11 @@ const CorporateLeadinfo = () => {
                   <div className="sexy-header mt-0">Company Details</div>
                   <div className="mb-3">
                     <label className="sexy-label">Lead Name <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control sexy-input" name="lead_name" value={formData.lead_name} onChange={handleChange} placeholder="Give Your Lead a Name" required />
+                    <input type="text" className="form-control sexy-input" name="lead_name" value={formData.lead_name} onChange={handleLeadNameChange} placeholder="Give Your Lead a Name" required />
                   </div>
                   <div className="mb-3">
                     <label className="sexy-label">Company Name <span className="text-danger">*</span></label>
-                    <input type="text" className="form-control sexy-input" name="company_name" value={formData.company_name} onChange={handleChange} placeholder="Company Name" required />
+                    <input type="text" className="form-control sexy-input" name="company_name" value={formData.company_name} onChange={handleChange} placeholder="Auto-fills from Lead Name" required disabled />
                   </div>
                   <div className="mb-3">
                     <label className="sexy-label">Company Contact Number</label>
@@ -585,33 +601,9 @@ const CorporateLeadinfo = () => {
       {/* --- Main Content (MUI for List) --- */}
       <Box sx={{ maxWidth: 1400, mx: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
         <Box sx={{ ...glassPanel, p: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 3 }}>
-          <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
-            <Typography variant="h5" fontWeight={600}>Company Leads</Typography>
-            <Typography variant="body2" sx={{ color: '#a0a0c0' }}>Manage Corporate Marketing leads</Typography>
-          </Box>
-          {!isMobile && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="caption" sx={{ color: '#a0a0c0', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Total Leads</Typography>
-                <Typography variant="h5" fontWeight={800} sx={{ mt: 0.5 }}><AnimatedCounter end={stats.total} /></Typography>
-              </Box>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="caption" sx={{ color: '#a0a0c0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>
-                  <Fire weight="fill" color="#f97316" /> HOT LEADS
-                </Typography>
-                <Typography variant="h5" fontWeight={800} color="#f97316" sx={{ mt: 0.5 }}><AnimatedCounter end={stats.hot} /></Typography>
-              </Box>
-            </Box>
-          )}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' } }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 2, px: 2, py: 1, border: '1px solid rgba(255,255,255,0.05)', flex: 1, minWidth: { md: 200 } }}>
-              <MagnifyingGlass size={20} color="#a0a0c0" />
-              <InputBase placeholder="Search companies..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} sx={{ ml: 1, color: '#fff', fontSize: 14, width: '100%' }} />
-            </Box>
-            <Button variant="contained" startIcon={<Plus weight="bold" />} onClick={() => setShowModal(true)} sx={{ bgcolor: '#3b82f6', color: '#fff', textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 3, py: 1, height: 42, whiteSpace: 'nowrap', '&:hover': { bgcolor: '#2563eb' } }}>
-              Create Lead
-            </Button>
-          </Box>
+          <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}><Typography variant="h5" fontWeight={600}>Company Leads</Typography><Typography variant="body2" sx={{ color: '#a0a0c0' }}>Manage Corporate Marketing leads </Typography></Box>
+          {!isMobile && (<Box sx={{ display: 'flex', alignItems: 'center', gap: 6 }}><Box sx={{ textAlign: 'center' }}><Typography variant="caption" sx={{ color: '#a0a0c0', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Total Leads</Typography><Typography variant="h5" fontWeight={800} sx={{ mt: 0.5 }}><AnimatedCounter end={stats.total} /></Typography></Box><Box sx={{ textAlign: 'center' }}><Typography variant="caption" sx={{ color: '#a0a0c0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}><Fire weight="fill" color="#f97316" /> HOT LEADS</Typography><Typography variant="h5" fontWeight={800} color="#f97316" sx={{ mt: 0.5 }}><AnimatedCounter end={stats.hot} /></Typography></Box></Box>)}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' } }}><Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 2, px: 2, py: 1, border: '1px solid rgba(255,255,255,0.05)', flex: 1, minWidth: { md: 200 } }}><MagnifyingGlass size={20} color="#a0a0c0" /><InputBase placeholder="Search companies..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} sx={{ ml: 1, color: '#fff', fontSize: 14, width: '100%' }} /></Box><Button variant="contained" startIcon={<Plus weight="bold" />} onClick={() => setShowModal(true)} sx={{ bgcolor: '#3b82f6', color: '#fff', textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 3, py: 1, height: 42, whiteSpace: 'nowrap', '&:hover': { bgcolor: '#2563eb' } }}>Create Lead</Button></Box>
         </Box>
 
         {/* --- Filters (Dynamic & HIDDEN ON MOBILE) --- */}
