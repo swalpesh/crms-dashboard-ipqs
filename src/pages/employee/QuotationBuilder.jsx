@@ -31,6 +31,7 @@ import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 
+
 /* ---------- THEME CONSTANTS ---------- */
 const theme = {
   bgDark: '#0f0c29',
@@ -245,7 +246,8 @@ export default function QuotationBuilder() {
 
   /* ------------------- Local state ------------------- */
   const [coverFile, setCoverFile] = useState(null);
-  const [coverUrl, setCoverUrl] = useState(""); // preview
+  const [coverUrl, setCoverUrl] = useState("/quotation_cover.png"); // Uses imported image by default
+
   const [quote, setQuote] = useState({
     quoteNo: "QT-0001",
     refNo: "",
@@ -255,6 +257,12 @@ export default function QuotationBuilder() {
     taxRate: 18,
     discountEnabled: false,
     discountAmount: 0,
+  });
+
+  const [paymentTerms, setPaymentTerms] = useState({
+    useDefault: true,
+    advance: "70",
+    balance: "30"
   });
 
   const [leadId, setLeadId] = useState("");
@@ -274,7 +282,7 @@ export default function QuotationBuilder() {
   const [isSaved, setIsSaved] = useState(false); 
   const [saving, setSaving] = useState(false);
   const [isAddingNote, setIsAddingNote] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false); // Used for Update flow download state
+  const [isDownloading, setIsDownloading] = useState(false);
   const [saveError, setSaveError] = useState("");
 
   // Energy section toggle (collapsed by default)
@@ -494,7 +502,6 @@ export default function QuotationBuilder() {
           cover_body: recipient.body || "",
           grand_total: Number(grand_total || 0),
           
-          // ✅ FIX: Use null instead of "" for ENUM columns if disabled or empty
           customer_type: (energySectionEnabled && customerType) ? customerType : null,
           bill_reference: (energySectionEnabled && billMonth) ? billMonth : null,
           period: (energySectionEnabled && billDuration) ? (billDuration === "6 months" ? "6" : "12") : null,
@@ -556,7 +563,6 @@ export default function QuotationBuilder() {
 
         form.append("grand_total", String(grand_total || 0));
         
-        // ✅ FIX: Use "" for FormData if empty (Backend controller handles "" to null conversion)
         form.append("customer_type", (energySectionEnabled && customerType) ? customerType : "");
         form.append("bill_reference", (energySectionEnabled && billMonth) ? billMonth : "");
         form.append("period", (energySectionEnabled && billDuration) ? (billDuration === "6 months" ? "6" : "12") : "");
@@ -581,7 +587,6 @@ export default function QuotationBuilder() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || data?.error || `Save failed (HTTP ${res.status})`);
 
-      // ✅ FIX: INSTANTLY SYNC REVENUE AND PROBABILITY (Fires for both Save & Update)
       if (leadId) {
         const resUpdate = await fetch(`${API_BASE_URL}/api/leads/quotation-created`, {
             method: "PUT",
@@ -659,7 +664,6 @@ export default function QuotationBuilder() {
       const fileName = `Quotation-${quote.quoteNo || "IPQS"}.pdf`;
       const pdfFile = await generateBulletproofPdfFile(fileName);
       
-      // Create a blob link and trigger an automatic click to download it
       const url = URL.createObjectURL(pdfFile);
       const a = document.createElement("a");
       a.href = url;
@@ -694,7 +698,7 @@ export default function QuotationBuilder() {
             {saving ? "Saving..." : editQuotation ? "Update Quotation" : "Save Quotation"}
           </Button>
 
-          {/* DYNAMIC SUCCESS BUTTON - Shows Download if Updating, Shows Add Note if Creating */}
+          {/* DYNAMIC SUCCESS BUTTON */}
           {isSaved && (
              editQuotation ? (
                 <Button
@@ -704,7 +708,7 @@ export default function QuotationBuilder() {
                   disabled={isDownloading}
                   sx={{ 
                     borderRadius: '12px', 
-                    bgcolor: '#f59e0b', // Amber/Orange color for downloading
+                    bgcolor: '#f59e0b', 
                     '&:hover': { bgcolor: '#d97706' } 
                   }}
                >
@@ -718,7 +722,7 @@ export default function QuotationBuilder() {
                   disabled={isAddingNote}
                   sx={{ 
                     borderRadius: '12px', 
-                    bgcolor: '#10b981', // Green color to distinguish from save
+                    bgcolor: '#10b981', 
                     '&:hover': { bgcolor: '#059669' } 
                   }}
                >
@@ -876,6 +880,59 @@ export default function QuotationBuilder() {
                 </Grid>
               )}
             </Grid>
+          </Paper>
+
+          {/* ===== Payment Terms ===== */}
+          <Paper sx={glassStyles.glassCard}>
+            <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Payment Terms</Typography>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  sx={{ color: theme.textSecondary, '&.Mui-checked': { color: theme.accentBlue } }}
+                  checked={paymentTerms.useDefault}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setPaymentTerms({ 
+                      useDefault: checked, 
+                      advance: checked ? "70" : paymentTerms.advance, 
+                      balance: checked ? "30" : paymentTerms.balance 
+                    });
+                    setIsSaved(false);
+                  }}
+                />
+              }
+              label={<Typography color={theme.textSecondary}>Use Default (70% Advance / 30% Balance)</Typography>}
+            />
+            {!paymentTerms.useDefault && (
+              <Grid container spacing={2} sx={{ mt: 2 }}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Advance (%)"
+                    type="number"
+                    fullWidth
+                    value={paymentTerms.advance}
+                    onChange={(e) => { 
+                      setPaymentTerms(p => ({ ...p, advance: e.target.value })); 
+                      setIsSaved(false); 
+                    }}
+                    sx={glassStyles.input}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Balance (%)"
+                    type="number"
+                    fullWidth
+                    value={paymentTerms.balance}
+                    onChange={(e) => { 
+                      setPaymentTerms(p => ({ ...p, balance: e.target.value })); 
+                      setIsSaved(false); 
+                    }}
+                    sx={glassStyles.input}
+                  />
+                </Grid>
+              </Grid>
+            )}
           </Paper>
 
           {/* ===== Cover Letter (Subject & Body) ===== */}
@@ -1056,7 +1113,6 @@ export default function QuotationBuilder() {
               </Typography>
 
               <Grid container spacing={2}>
-                {/* NEW: Customer Type */}
                 <Grid item xs={12} sm={4}>
                   <TextField
                     label="Customer Type"
@@ -1071,7 +1127,6 @@ export default function QuotationBuilder() {
                   </TextField>
                 </Grid>
 
-                {/* NEW: Bill Reference Month */}
                 <Grid item xs={12} sm={4}>
                   <TextField
                     label="Bill Reference (Month)"
@@ -1087,7 +1142,6 @@ export default function QuotationBuilder() {
                   </TextField>
                 </Grid>
 
-                {/* NEW: Duration after month selection */}
                 {billMonth && (
                   <Grid item xs={12} sm={4}>
                     <TextField
@@ -1154,7 +1208,6 @@ export default function QuotationBuilder() {
                 Results (Auto-calculated)
               </Typography>
 
-              {/* Info line showing the new selections */}
               <Box className="info-line" sx={{ color: '#000' }}>
                 <b>Customer Type:</b> {customerType || "—"} &nbsp; | &nbsp;
                 <b>Bill Reference:</b> {billMonth ? `${billMonth} (${billDuration || "—"})` : "—"}
@@ -1297,7 +1350,7 @@ export default function QuotationBuilder() {
                           <Tr k="Difference between KWH & KVAH (D = B - A)" u="-" v={energyCalc.diffKvahKwh} />
                           <Tr k="Effective Power Factor can be achieved at" u="PF" v={energyIn.pfTarget} />
                           <Tr k="Commercial Savings in KVAH Energy Charges" u="Rs." v={money(energyCalc.savKvah, quote.currency)} />
-                          <Tr k="Commercial Savings in KVAH Energy Charges with all the taxes" uom="Rs." v={money(energyCalc.savKvahTax, quote.currency)} />
+                          <Tr k="Commercial Savings in KVAH Energy Charges with all the taxes" u="Rs." v={money(energyCalc.savKvahTax, quote.currency)} />
 
                           <Tr k="Existing KVA Demand (KVA (MD))" u="KVA" v={energyIn.kvaMD} />
                           <Tr k="Existing KW Demand (KW MD)" u="KW" v={energyIn.kwMD} />
@@ -1335,7 +1388,7 @@ export default function QuotationBuilder() {
                   )}
 
                   {/* TERMS & CONDITIONS page */}
-                  <TermsAndConditionsPage bannerSrc={HEADER_BANNER_SRC} footerLine={footerLine} />
+                  <TermsAndConditionsPage bannerSrc={HEADER_BANNER_SRC} footerLine={footerLine} paymentTerms={paymentTerms} />
 
                   {/* CERTIFICATE page */}
                   <CertificatePage bannerSrc={HEADER_BANNER_SRC} footerLine={footerLine} imgSrc={CERTIFICATE_IMG_SRC} />
@@ -1528,7 +1581,10 @@ function LetterPages({ quote, recipient, footerLine, bannerSrc }) {
 }
 
 /* ---------- TERMS PAGE ---------- */
-function TermsAndConditionsPage({ bannerSrc, footerLine }) {
+function TermsAndConditionsPage({ bannerSrc, footerLine, paymentTerms }) {
+  const adv = paymentTerms?.advance || "70";
+  const bal = paymentTerms?.balance || "30";
+
   return (
     <div className="page page-terms">
       <Header bannerSrc={bannerSrc} />
@@ -1536,14 +1592,15 @@ function TermsAndConditionsPage({ bannerSrc, footerLine }) {
       <div className="terms">
         <h3>Payment Terms</h3>
         <ul>
-          <li>70% Basic Amount Advance with Techno-commercially Cleared Purchase Order.</li>
-          <li>30% Basic Amount against Proforma invoice and material readiness before Dispatch.</li>
+          <li>{adv}% Basic Amount Advance with Techno-commercially Cleared Purchase Order.</li>
+          <li>{bal}% Basic Amount against Proforma invoice and material readiness before Dispatch.</li>
           <li>Both advance and final payments will be subject to 100% taxes as applicable.</li>
         </ul>
 
         <div className="kv">
           <div className="k">Taxes &amp; Duties</div><div className="v">Prevailing GST Tax rate is extra as applicable. (Presently 9% CGST + 9% SGST)</div>
           <div className="k">Mode of transport</div><div className="v">By Road</div>
+          <div className="k">Unloading</div><div className="v">Customer Scope</div>
           <div className="k">Freight</div><div className="v">Extra at actual</div>
           <div className="k">Insurance</div><div className="v">To be arranged by you, if required</div>
           <div className="k">Consign to</div><div className="v">As advised by you.</div>

@@ -59,7 +59,7 @@ function detectTeamSlug(dept, role) {
   if (d.includes("field")) return "field";
   if (d.includes("corporate")) return "corporate";
   if (d.includes("technical")) return "technical";
-  if (d.includes("solution")) return "solution"; // <-- ADDED MISSING CHECK
+  if (d.includes("solution")) return "solution"; 
   if (d.includes("quotation")) return "quotation-team";
   if (d.includes("payment")) return "payments-team";
   if (d.includes("tele")) return "tele";
@@ -68,7 +68,7 @@ function detectTeamSlug(dept, role) {
   if (r.includes("field")) return "field";
   if (r.includes("corporate")) return "corporate";
   if (r.includes("technical")) return "technical";
-  if (r.includes("solution")) return "solution"; // <-- ADDED MISSING CHECK
+  if (r.includes("solution")) return "solution"; 
   if (r.includes("quotation")) return "quotation-team";
   if (r.includes("payment")) return "payments-team";
   if (r.includes("tele")) return "tele";
@@ -373,19 +373,31 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
             <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
                   open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
-                  onNavigate={onNavigate} items={[ { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } ]} />
+                  onNavigate={onNavigate} items={[ 
+                    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
+                    { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
+                  ]} />
 
             <Group title="Associate Marketing" icon={<GroupsOutlinedIcon />} basePath="/marketing/associate"
                   open={openAssoc} setOpen={setOpenAssoc} selected={/\/marketing\/associate\//.test(pathname)}
-                  onNavigate={onNavigate} items={[ { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } ]} />
+                  onNavigate={onNavigate} items={[ 
+                    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
+                    { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
+                  ]} />
 
             <Group title="Corporate Marketing" icon={<CorporateFareOutlinedIcon />} basePath="/marketing/corporate"
                   open={openCorp} setOpen={setOpenCorp} selected={/\/marketing\/corporate\//.test(pathname)}
-                  onNavigate={onNavigate} items={[ { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } ]} />
+                  onNavigate={onNavigate} items={[ 
+                    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
+                    { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
+                  ]} />
             
             <Group title="Technical Team" icon={<BuildOutlinedIcon />} basePath="/marketing/technical"
                   open={openTech} setOpen={setOpenTech} selected={/\/marketing\/technical\//.test(pathname)}
-                  onNavigate={onNavigate} items={[ { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" } ]} />
+                  onNavigate={onNavigate} items={[ 
+                    { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" },
+                    { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" } 
+                  ]} />
           </>
         ) : (
           <>

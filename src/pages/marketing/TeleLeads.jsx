@@ -552,7 +552,13 @@ export default function TeleLeads() {
                             
                             {/* Lead ID */}
                             <Box>
-                                <Button size="small"  sx={{ color: themeColors.blue, fontWeight: 700, p: 0, minWidth: 0, ml: {md: 2} }}>{lead.leadNo}</Button>
+                                <Button 
+                                    size="small"  
+                                    onClick={() => navigate(`/marketing/customer-info/${encodeURIComponent(lead.id || lead.leadNo)}`)}
+                                    sx={{ color: themeColors.blue, fontWeight: 700, p: 0, minWidth: 0, ml: {md: 2} }}
+                                >
+                                    {lead.leadNo}
+                                </Button>
                             </Box>
 
                             {/* Company & Contact */}
