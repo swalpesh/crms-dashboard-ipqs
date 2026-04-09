@@ -190,10 +190,11 @@ const MetricBox = ({ label, value, isProbability }) => (
   </Box>
 );
 
-// Upgraded FieldRow with perfect spacing and text-wrapping
+// --- FULLY FIXED FIELD ROW ALIGNMENT ---
+// Added strict column widths for the labels to prevent text from merging
 const FieldRow = ({ label, value, icon, isLink, isUser, isWarning, onClick }) => (
-  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 3, fontSize: '0.95rem' }}>
-    <Typography sx={{ color: themeColors.textSecondary, flexShrink: 0, minWidth: '110px', pt: '2px' }}>
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: { xs: 2, sm: 4 }, fontSize: '0.95rem' }}>
+    <Typography sx={{ color: themeColors.textSecondary, flexShrink: 0, width: { xs: '120px', sm: '150px' }, pt: '2px' }}>
       {label}
     </Typography>
     <Box 
@@ -218,7 +219,7 @@ const FieldRow = ({ label, value, icon, isLink, isUser, isWarning, onClick }) =>
           src={`https://ui-avatars.com/api/?name=${value}&background=random`} 
         />
       )}
-      <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word', lineHeight: 1.4 }}>
+      <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word', overflowWrap: 'break-word', lineHeight: 1.4, textAlign: 'right' }}>
         {value}
       </Typography>
     </Box>

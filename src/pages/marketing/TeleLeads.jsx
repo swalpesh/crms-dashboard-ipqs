@@ -69,7 +69,7 @@ function mapLead(api) {
     contact: api.contact_person_name,
     phone: api.contact_person_phone,
     email: api.contact_person_email || api.company_email || "",
-    leadType: api.lead_type || api.lead_requirement || "N/A", // Adjust based on your API response
+    leadType: api.lead_type || api.lead_requirement || "N/A", 
     requirement: api.lead_requirement || "Unknown",
     location,
     priority: api.lead_priority || "Medium",
@@ -103,6 +103,9 @@ const themeColors = {
   warning: '#f59e0b',
   danger: '#ef4444',
 };
+
+// PERFECT ALIGNMENT GRID: Fixed widths for small items, flexible for text
+const tableGridCols = { xs: '1fr', md: '80px 3.5fr 2.5fr 100px 100px 2.5fr' };
 
 /* ================================ main page ================================ */
 export default function TeleLeads() {
@@ -291,9 +294,6 @@ export default function TeleLeads() {
                     console.error("Error sending notification:", e);
                 }
             }, 1500);
-
-            // Force navigation just in case
-            navigate('/marketing/tele/leads');
 
         } else {
             throw new Error(data.message || "Failed to create lead");
@@ -519,11 +519,12 @@ export default function TeleLeads() {
             {!isMobile && (
                 <Box sx={{ 
                     display: 'grid', 
-                    gridTemplateColumns: '1fr 3fr 2.5fr 1fr 1fr 2fr', 
-                    alignItems: 'center', pb: 2, mb: 2, 
+                    gridTemplateColumns: tableGridCols.md, 
+                    gap: 2,
+                    alignItems: 'center', pb: 2, mb: 2, pt: 2, px: 2,
                     borderBottom: '1px solid rgba(255,255,255,0.1)', 
                     color: '#a0a0c0', fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', 
-                    position: 'sticky', top: 0, zIndex: 2, backdropFilter: 'blur(10px)', background: 'rgba(25, 25, 55, 0.9)', pl: 2 
+                    position: 'sticky', top: 0, zIndex: 2, backdropFilter: 'blur(10px)', background: 'rgba(25, 25, 55, 0.9)' 
                 }}>
                     <Box>Lead ID</Box>
                     <Box>Company & Contact</Box>
@@ -544,10 +545,10 @@ export default function TeleLeads() {
                     return (
                         <Box key={lead.id} sx={{ 
                             display: 'grid', 
-                            gridTemplateColumns: { xs: '1fr', md: '1fr 3fr 2.5fr 1fr 1fr 2fr' }, 
-                            alignItems: 'center', gap: { xs: 1, md: 0 }, p: 2, mb: 1.5, 
+                            gridTemplateColumns: tableGridCols, 
+                            alignItems: 'center', gap: 2, p: 2, mb: 1.5, 
                             bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 3, transition: 'all 0.2s ease', border: '1px solid transparent', 
-                            '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.2)', transform: 'translateY(-2px)' } 
+                            '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.2)' } 
                         }}>
                             
                             {/* Lead ID */}
@@ -555,26 +556,26 @@ export default function TeleLeads() {
                                 <Button 
                                     size="small"  
                                     onClick={() => navigate(`/marketing/customer-info/${encodeURIComponent(lead.id || lead.leadNo)}`)}
-                                    sx={{ color: themeColors.blue, fontWeight: 700, p: 0, minWidth: 0, ml: {md: 2} }}
+                                    sx={{ color: themeColors.blue, fontWeight: 700, p: 0, minWidth: 0, justifyContent: 'flex-start', textAlign: 'left' }}
                                 >
                                     {lead.leadNo}
                                 </Button>
                             </Box>
 
                             {/* Company & Contact */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 2 }}>
-                                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 16, fontWeight: 700, width: 36, height: 36 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 16, fontWeight: 700, width: 36, height: 36, mt: 0.5 }}>
                                     {lead.company?.charAt(0).toUpperCase()}
                                 </Avatar>
-                                <Box overflow="hidden">
-                                    <Typography variant="body2" fontWeight={600} noWrap>{lead.company}</Typography>
-                                    <Typography variant="caption" sx={{ color: '#a0a0c0', display: 'block' }} noWrap>{lead.contact} • {lead.phone}</Typography>
+                                <Box>
+                                    <Typography variant="body2" fontWeight={600} sx={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.2, mb: 0.5 }}>{lead.company}</Typography>
+                                    <Typography variant="caption" sx={{ color: '#a0a0c0', display: 'block', whiteSpace: 'normal', wordBreak: 'break-word' }}>{lead.contact} • {lead.phone}</Typography>
                                 </Box>
                             </Box>
 
                             {/* Location */}
-                            <Box sx={{ color: '#ddd', fontSize: 13, pr: 2 }}>
-                                <Typography variant="body2" noWrap sx={{ fontSize: 13 }}>{lead.location || '-'}</Typography>
+                            <Box sx={{ color: '#ddd' }}>
+                                <Typography variant="body2" sx={{ fontSize: 13, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.4 }}>{lead.location || '-'}</Typography>
                             </Box>
 
                             {/* Lead Type */}
@@ -588,8 +589,8 @@ export default function TeleLeads() {
                             </Box>
 
                             {/* Requirements (Clean Text Only) */}
-                            <Box sx={{ pr: 2 }}>
-                                <Typography variant="body2" fontSize={13} color="#e2e8f0" sx={{ whiteSpace: 'normal', wordWrap: 'break-word', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            <Box>
+                                <Typography variant="body2" fontSize={13} color="#e2e8f0" sx={{ whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.4 }}>
                                     {lead.requirement || '-'}
                                 </Typography>
                             </Box>

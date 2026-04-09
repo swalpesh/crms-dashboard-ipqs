@@ -252,12 +252,12 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   // --- CUSTOM TECHNICAL TEAM ITEMS ---
   const techTeamItems = (isHeadView) => [
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
-    ...(isHeadView ? [
-      { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" },
-      { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" }
-    ] : []),
     { path: "/customer-visit", icon: <FactCheckOutlinedIcon />, label: "Customer Visit" },
-    { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" },
+    ...(isHeadView ? [
+      { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" },
+      { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" }
+    ] : []),
+    { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursements" },
   ];
 
   // --- CUSTOM FIELD/ASSOCIATE/CORPORATE MARKETING ITEMS ---
