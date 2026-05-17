@@ -27,7 +27,7 @@ import TechnicalCustomerProfile from "./pages/marketing/TechnicalCustomerProfile
 import TechnicalVisitPlanner from "./pages/marketing/TechnicalVisitPlanner.jsx";
 import TechnicalReimbursement from "./pages/marketing/TechnicalReimbursement.jsx"; 
 
-// --- NEW IMPORTS ---
+// Shared Marketing Imports
 import TeamInfo from "./pages/marketing/TeamInfo.jsx";
 import LeadInfo from "./pages/marketing/LeadInfo.jsx";
 import CustomerInfo from "./pages/marketing/CustomerInfo.jsx";
@@ -79,13 +79,45 @@ import SolutionMyTeam from "./pages/marketing/SolutionMyTeam.jsx";
 import SolutionFollowUps from "./pages/marketing/SolutionFollowUps.jsx";
 
 // Quotation & Payments
-import QuotationTeamAllQuotations from "./pages/marketing/Quotations.jsx"; // Used for Leads
+import QuotationTeamAllQuotations from "./pages/marketing/Quotations.jsx"; 
 import SavedQuotations from "./pages/marketing/SavedQuotations.jsx";
 import PurchaseOrder from "./pages/marketing/PurchaseOrder.jsx";
 import QuotationTeamDashboard from "./pages/marketing/QuotationDashboard.jsx";
 
 import PaymentsTeamQPayments from "./pages/marketing/Payments.jsx";
 import PaymentsTeamQInvoices from "./pages/marketing/Invoices.jsx";
+
+// --- Nagpur Associates ---
+import NagpurDashboard from "./pages/marketing/NagpurAssosiatesDashboard.jsx"; 
+import NagpurMyLeads from "./pages/marketing/NagpurAssociatesMyLeads.jsx";
+import NagpurMyActivity from "./pages/marketing/NagpurAssociatesMyactivity.jsx";
+import NagpurPendingFollowUp from "./pages/marketing/NagpurAssociatesPendingFollowUp.jsx";
+import NagpurLeadManager from "./pages/marketing/NagpurAssociatesLeadManager.jsx";
+import NagpurMyTeam from "./pages/marketing/NagpurAssociatesMyTeam.jsx";
+
+// --- Silverline Associates ---
+import SilverlineDashboard from "./pages/marketing/SilverlineAssociatesDashboard.jsx";
+import SilverlineMyLeads from "./pages/marketing/SilverlineAssociatesMyLeads.jsx";
+import SilverlineMyActivity from "./pages/marketing/SilverlineAssociatesMyactivity.jsx";
+import SilverlinePendingFollowUp from "./pages/marketing/SilverlineAssociatesPendingFollowUp.jsx";
+import SilverlineLeadManager from "./pages/marketing/SilverlineAssociatesLeadManager.jsx";
+import SilverlineMyTeam from "./pages/marketing/SilverlineAssociatesMyTeam.jsx";
+
+// --- NEW IMPORTS: Trafo Associates ---
+import TrafoDashboard from "./pages/marketing/TrafoAssosiatesDashboard.jsx"; 
+import TrafoMyLeads from "./pages/marketing/TrafoAssociatesMyLeads.jsx";
+import TrafoMyActivity from "./pages/marketing/TrafoAssociatesMyactivity.jsx"; 
+import TrafoPendingFollowUp from "./pages/marketing/TrafoAssociatesPendingFollowUp.jsx";
+import TrafoLeadManager from "./pages/marketing/TrafoAssociatesLeadManager.jsx";
+import TrafoMyTeam from "./pages/marketing/TrafoAssociatesMyTeam.jsx";
+
+// --- NEW IMPORTS: YK Associates ---
+import YKDashboard from "./pages/marketing/YKAssociatesDashboard.jsx";
+import YKMyLeads from "./pages/marketing/YKAssociatesMyLeads.jsx";
+import YKMyActivity from "./pages/marketing/YKAssociatesMyactivity.jsx"; 
+import YKPendingFollowUp from "./pages/marketing/YKAssociatesPendingFollowUp.jsx";
+import YKLeadManager from "./pages/marketing/YKAssociatesLeadManager.jsx";
+import YKMyTeam from "./pages/marketing/YKAssociatesMyTeam.jsx";
 
 
 // Employee legacy (optional)
@@ -136,6 +168,13 @@ function detectTeamSlug(dept, role) {
   };
   if (exact[d]) return exact[d];
 
+  // 1. SPECIFIC ASSOCIATES FIRST (Fix applied here)
+  if (d.includes("nagpur")) return "nagpur";           
+  if (d.includes("silverline")) return "silverline";   
+  if (d.includes("trafo")) return "trafo";             // NEW
+  if (d.includes("yk")) return "yk";                   // NEW
+
+  // 2. THEN GENERIC CHECKS
   if (d.includes("assoicate") || d.includes("associate") || d.includes("assoc")) return "associate";
   if (d.includes("field")) return "field";
   if (d.includes("corporate")) return "corporate";
@@ -144,6 +183,12 @@ function detectTeamSlug(dept, role) {
   if (d.includes("quotation")) return "quotation-team";
   if (d.includes("payment")) return "payments-team";
   if (d.includes("tele")) return "tele";
+
+  // 3. FALLBACK ROLE CHECKS
+  if (r.includes("nagpur")) return "nagpur";           
+  if (r.includes("silverline")) return "silverline";   
+  if (r.includes("trafo")) return "trafo";             // NEW
+  if (r.includes("yk")) return "yk";                   // NEW
 
   return "tele";
 }
@@ -181,8 +226,8 @@ function defaultDeptLanding(u) {
   const role = u?.role_id || u?.role_name;
   const slug = detectTeamSlug(dept, role);
   
-  if (slug === "tele") return "/marketing/tele/leads"; // <--- NEW OVERRIDE FOR TELE
-  if (slug === "quotation-team") return "/marketing/quotation-team/dashboard"; // Updated to map to Dashboard
+  if (slug === "tele") return "/marketing/tele/leads";
+  if (slug === "quotation-team") return "/marketing/quotation-team/dashboard";
   if (slug === "payments-team") return "/marketing/payments-team/q-payments";
   if (slug === "ipqshead") return "/marketing";
   
@@ -281,7 +326,7 @@ export default function App() {
               <Route path="contacts" element={<Contacts />} />
               <Route path="companies" element={<Companies />} />
               <Route path="quotation-builder" element={<QuotationBuilder />} />
-              <Route path="saved-quotations" element={<SavedQuotations />} /> {/* General Access if needed */}
+              <Route path="saved-quotations" element={<SavedQuotations />} />
 
               {/* Tele */}
               <Route element={<RequireDeptAccess slug="tele" />}>
@@ -299,15 +344,10 @@ export default function App() {
                 <Route path="field/leads" element={<FieldLeads />} />
                 <Route path="field/leadinfo" element={<LeadInfo />} />
                 <Route path="field/my-activity" element={<MyActivity />} />
-                
-                {/* --- Routes for Follow ups --- */}
                 <Route path="field/pending-followup" element={<PendingFollowup />} /> 
                 <Route path="field/follow-ups" element={<FieldFollowUps />} />
-                
-                {/* --- Lead Manager & Reimbursement --- */}
                 <Route path="field/lead-manager" element={<LeadManager />} /> 
                 <Route path="field/reimbursement" element={<TechnicalReimbursement />} />
-                
                 <Route element={<RequireHead redirectTo="/marketing/field/dashboard" />}>
                   <Route path="field/my-team" element={<FieldMyTeam />} />
                 </Route>
@@ -365,23 +405,73 @@ export default function App() {
                 </Route>
                 <Route path="solution/follow-ups" element={<SolutionFollowUps />} />
                 <Route path="solution/reimbursement" element={<TechnicalReimbursement />} />
-
               </Route>
 
               {/* Quotation Team */}
               <Route element={<RequireDeptAccess slug="quotation-team" />}>
                 <Route path="quotation-team/dashboard" element={<QuotationTeamDashboard />} />
-                <Route path="quotation-team/leads" element={<QuotationTeamAllQuotations />} /> {/* Maps to Quotations.jsx */}
+                <Route path="quotation-team/leads" element={<QuotationTeamAllQuotations />} />
                 <Route path="quotation-team/purchase-orders" element={<PurchaseOrder />} />
                 <Route path="quotation-team/saved-quotations" element={<SavedQuotations />} />
                 <Route path="quotation-team/reimbursement" element={<TechnicalReimbursement />} />
-
               </Route>
 
               {/* Payments Team */}
               <Route element={<RequireDeptAccess slug="payments-team" />}>
                 <Route path="payments-team/q-payments" element={<PaymentsTeamQPayments />} />
                 <Route path="payments-team/q-invoices" element={<PaymentsTeamQInvoices />} />
+              </Route>
+
+              {/* --- Nagpur Associates --- */}
+              <Route element={<RequireDeptAccess slug="nagpur" />}>
+                <Route path="nagpur/dashboard" element={<NagpurDashboard />} />
+                <Route path="nagpur/my-leads" element={<NagpurMyLeads />} />
+                <Route path="nagpur/my-activity" element={<NagpurMyActivity />} />
+                <Route path="nagpur/pending-followup" element={<NagpurPendingFollowUp />} />
+                <Route path="nagpur/lead-manager" element={<NagpurLeadManager />} />
+                <Route element={<RequireHead redirectTo="/marketing/nagpur/dashboard" />}>
+                  <Route path="nagpur/my-team" element={<NagpurMyTeam />} />
+                </Route>
+                <Route path="nagpur/reimbursement" element={<TechnicalReimbursement />} />
+              </Route>
+
+              {/* --- Silverline Associates --- */}
+              <Route element={<RequireDeptAccess slug="silverline" />}>
+                <Route path="silverline/dashboard" element={<SilverlineDashboard />} />
+                <Route path="silverline/my-leads" element={<SilverlineMyLeads />} />
+                <Route path="silverline/my-activity" element={<SilverlineMyActivity />} />
+                <Route path="silverline/pending-followup" element={<SilverlinePendingFollowUp />} />
+                <Route path="silverline/lead-manager" element={<SilverlineLeadManager />} />
+                <Route element={<RequireHead redirectTo="/marketing/silverline/dashboard" />}>
+                  <Route path="silverline/my-team" element={<SilverlineMyTeam />} />
+                </Route>
+                <Route path="silverline/reimbursement" element={<TechnicalReimbursement />} />
+              </Route>
+              
+              {/* --- NEW: Trafo Associates --- */}
+              <Route element={<RequireDeptAccess slug="trafo" />}>
+                <Route path="trafo/dashboard" element={<TrafoDashboard />} />
+                <Route path="trafo/my-leads" element={<TrafoMyLeads />} />
+                <Route path="trafo/my-activity" element={<TrafoMyActivity />} />
+                <Route path="trafo/pending-followup" element={<TrafoPendingFollowUp />} />
+                <Route path="trafo/lead-manager" element={<TrafoLeadManager />} />
+                <Route element={<RequireHead redirectTo="/marketing/trafo/dashboard" />}>
+                  <Route path="trafo/my-team" element={<TrafoMyTeam />} />
+                </Route>
+                <Route path="trafo/reimbursement" element={<TechnicalReimbursement />} />
+              </Route>
+
+              {/* --- NEW: YK Associates --- */}
+              <Route element={<RequireDeptAccess slug="yk" />}>
+                <Route path="yk/dashboard" element={<YKDashboard />} />
+                <Route path="yk/my-leads" element={<YKMyLeads />} />
+                <Route path="yk/my-activity" element={<YKMyActivity />} />
+                <Route path="yk/pending-followup" element={<YKPendingFollowUp />} />
+                <Route path="yk/lead-manager" element={<YKLeadManager />} />
+                <Route element={<RequireHead redirectTo="/marketing/yk/dashboard" />}>
+                  <Route path="yk/my-team" element={<YKMyTeam />} />
+                </Route>
+                <Route path="yk/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
 
             </Route>

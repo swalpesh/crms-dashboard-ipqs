@@ -1,5 +1,5 @@
 import {
-  Box, List, ListItemButton, ListItemIcon, ListItemText, Collapse, Divider, Typography
+  Box, List, ListItemButton, ListItemIcon, ListItemText, Collapse, Divider
 } from "@mui/material";
 import { NavLink, useLocation } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
@@ -40,7 +40,6 @@ function detectTeamSlug(dept, role) {
   const d = norm(dept);
   const r = norm(role);
 
-  // Added solution-team and solutions-team exact matches
   const exact = {
     "ipqshead": "ipqshead",
     "tele-marketing": "tele",
@@ -63,6 +62,10 @@ function detectTeamSlug(dept, role) {
   if (d.includes("quotation")) return "quotation-team";
   if (d.includes("payment")) return "payments-team";
   if (d.includes("tele")) return "tele";
+  if (d.includes("nagpur")) return "nagpur";           
+  if (d.includes("silverline")) return "silverline";   
+  if (d.includes("trafo")) return "trafo";             // NEW
+  if (d.includes("yk")) return "yk";                   // NEW
 
   if (r.includes("associate")) return "associate";
   if (r.includes("field")) return "field";
@@ -72,6 +75,10 @@ function detectTeamSlug(dept, role) {
   if (r.includes("quotation")) return "quotation-team";
   if (r.includes("payment")) return "payments-team";
   if (r.includes("tele")) return "tele";
+  if (r.includes("nagpur")) return "nagpur";           
+  if (r.includes("silverline")) return "silverline";   
+  if (r.includes("trafo")) return "trafo";             // NEW
+  if (r.includes("yk")) return "yk";                   // NEW
 
   return "tele"; // Default fallback
 }
@@ -171,7 +178,6 @@ const Group = ({ title, icon, basePath, open, setOpen, selected, onNavigate, ite
 
     <Collapse in={open}>
       <Box sx={{ pl: 1, position: 'relative' }}>
-        {/* Thread line visual */}
         <Box sx={{ 
             position: 'absolute', left: '29px', top: '4px', bottom: '15px', 
             width: '2px', bgcolor: 'rgba(255,255,255,0.05)', zIndex: 0, borderRadius: '4px'
@@ -203,8 +209,12 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const solActive = /\/marketing\/solution\//.test(pathname);
   const qTeamActive = pathname.startsWith("/marketing/quotation-team/");
   const payTeamActive = pathname.startsWith("/marketing/payments-team/");
+  const nagpurActive = /\/marketing\/nagpur\//.test(pathname);       
+  const silverlineActive = /\/marketing\/silverline\//.test(pathname);
+  const trafoActive = /\/marketing\/trafo\//.test(pathname);         // NEW
+  const ykActive = /\/marketing\/yk\//.test(pathname);               // NEW
 
-  // open state (Strictly defaults to active route only, ignoring localStorage)
+  // open state
   const [openTele, setOpenTele] = useState(teleActive);
   const [openField, setOpenField] = useState(fieldActive);
   const [openAssoc, setOpenAssoc] = useState(assocActive);
@@ -213,6 +223,10 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const [openSol, setOpenSol] = useState(solActive);
   const [openQTeam, setOpenQTeam] = useState(qTeamActive);
   const [openPayTeam, setOpenPayTeam] = useState(payTeamActive);
+  const [openNagpur, setOpenNagpur] = useState(nagpurActive);         
+  const [openSilverline, setOpenSilverline] = useState(silverlineActive); 
+  const [openTrafo, setOpenTrafo] = useState(trafoActive);           // NEW
+  const [openYk, setOpenYk] = useState(ykActive);                    // NEW
 
   // Sync open state when navigation happens
   useEffect(() => {
@@ -224,17 +238,17 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     setOpenSol((prev) => prev || solActive);
     setOpenQTeam((prev) => prev || qTeamActive);
     setOpenPayTeam((prev) => prev || payTeamActive);
-  }, [teleActive, fieldActive, assocActive, corpActive, techActive, solActive, qTeamActive, payTeamActive]);
+    setOpenNagpur((prev) => prev || nagpurActive);             
+    setOpenSilverline((prev) => prev || silverlineActive);     
+    setOpenTrafo((prev) => prev || trafoActive);               // NEW
+    setOpenYk((prev) => prev || ykActive);                     // NEW
+  }, [teleActive, fieldActive, assocActive, corpActive, techActive, solActive, qTeamActive, payTeamActive, nagpurActive, silverlineActive, trafoActive, ykActive]);
 
   // --- STANDARD ITEMS ---
   const mkTeamItems = (includeMyTeam, roleSlug) => {
-    // If Tele Marketing employee or head, ONLY show Leads.
     if (roleSlug === "tele") {
-      return [
-        { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" }
-      ];
+      return [{ path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" }];
     }
-
     const items = [
       { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
       { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
@@ -289,6 +303,17 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     return items;
   };
 
+  // --- CUSTOM ALL ASSOCIATES ITEMS (Nagpur, Silverline, Trafo, YK) ---
+  const partnerTeamItems = [
+    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
+    { path: "/my-leads", icon: <DescriptionOutlinedIcon />, label: "My Leads" }, 
+    { path: "/my-activity", icon: <DescriptionOutlinedIcon />, label: "My Activity" },
+    { path: "/pending-followup", icon: <AssignmentTurnedInOutlinedIcon />, label: "Pending Followup's" },
+    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
+    { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" },
+    { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" },
+  ];
+
   // --- CUSTOM SOLUTION TEAM ITEMS ---
   const solutionTeamItems = [
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
@@ -319,9 +344,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
         "&::-webkit-scrollbar-thumb": { background: "rgba(255,255,255,0.15)", borderRadius: "4px" }
       }}
     >
-      {/* Header / Logo */}
       <Box sx={{ px: 3, py: 3, display: "flex", alignItems: "center", justifyContent: "flex-start", position: 'relative' }}>
-        {/* Glow effect behind logo */}
         <Box sx={{
            position: 'absolute', top: '20px', left: '20px', width: '60px', height: '60px',
            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(0,0,0,0) 70%)',
@@ -358,7 +381,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                  ]} />
         )}
 
-        {/* Individual Quotation Team Rendering */}
         {userSlug === "quotation-team" && (
           <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
                  open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
@@ -367,7 +389,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
         {isIpqsHead(user) ? (
           <>
-            {/* IPQS Head Specific Direct Links */}
             <NavItem to="/marketing/masterleads" icon={<AssignmentTurnedInOutlinedIcon />} label="Master Leads" onNavigate={onNavigate} />
             <NavItem to="/marketing/lead-management" icon={<ManageAccountsIcon />} label="Lead Management" onNavigate={onNavigate} />
 
@@ -397,6 +418,36 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                   onNavigate={onNavigate} items={[ 
                     { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" },
                     { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" } 
+                  ]} />
+                  
+            <Group title="Nagpur Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/nagpur"
+                  open={openNagpur} setOpen={setOpenNagpur} selected={/\/marketing\/nagpur\//.test(pathname)}
+                  onNavigate={onNavigate} items={[ 
+                    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
+                    { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
+                  ]} />
+
+            <Group title="Silverline Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/silverline"
+                  open={openSilverline} setOpen={setOpenSilverline} selected={/\/marketing\/silverline\//.test(pathname)}
+                  onNavigate={onNavigate} items={[ 
+                    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
+                    { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
+                  ]} />
+
+            {/* NEW: Trafo Associates Head View */}
+            <Group title="Trafo Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/trafo"
+                  open={openTrafo} setOpen={setOpenTrafo} selected={/\/marketing\/trafo\//.test(pathname)}
+                  onNavigate={onNavigate} items={[ 
+                    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
+                    { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
+                  ]} />
+
+            {/* NEW: YK Associates Head View */}
+            <Group title="YK Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/yk"
+                  open={openYk} setOpen={setOpenYk} selected={/\/marketing\/yk\//.test(pathname)}
+                  onNavigate={onNavigate} items={[ 
+                    { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
+                    { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
                   ]} />
           </>
         ) : (
@@ -435,6 +486,31 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
               <Group title="Solution Department" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
                      open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
                      onNavigate={onNavigate} items={solutionTeamItems} />
+            )}
+
+            {/* --- PARTNER TEAMS --- */}
+            {userSlug === "nagpur" && (
+              <Group title="Nagpur Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/nagpur"
+                     open={openNagpur} setOpen={setOpenNagpur} selected={/\/marketing\/nagpur\//.test(pathname)}
+                     onNavigate={onNavigate} items={partnerTeamItems} />
+            )}
+
+            {userSlug === "silverline" && (
+              <Group title="Silverline Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/silverline"
+                     open={openSilverline} setOpen={setOpenSilverline} selected={/\/marketing\/silverline\//.test(pathname)}
+                     onNavigate={onNavigate} items={partnerTeamItems} />
+            )}
+
+            {userSlug === "trafo" && (
+              <Group title="Trafo Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/trafo"
+                     open={openTrafo} setOpen={setOpenTrafo} selected={/\/marketing\/trafo\//.test(pathname)}
+                     onNavigate={onNavigate} items={partnerTeamItems} />
+            )}
+
+            {userSlug === "yk" && (
+              <Group title="YK Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/yk"
+                     open={openYk} setOpen={setOpenYk} selected={/\/marketing\/yk\//.test(pathname)}
+                     onNavigate={onNavigate} items={partnerTeamItems} />
             )}
           </>
         )}

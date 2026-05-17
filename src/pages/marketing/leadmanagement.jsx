@@ -185,6 +185,11 @@ export default function LeadManagement() {
       else if (assignDept === "Corporate-Marketing") targetEmpId = "IPQS-H25019";
       else if (assignDept === "Technical-Team") targetEmpId = "IPQS-H25010";
       else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000";
+      // Add IDs here for new departments if they need notifications:
+      // else if (assignDept === "Nagpur-Associates") targetEmpId = "IPQS-XXXXX";
+      // else if (assignDept === "Silverline-Associates") targetEmpId = "IPQS-XXXXX";
+      // else if (assignDept === "Trafo-Associates") targetEmpId = "IPQS-XXXXX";
+      // else if (assignDept === "YK-Associates") targetEmpId = "IPQS-XXXXX";
 
       if (targetEmpId) {
         setTimeout(async () => {
@@ -259,6 +264,11 @@ export default function LeadManagement() {
                     <option value="Corporate-Marketing">Corporate Marketing</option>
                     <option value="Technical-Team">Technical Team</option>
                     <option value="Solutions-Team">Solutions Team</option>
+                    {/* NEW DEPARTMENTS ADDED HERE */}
+                    <option value="Nagpur-Associates">Nagpur Associates</option>
+                    <option value="Silverline-Associates">Silverline Associates</option>
+                    <option value="Trafo-Associates">Trafo Associates</option>
+                    <option value="YK-Associates">YK Associates</option>
                   </select>
                 </div>
                 <div className="mb-4">
