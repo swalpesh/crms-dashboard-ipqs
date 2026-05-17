@@ -8,7 +8,6 @@ import TwoStepVerification from "./pages/TwoStepVerification.jsx";
 import Lock from "./pages/LockScreen.jsx";
 import Logout from "./pages/Logout.jsx";
 
-
 // Super Admin
 import SuperAdminLayout from "./layouts/SuperAdminLayout.jsx";
 import SaDashboard from "./pages/superadmin/SaDashboard.jsx";
@@ -119,7 +118,6 @@ import YKPendingFollowUp from "./pages/marketing/YKAssociatesPendingFollowUp.jsx
 import YKLeadManager from "./pages/marketing/YKAssociatesLeadManager.jsx";
 import YKMyTeam from "./pages/marketing/YKAssociatesMyTeam.jsx";
 
-
 // Employee legacy (optional)
 import EmployeeLayout from "./layouts/EmployeeLayout.jsx";
 import EmpDashboard from "./pages/employee/EmpDashboard.jsx";
@@ -129,7 +127,6 @@ import TeleLayout from "./layouts/TeleLayout.jsx";
 import LegacyTeleDashboard from "./pages/tele/TeleDashboard.jsx";
 import LegacyTeleLeads from "./pages/tele/TeleLeads.jsx";
 import LeadManagement from "./pages/marketing/leadmanagement.jsx";
-
 
 /* ---------- helpers ---------- */
 function readAuth() {
@@ -168,11 +165,11 @@ function detectTeamSlug(dept, role) {
   };
   if (exact[d]) return exact[d];
 
-  // 1. SPECIFIC ASSOCIATES FIRST (Fix applied here)
+  // 1. SPECIFIC ASSOCIATES FIRST (Fix applied here for yk / y-k hyphen variations)
   if (d.includes("nagpur")) return "nagpur";           
   if (d.includes("silverline")) return "silverline";   
-  if (d.includes("trafo")) return "trafo";             // NEW
-  if (d.includes("yk")) return "yk";                   // NEW
+  if (d.includes("trafo")) return "trafo";             
+  if (d.includes("yk") || d.includes("y-k")) return "yk"; 
 
   // 2. THEN GENERIC CHECKS
   if (d.includes("assoicate") || d.includes("associate") || d.includes("assoc")) return "associate";
@@ -184,11 +181,20 @@ function detectTeamSlug(dept, role) {
   if (d.includes("payment")) return "payments-team";
   if (d.includes("tele")) return "tele";
 
-  // 3. FALLBACK ROLE CHECKS
+  // 3. FALLBACK ROLE CHECKS (Fix applied here for yk / y-k hyphen variations)
   if (r.includes("nagpur")) return "nagpur";           
   if (r.includes("silverline")) return "silverline";   
-  if (r.includes("trafo")) return "trafo";             // NEW
-  if (r.includes("yk")) return "yk";                   // NEW
+  if (r.includes("trafo")) return "trafo";             
+  if (r.includes("yk") || r.includes("y-k")) return "yk"; 
+
+  if (r.includes("associate")) return "associate";
+  if (r.includes("field")) return "field";
+  if (r.includes("corporate")) return "corporate";
+  if (r.includes("technical")) return "technical";
+  if (r.includes("solution")) return "solution";
+  if (r.includes("quotation")) return "quotation-team";
+  if (r.includes("payment")) return "payments-team";
+  if (r.includes("tele")) return "tele";
 
   return "tele";
 }
@@ -332,10 +338,10 @@ export default function App() {
               <Route element={<RequireDeptAccess slug="tele" />}>
                 <Route path="tele/dashboard" element={<TeleDashboard />} />
                 <Route path="tele/leads" element={<TeleLeads />} />
+                <Route path="tele/follow-ups" element={<TeleFollowUps />} />
                 <Route element={<RequireHead redirectTo="/marketing/tele/leads" />}>
                   <Route path="tele/my-team" element={<TeleMyTeam />} />
                 </Route>
-                <Route path="tele/follow-ups" element={<TeleFollowUps />} />
               </Route>
 
               {/* Field */}
@@ -346,9 +352,9 @@ export default function App() {
                 <Route path="field/my-activity" element={<MyActivity />} />
                 <Route path="field/pending-followup" element={<PendingFollowup />} /> 
                 <Route path="field/follow-ups" element={<FieldFollowUps />} />
-                <Route path="field/lead-manager" element={<LeadManager />} /> 
                 <Route path="field/reimbursement" element={<TechnicalReimbursement />} />
                 <Route element={<RequireHead redirectTo="/marketing/field/dashboard" />}>
+                  <Route path="field/lead-manager" element={<LeadManager />} /> 
                   <Route path="field/my-team" element={<FieldMyTeam />} />
                 </Route>
               </Route>
@@ -358,13 +364,13 @@ export default function App() {
                 <Route path="associate/dashboard" element={<AssociateDashboard />} />
                 <Route path="associate/leads" element={<AssociateLeads />} />
                 <Route path="associate/my-activity" element={<AssociateMyActivity />} />
-                <Route element={<RequireHead redirectTo="/marketing/associate/dashboard" />}>
-                  <Route path="associate/my-team" element={<AssociateMyTeam />} />
-                </Route>
                 <Route path="associate/leadinfo" element={<AssociateLeadinfo />} />
                 <Route path="associate/pending-followup" element={<AssociateFollowUps />} />
-                <Route path="associate/lead-manager" element={<AssociateLeadManager />} /> 
                 <Route path="associate/reimbursement" element={<TechnicalReimbursement />} />
+                <Route element={<RequireHead redirectTo="/marketing/associate/dashboard" />}>
+                  <Route path="associate/lead-manager" element={<AssociateLeadManager />} /> 
+                  <Route path="associate/my-team" element={<AssociateMyTeam />} />
+                </Route>
               </Route>
 
               {/* Corporate */}
@@ -372,13 +378,13 @@ export default function App() {
                 <Route path="corporate/dashboard" element={<CorporateDashboard />} />
                 <Route path="corporate/leads" element={<CorporateLeads />} />
                 <Route path="corporate/my-activity" element={<CorporateMyActivity />} />
-                <Route element={<RequireHead redirectTo="/marketing/corporate/dashboard" />}>
-                  <Route path="corporate/my-team" element={<CorporateMyTeam />} />
-                </Route>
                 <Route path="corporate/leadinfo" element={<CorporateLeadinfo />} />
-                <Route path="corporate/lead-manager" element={<CorporateLeadManager />} /> 
                 <Route path="corporate/pending-followup" element={<CorporateFollowUps />} />
                 <Route path="corporate/reimbursement" element={<TechnicalReimbursement />} />
+                <Route element={<RequireHead redirectTo="/marketing/corporate/dashboard" />}>
+                  <Route path="corporate/lead-manager" element={<CorporateLeadManager />} /> 
+                  <Route path="corporate/my-team" element={<CorporateMyTeam />} />
+                </Route>
               </Route>
 
               {/* Technical */}
@@ -386,25 +392,25 @@ export default function App() {
                 <Route path="technical/dashboard" element={<TechnicalDashboard />} />
                 <Route path="technical/customer-profile/:id" element={<TechnicalCustomerProfile />} />
                 <Route path="technical/customer-visit" element={<TechnicalCustomerVisit />} />
-                <Route path="technical/visit-planner" element={<TechnicalVisitPlanner />} />
-                <Route path="technical/team-manager" element={<TeamInfo />} />
                 <Route path="technical/reimbursement" element={<TechnicalReimbursement />} />
                 <Route path="technical/leads" element={<TechnicalLeads />} />
+                <Route path="technical/follow-ups" element={<TechnicalFollowUps />} />
                 <Route element={<RequireHead redirectTo="/marketing/technical/dashboard" />}>
+                  <Route path="technical/visit-planner" element={<TechnicalVisitPlanner />} />
+                  <Route path="technical/team-manager" element={<TeamInfo />} />
                   <Route path="technical/my-team" element={<TechnicalMyTeam />} />
                 </Route>
-                <Route path="technical/follow-ups" element={<TechnicalFollowUps />} />
               </Route>
 
               {/* Solution */}
               <Route element={<RequireDeptAccess slug="solution" />}>
                 <Route path="solution/dashboard" element={<SolutionDashboard />} />
                 <Route path="solution/leads" element={<SolutionLeads />} />
+                <Route path="solution/follow-ups" element={<SolutionFollowUps />} />
+                <Route path="solution/reimbursement" element={<TechnicalReimbursement />} />
                 <Route element={<RequireHead redirectTo="/marketing/solution/dashboard" />}>
                   <Route path="solution/my-team" element={<SolutionMyTeam />} />
                 </Route>
-                <Route path="solution/follow-ups" element={<SolutionFollowUps />} />
-                <Route path="solution/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
 
               {/* Quotation Team */}
@@ -425,53 +431,57 @@ export default function App() {
               {/* --- Nagpur Associates --- */}
               <Route element={<RequireDeptAccess slug="nagpur" />}>
                 <Route path="nagpur/dashboard" element={<NagpurDashboard />} />
+                <Route path="nagpur/leadinfo" element={<NagpurMyLeads />} />
                 <Route path="nagpur/my-leads" element={<NagpurMyLeads />} />
                 <Route path="nagpur/my-activity" element={<NagpurMyActivity />} />
                 <Route path="nagpur/pending-followup" element={<NagpurPendingFollowUp />} />
-                <Route path="nagpur/lead-manager" element={<NagpurLeadManager />} />
+                <Route path="nagpur/reimbursement" element={<TechnicalReimbursement />} />
                 <Route element={<RequireHead redirectTo="/marketing/nagpur/dashboard" />}>
+                  <Route path="nagpur/lead-manager" element={<NagpurLeadManager />} />
                   <Route path="nagpur/my-team" element={<NagpurMyTeam />} />
                 </Route>
-                <Route path="nagpur/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
 
               {/* --- Silverline Associates --- */}
               <Route element={<RequireDeptAccess slug="silverline" />}>
                 <Route path="silverline/dashboard" element={<SilverlineDashboard />} />
+                <Route path="silverline/leadinfo" element={<SilverlineMyLeads />} />
                 <Route path="silverline/my-leads" element={<SilverlineMyLeads />} />
                 <Route path="silverline/my-activity" element={<SilverlineMyActivity />} />
                 <Route path="silverline/pending-followup" element={<SilverlinePendingFollowUp />} />
-                <Route path="silverline/lead-manager" element={<SilverlineLeadManager />} />
+                <Route path="silverline/reimbursement" element={<TechnicalReimbursement />} />
                 <Route element={<RequireHead redirectTo="/marketing/silverline/dashboard" />}>
+                  <Route path="silverline/lead-manager" element={<SilverlineLeadManager />} />
                   <Route path="silverline/my-team" element={<SilverlineMyTeam />} />
                 </Route>
-                <Route path="silverline/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
               
               {/* --- NEW: Trafo Associates --- */}
               <Route element={<RequireDeptAccess slug="trafo" />}>
                 <Route path="trafo/dashboard" element={<TrafoDashboard />} />
+                <Route path="trafo/leadinfo" element={<TrafoMyLeads />} />
                 <Route path="trafo/my-leads" element={<TrafoMyLeads />} />
                 <Route path="trafo/my-activity" element={<TrafoMyActivity />} />
                 <Route path="trafo/pending-followup" element={<TrafoPendingFollowUp />} />
-                <Route path="trafo/lead-manager" element={<TrafoLeadManager />} />
+                <Route path="trafo/reimbursement" element={<TechnicalReimbursement />} />
                 <Route element={<RequireHead redirectTo="/marketing/trafo/dashboard" />}>
+                  <Route path="trafo/lead-manager" element={<TrafoLeadManager />} />
                   <Route path="trafo/my-team" element={<TrafoMyTeam />} />
                 </Route>
-                <Route path="trafo/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
 
               {/* --- NEW: YK Associates --- */}
               <Route element={<RequireDeptAccess slug="yk" />}>
                 <Route path="yk/dashboard" element={<YKDashboard />} />
+                <Route path="yk/leadinfo" element={<YKMyLeads />} />
                 <Route path="yk/my-leads" element={<YKMyLeads />} />
                 <Route path="yk/my-activity" element={<YKMyActivity />} />
                 <Route path="yk/pending-followup" element={<YKPendingFollowUp />} />
-                <Route path="yk/lead-manager" element={<YKLeadManager />} />
+                <Route path="yk/reimbursement" element={<TechnicalReimbursement />} />
                 <Route element={<RequireHead redirectTo="/marketing/yk/dashboard" />}>
+                  <Route path="yk/lead-manager" element={<YKLeadManager />} />
                   <Route path="yk/my-team" element={<YKMyTeam />} />
                 </Route>
-                <Route path="yk/reimbursement" element={<TechnicalReimbursement />} />
               </Route>
 
             </Route>
