@@ -185,11 +185,10 @@ export default function LeadManagement() {
       else if (assignDept === "Corporate-Marketing") targetEmpId = "IPQS-H25019";
       else if (assignDept === "Technical-Team") targetEmpId = "IPQS-H25010";
       else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000";
-      // Add IDs here for new departments if they need notifications:
-      // else if (assignDept === "Nagpur-Associates") targetEmpId = "IPQS-XXXXX";
-      // else if (assignDept === "Silverline-Associates") targetEmpId = "IPQS-XXXXX";
-      // else if (assignDept === "Trafo-Associates") targetEmpId = "IPQS-XXXXX";
-      // else if (assignDept === "YK-Associates") targetEmpId = "IPQS-XXXXX";
+      else if (assignDept === "Nagpur-Associates") targetEmpId = "IPQS-E25004";
+      else if (assignDept === "Silverline-Associates") targetEmpId = "IPQS-H25009";
+      else if (assignDept === "Trafo-Associates") targetEmpId = "IPQS-H25007";
+      else if (assignDept === "Y-k-Enterprises-Associates") targetEmpId = "IPQS-H25008";
 
       if (targetEmpId) {
         setTimeout(async () => {

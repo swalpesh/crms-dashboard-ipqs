@@ -228,10 +228,10 @@ const NagpurAssociatesLeadManager = () => {
       const payload = {
         lead_id: currentLead.lead_id,
         assigned_employee: currentEmployee.employee_id,
-        corporate_visit_date: visitDate,
-        corporate_visit_time: formattedTime,
-        corporate_visit_priority: priority,
-        corporate_visit_type: "Specific",
+        nagpur_associate_visit_date: visitDate,
+        nagpur_associate_visit_time: formattedTime,
+        nagpur_associate_visit_priority: priority,
+        nagpur_associate_visit_type: "Specific",
         reason: `New Lead Assigned to You -> ${currentLead.lead_id} (${currentLead.lead_name || currentLead.company_name})`
       };
 

@@ -97,15 +97,20 @@ const getTodayString = () => {
   return formatDateString(new Date());
 };
 
-// Helper to get GPS Location
+// Helper to get GPS Location (WITH GRACEFUL FALLBACK)
 const getCurrentLocation = () => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported by your browser"));
+      resolve("Location not supported by browser");
     } else {
       navigator.geolocation.getCurrentPosition(
         (position) => resolve(`${position.coords.latitude}, ${position.coords.longitude}`),
-        (error) => reject(new Error("Failed to get location. Please enable GPS."))
+        (error) => {
+          console.warn("GPS Capture Failed: ", error.message);
+          // Graceful fallback instead of rejecting, so the app doesn't break
+          resolve("Location not available (GPS Disabled/Denied)");
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
       );
     }
   });
@@ -476,9 +481,9 @@ const NagpurAssociatesMyactivity = () => {
   // --- MODAL HANDLERS ---
   const handleOpenSchedule = (lead, isRescheduling = false) => { 
     setSelectedLead(lead); 
-    setScheduleDate(lead.nagpur_associates_visit_date ? lead.nagpur_associates_visit_date.split('T')[0] : '');
-    setScheduleTime(lead.nagpur_associates_visit_time || '');
-    setSchedulePriority(lead.nagpur_associates_visit_priority || 'Medium');
+    setScheduleDate(lead.nagpur_associate_visit_date ? lead.nagpur_associate_visit_date.split('T')[0] : '');
+    setScheduleTime(lead.nagpur_associate_visit_time || '');
+    setSchedulePriority(lead.nagpur_associate_visit_priority || 'Medium');
     setIsRescheduleMode(isRescheduling);
     setScheduleReason(isRescheduling ? 'Nagpur Associates Visit Rescheduled.' : '');
     setOpenModal(true); 
@@ -536,10 +541,10 @@ const NagpurAssociatesMyactivity = () => {
         payload = {
           lead_id: selectedLead.lead_id,
           assigned_employee: currentUser?.employee_id || selectedLead.assigned_employee,
-          nagpur_associates_visit_date: scheduleDate,
-          nagpur_associates_visit_time: formattedTime,
-          nagpur_associates_visit_priority: schedulePriority,
-          nagpur_associates_visit_type: "Specific",
+          nagpur_associate_visit_date: scheduleDate,
+          nagpur_associate_visit_time: formattedTime,
+          nagpur_associate_visit_priority: schedulePriority,
+          nagpur_associate_visit_type: "Specific",
           reason: "Lead Scheduled for Nagpur Associates Visit"
         };
       }
@@ -567,7 +572,7 @@ const NagpurAssociatesMyactivity = () => {
       setTimeout(async () => {
         try {
           const notificationPayload = {
-            to_emp_id: "IPQS-H25019",
+            to_emp_id: "IPQS-E25004",
             title: `Visit ${isRescheduleMode ? 'Rescheduled' : 'Scheduled'}`,
             message: `Lead ${selectedLead.company_name || selectedLead.lead_name} has been ${isRescheduleMode ? 'rescheduled' : 'scheduled'} by ${currentUser?.username || 'Employee'} for ${scheduleDate} at ${scheduleTime}.`
           };
@@ -646,7 +651,7 @@ const NagpurAssociatesMyactivity = () => {
 
       // Update Local State instantly
       setScheduledLeads(prevLeads => prevLeads.map(l => 
-        l.lead_id === lead.lead_id ? { ...l, nagpur_associates_lead_visit_status: 'Started' } : l
+        l.lead_id === lead.lead_id ? { ...l, nagpur_associate_lead_visit_status: 'Started' } : l
       ));
 
       setToast({ open: true, message: 'Visit started successfully!', severity: 'success' });
@@ -655,7 +660,7 @@ const NagpurAssociatesMyactivity = () => {
       setTimeout(async () => {
         try {
           const notificationPayload = {
-            to_emp_id: "IPQS-H25019",
+            to_emp_id: "IPQS-E25004",
             title: "Visit Started",
             message: `Lead ${companyDisplayName} visit started by ${currentUser?.username || 'Employee'}. Location captured.`
           };
@@ -751,7 +756,7 @@ const NagpurAssociatesMyactivity = () => {
       setScheduledLeads(prevLeads => prevLeads.map(l => 
         l.lead_id === endVisitLead.lead_id ? { 
             ...l, 
-            nagpur_associates_lead_visit_status: 'Completed', 
+            nagpur_associate_lead_visit_status: 'Completed', 
             lead_stage: nextDepartment,
             assigned_employee: isSolutions ? 'IPQS-H5000' : '0' 
         } : l
@@ -799,10 +804,10 @@ const NagpurAssociatesMyactivity = () => {
   const displayedScheduledLeads = useMemo(() => {
     return scheduledLeads.filter((lead) => {
       // 1. Must match active date
-      if (!lead.nagpur_associates_visit_date || !lead.nagpur_associates_visit_date.startsWith(activeFilterDate)) return false;
+      if (!lead.nagpur_associate_visit_date || !lead.nagpur_associate_visit_date.startsWith(activeFilterDate)) return false;
 
       // 2. Filter by selected Status Filter
-      const currentStatus = lead.nagpur_associates_lead_visit_status || 'Pending';
+      const currentStatus = lead.nagpur_associate_lead_visit_status || 'Pending';
       if (statusFilter === 'All') return true;
       if (statusFilter === 'Pending' && currentStatus !== 'Started' && currentStatus !== 'Completed') return true;
       if (statusFilter === 'In Progress' && currentStatus === 'Started') return true;
@@ -843,10 +848,10 @@ const NagpurAssociatesMyactivity = () => {
   // Target Calculations (Based on Today's scheduled leads)
   const todaysTotalLeads = useMemo(() => {
     const todayStr = getTodayString();
-    return scheduledLeads.filter((lead) => lead.nagpur_associates_visit_date && lead.nagpur_associates_visit_date.startsWith(todayStr));
+    return scheduledLeads.filter((lead) => lead.nagpur_associate_visit_date && lead.nagpur_associate_visit_date.startsWith(todayStr));
   }, [scheduledLeads]);
 
-  const completedCount = todaysTotalLeads.filter(l => l.nagpur_associates_lead_visit_status === 'Completed').length;
+  const completedCount = todaysTotalLeads.filter(l => l.nagpur_associate_lead_visit_status === 'Completed').length;
   const totalVisitsCount = todaysTotalLeads.length;
   const progressPercent = totalVisitsCount > 0 ? (completedCount / totalVisitsCount) * 100 : 0;
 
@@ -1088,15 +1093,15 @@ const NagpurAssociatesMyactivity = () => {
               displayedScheduledLeads.map((lead) => (
                 <ActivityCard 
                   key={lead.lead_id}
-                  visitStatus={lead.nagpur_associates_lead_visit_status} 
-                  time={formatTime(lead.nagpur_associates_visit_time)} 
+                  visitStatus={lead.nagpur_associate_lead_visit_status} 
+                  time={formatTime(lead.nagpur_associate_visit_time)} 
                   title={lead.company_name || lead.lead_name} 
                   purpose={lead.lead_requirement || 'No specific requirement'} 
                   contact={lead.contact_person_name} 
                   phone={lead.contact_person_phone} 
                   location={lead.company_city && lead.company_state ? `${lead.company_city}, ${lead.company_state}` : 'Location N/A'} 
                   email={lead.company_email || lead.contact_person_email} 
-                  disableStart={!lead.nagpur_associates_visit_date?.startsWith(todayStr)} // Disable if not today
+                  disableStart={!lead.nagpur_associate_visit_date?.startsWith(todayStr)} // Disable if not today
                   inTrip={inTrip} 
                   onReschedule={() => handleOpenSchedule(lead, true)} // <--- Passes 'true' for isRescheduleMode
                   onStartVisit={() => handleStartVisit(lead)}
@@ -1199,13 +1204,13 @@ const NagpurAssociatesMyactivity = () => {
                    
                    <Grid container spacing={2} sx={{ mb: 2 }}>
                      <Grid item xs={12} sm={4}>
-                       <InfoItem icon={<Clock size={18} />} label="Visit Time" value={formatTime(lead.nagpur_associates_visit_time || lead.visit_time)} />
+                       <InfoItem icon={<Clock size={18} />} label="Visit Time" value={formatTime(lead.nagpur_associate_visit_time || lead.visit_time)} />
                      </Grid>
                      <Grid item xs={12} sm={4}>
-                       <InfoItem icon={<CalendarPlus size={18} />} label="Visit Date" value={lead.nagpur_associates_visit_date || lead.visit_date ? new Date(lead.nagpur_associates_visit_date || lead.visit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "Date Not Available"} />
+                       <InfoItem icon={<CalendarPlus size={18} />} label="Visit Date" value={lead.nagpur_associate_visit_date || lead.visit_date ? new Date(lead.nagpur_associate_visit_date || lead.visit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "Date Not Available"} />
                      </Grid>
                      <Grid item xs={12} sm={4}>
-                       <InfoItem icon={<MapPin size={18} />} label="Start Location" value={lead.nagpur_associates_visit_start_location || lead.start_location || "Coordinates Captured"} />
+                       <InfoItem icon={<MapPin size={18} />} label="Start Location" value={lead.nagpur_associate_visit_start_location || lead.start_location || "Coordinates Captured"} />
                      </Grid>
                    </Grid>
                    
