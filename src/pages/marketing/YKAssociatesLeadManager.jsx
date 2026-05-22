@@ -167,9 +167,9 @@ const YKAssociatesLeadManager = () => {
         const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
         // 1. Fetch Queue and Employees
-        const queueRes = await fetch(`${API_BASE_URL}/api/ykaleads/ykassociates/all-leads`, { method: 'GET', headers });
+        const queueRes = await fetch(`${API_BASE_URL}/api/ykaleads/ykenterprisesassociates/all-leads`, { method: 'GET', headers });
         // 2. Fetch Calendar Details
-        const calendarRes = await fetch(`${API_BASE_URL}/api/ykaleads/ykassociates/visit-details`, { method: 'GET', headers });
+        const calendarRes = await fetch(`${API_BASE_URL}/api/ykaleads/ykenterprisesassociates/visit-details`, { method: 'GET', headers });
 
         if (!queueRes.ok) throw new Error('Failed to fetch lead queue');
         
@@ -209,7 +209,7 @@ const YKAssociatesLeadManager = () => {
   const handleCompleteAction = async () => {
     // 1. Validation
     if (!selectedLead) return setToast({ open: true, message: 'Please select a lead from the Pending Queue.', severity: 'warning' });
-    if (!selectedEmployee) return setToast({ open: true, message: 'Please select a Corporate person.', severity: 'warning' });
+    if (!selectedEmployee) return setToast({ open: true, message: 'Please select a y_k_enterprises_associate person.', severity: 'warning' });
     if (!visitDate || !visitTime) return setToast({ open: true, message: 'Please select date and time.', severity: 'warning' });
 
     setAssigning(true);
@@ -228,10 +228,10 @@ const YKAssociatesLeadManager = () => {
       const payload = {
         lead_id: currentLead.lead_id,
         assigned_employee: currentEmployee.employee_id,
-        corporate_visit_date: visitDate,
-        corporate_visit_time: formattedTime,
-        corporate_visit_priority: priority,
-        corporate_visit_type: "Specific",
+        y_k_enterprises_associate_visit_date: visitDate,
+        y_k_enterprises_associate_visit_time: formattedTime,
+        y_k_enterprises_associate_visit_priority: priority,
+        y_k_enterprises_associate_visit_type: "Specific",
         reason: `New Lead Assigned to You -> ${currentLead.lead_id} (${currentLead.lead_name || currentLead.company_name})`
       };
 
@@ -269,7 +269,7 @@ const YKAssociatesLeadManager = () => {
             const notificationPayload = {
                 to_emp_id: currentEmployee.employee_id,
                 title: "New Visit Assigned",
-                message: `You have been assigned a new Corporate visit for lead: ${currentLead.lead_name || currentLead.company_name}`
+                message: `You have been assigned a new y_k_enterprises_associate visit for lead: ${currentLead.lead_name || currentLead.company_name}`
             };
 
             await fetch(`${API_BASE_URL}/api/notifications/send`, {
@@ -524,7 +524,7 @@ const YKAssociatesLeadManager = () => {
 
       {/* Employee List */}
       <Box>
-        <Typography variant="caption" color="rgba(255,255,255,0.6)" mb={1} display="block" fontWeight={600}>Select Corporate Person</Typography>
+        <Typography variant="caption" color="rgba(255,255,255,0.6)" mb={1} display="block" fontWeight={600}>Select Person</Typography>
         <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', p: 2 }}>
           
           {/* Search */}
@@ -588,7 +588,7 @@ const YKAssociatesLeadManager = () => {
           Visit Planner
         </Typography>
         <Typography variant="body1" color="rgba(255,255,255,0.6)" mb={5}>
-          Manage team schedules and assign Corporate visits
+          Manage team schedules and assign visits
         </Typography>
         
         {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>{error}</Alert>}

@@ -262,7 +262,7 @@ const NagpurAssociatesPendingFollowup = () => {
         })
       });
 
-      const poStatusPromise = fetch(`${API_BASE_URL}/api/naleads/po-status`, {
+      const poStatusPromise = fetch(`${API_BASE_URL}/api/leads/po-status`, {
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${token}`,

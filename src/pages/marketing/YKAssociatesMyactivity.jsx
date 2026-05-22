@@ -476,9 +476,9 @@ const YKAssociatesMyactivity = () => {
   // --- MODAL HANDLERS ---
   const handleOpenSchedule = (lead, isRescheduling = false) => { 
     setSelectedLead(lead); 
-    setScheduleDate(lead.yk_associates_visit_date ? lead.yk_associates_visit_date.split('T')[0] : '');
-    setScheduleTime(lead.yk_associates_visit_time || '');
-    setSchedulePriority(lead.yk_associates_visit_priority || 'Medium');
+    setScheduleDate(lead.y_k_enterprises_associate_visit_date ? lead.y_k_enterprises_associate_visit_date.split('T')[0] : '');
+    setScheduleTime(lead.y_k_enterprises_associate_visit_time || '');
+    setSchedulePriority(lead.y_k_enterprises_associate_visit_priority || 'Medium');
     setIsRescheduleMode(isRescheduling);
     setScheduleReason(isRescheduling ? 'YK Enterprises Visit Rescheduled.' : '');
     setOpenModal(true); 
@@ -536,10 +536,10 @@ const YKAssociatesMyactivity = () => {
         payload = {
           lead_id: selectedLead.lead_id,
           assigned_employee: currentUser?.employee_id || selectedLead.assigned_employee,
-          yk_associates_visit_date: scheduleDate,
-          yk_associates_visit_time: formattedTime,
-          yk_associates_visit_priority: schedulePriority,
-          yk_associates_visit_type: "Specific",
+          y_k_enterprises_associate_visit_date: scheduleDate,
+          y_k_enterprises_associate_visit_time: formattedTime,
+          y_k_enterprises_associate_visit_priority: schedulePriority,
+          y_k_enterprises_associate_visit_type: "Specific",
           reason: "Lead Scheduled for YK Enterprises Visit"
         };
       }
@@ -567,7 +567,7 @@ const YKAssociatesMyactivity = () => {
       setTimeout(async () => {
         try {
           const notificationPayload = {
-            to_emp_id: "IPQS-H25019",
+            to_emp_id: "IPQS-H25008",
             title: `Visit ${isRescheduleMode ? 'Rescheduled' : 'Scheduled'}`,
             message: `Lead ${selectedLead.company_name || selectedLead.lead_name} has been ${isRescheduleMode ? 'rescheduled' : 'scheduled'} by ${currentUser?.username || 'Employee'} for ${scheduleDate} at ${scheduleTime}.`
           };
@@ -646,7 +646,7 @@ const YKAssociatesMyactivity = () => {
 
       // Update Local State instantly
       setScheduledLeads(prevLeads => prevLeads.map(l => 
-        l.lead_id === lead.lead_id ? { ...l, yk_associates_lead_visit_status: 'Started' } : l
+        l.lead_id === lead.lead_id ? { ...l, y_k_enterprises_associate_lead_visit_status: 'Started' } : l
       ));
 
       setToast({ open: true, message: 'Visit started successfully!', severity: 'success' });
@@ -655,7 +655,7 @@ const YKAssociatesMyactivity = () => {
       setTimeout(async () => {
         try {
           const notificationPayload = {
-            to_emp_id: "IPQS-H25019",
+            to_emp_id: "IPQS-H25008",
             title: "Visit Started",
             message: `Lead ${companyDisplayName} visit started by ${currentUser?.username || 'Employee'}. Location captured.`
           };
@@ -751,7 +751,7 @@ const YKAssociatesMyactivity = () => {
       setScheduledLeads(prevLeads => prevLeads.map(l => 
         l.lead_id === endVisitLead.lead_id ? { 
             ...l, 
-            yk_associates_lead_visit_status: 'Completed', 
+            y_k_enterprises_associate_lead_visit_status: 'Completed', 
             lead_stage: nextDepartment,
             assigned_employee: isSolutions ? 'IPQS-H5000' : '0' 
         } : l
@@ -766,7 +766,7 @@ const YKAssociatesMyactivity = () => {
       // 5. Send Notification to target Head
       setTimeout(async () => {
         try {
-          const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25010'; 
+          const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25030'; 
           const deptName = nextDepartment.replace('-', ' ');
 
           const notificationPayload = {
@@ -799,10 +799,10 @@ const YKAssociatesMyactivity = () => {
   const displayedScheduledLeads = useMemo(() => {
     return scheduledLeads.filter((lead) => {
       // 1. Must match active date
-      if (!lead.yk_associates_visit_date || !lead.yk_associates_visit_date.startsWith(activeFilterDate)) return false;
+      if (!lead.y_k_enterprises_associate_visit_date || !lead.y_k_enterprises_associate_visit_date.startsWith(activeFilterDate)) return false;
 
       // 2. Filter by selected Status Filter
-      const currentStatus = lead.yk_associates_lead_visit_status || 'Pending';
+      const currentStatus = lead.y_k_enterprises_associate_lead_visit_status || 'Pending';
       if (statusFilter === 'All') return true;
       if (statusFilter === 'Pending' && currentStatus !== 'Started' && currentStatus !== 'Completed') return true;
       if (statusFilter === 'In Progress' && currentStatus === 'Started') return true;
@@ -843,10 +843,10 @@ const YKAssociatesMyactivity = () => {
   // Target Calculations (Based on Today's scheduled leads)
   const todaysTotalLeads = useMemo(() => {
     const todayStr = getTodayString();
-    return scheduledLeads.filter((lead) => lead.yk_associates_visit_date && lead.yk_associates_visit_date.startsWith(todayStr));
+    return scheduledLeads.filter((lead) => lead.y_k_enterprises_associate_visit_date && lead.y_k_enterprises_associate_visit_date.startsWith(todayStr));
   }, [scheduledLeads]);
 
-  const completedCount = todaysTotalLeads.filter(l => l.yk_associates_lead_visit_status === 'Completed').length;
+  const completedCount = todaysTotalLeads.filter(l => l.y_k_enterprises_associate_lead_visit_status === 'Completed').length;
   const totalVisitsCount = todaysTotalLeads.length;
   const progressPercent = totalVisitsCount > 0 ? (completedCount / totalVisitsCount) * 100 : 0;
 
@@ -1088,15 +1088,15 @@ const YKAssociatesMyactivity = () => {
               displayedScheduledLeads.map((lead) => (
                 <ActivityCard 
                   key={lead.lead_id}
-                  visitStatus={lead.yk_associates_lead_visit_status} 
-                  time={formatTime(lead.yk_associates_visit_time)} 
+                  visitStatus={lead.y_k_enterprises_associate_lead_visit_status} 
+                  time={formatTime(lead.y_k_enterprises_associate_visit_time)} 
                   title={lead.company_name || lead.lead_name} 
                   purpose={lead.lead_requirement || 'No specific requirement'} 
                   contact={lead.contact_person_name} 
                   phone={lead.contact_person_phone} 
                   location={lead.company_city && lead.company_state ? `${lead.company_city}, ${lead.company_state}` : 'Location N/A'} 
                   email={lead.company_email || lead.contact_person_email} 
-                  disableStart={!lead.yk_associates_visit_date?.startsWith(todayStr)} // Disable if not today
+                  disableStart={!lead.y_k_enterprises_associate_visit_date?.startsWith(todayStr)} // Disable if not today
                   inTrip={inTrip} 
                   onReschedule={() => handleOpenSchedule(lead, true)} // <--- Passes 'true' for isRescheduleMode
                   onStartVisit={() => handleStartVisit(lead)}
@@ -1199,13 +1199,13 @@ const YKAssociatesMyactivity = () => {
                    
                    <Grid container spacing={2} sx={{ mb: 2 }}>
                      <Grid item xs={12} sm={4}>
-                       <InfoItem icon={<Clock size={18} />} label="Visit Time" value={formatTime(lead.yk_associates_visit_time || lead.visit_time)} />
+                       <InfoItem icon={<Clock size={18} />} label="Visit Time" value={formatTime(lead.y_k_enterprises_associate_visit_time || lead.visit_time)} />
                      </Grid>
                      <Grid item xs={12} sm={4}>
-                       <InfoItem icon={<CalendarPlus size={18} />} label="Visit Date" value={lead.yk_associates_visit_date || lead.visit_date ? new Date(lead.yk_associates_visit_date || lead.visit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "Date Not Available"} />
+                       <InfoItem icon={<CalendarPlus size={18} />} label="Visit Date" value={lead.y_k_enterprises_associate_visit_date || lead.visit_date ? new Date(lead.y_k_enterprises_associate_visit_date || lead.visit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "Date Not Available"} />
                      </Grid>
                      <Grid item xs={12} sm={4}>
-                       <InfoItem icon={<MapPin size={18} />} label="Start Location" value={lead.yk_associates_visit_start_location || lead.start_location || "Coordinates Captured"} />
+                       <InfoItem icon={<MapPin size={18} />} label="Start Location" value={lead.y_k_enterprises_associate_visit_start_location || lead.start_location || "Coordinates Captured"} />
                      </Grid>
                    </Grid>
                    

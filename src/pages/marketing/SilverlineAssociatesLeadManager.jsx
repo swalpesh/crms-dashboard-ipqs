@@ -228,10 +228,10 @@ const SilverlineAssociatesLeadManager = () => {
       const payload = {
         lead_id: currentLead.lead_id,
         assigned_employee: currentEmployee.employee_id,
-        corporate_visit_date: visitDate,
-        corporate_visit_time: formattedTime,
-        corporate_visit_priority: priority,
-        corporate_visit_type: "Specific",
+        silverline_associate_visit_date: visitDate,
+        silverline_associate_visit_time: formattedTime,
+        silverline_associate_visit_priority: priority,
+        silverline_associate_visit_type: "Specific",
         reason: `New Lead Assigned to You -> ${currentLead.lead_id} (${currentLead.lead_name || currentLead.company_name})`
       };
 
