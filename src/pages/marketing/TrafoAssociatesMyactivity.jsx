@@ -567,7 +567,7 @@ const TrafoAssociatesMyactivity = () => {
       setTimeout(async () => {
         try {
           const notificationPayload = {
-            to_emp_id: "IPQS-H25019",
+            to_emp_id: "IPQS-H25007",
             title: `Visit ${isRescheduleMode ? 'Rescheduled' : 'Scheduled'}`,
             message: `Lead ${selectedLead.company_name || selectedLead.lead_name} has been ${isRescheduleMode ? 'rescheduled' : 'scheduled'} by ${currentUser?.username || 'Employee'} for ${scheduleDate} at ${scheduleTime}.`
           };
@@ -655,7 +655,7 @@ const TrafoAssociatesMyactivity = () => {
       setTimeout(async () => {
         try {
           const notificationPayload = {
-            to_emp_id: "IPQS-H25019",
+            to_emp_id: "IPQS-H25007",
             title: "Visit Started",
             message: `Lead ${companyDisplayName} visit started by ${currentUser?.username || 'Employee'}. Location captured.`
           };
