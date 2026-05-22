@@ -162,14 +162,14 @@ const LeadItem = ({ lead, onMapClick }) => {
     return themeColors.textSecondary; // Grey for pending/new
   };
 
-  const statusColor = getStatusColor(lead.corporate_lead_visit_status);
-  const isStarted = lead.corporate_lead_visit_status === 'Pending' || lead.corporate_lead_visit_status === 'Started';
-  const isCompleted = lead.corporate_lead_visit_status === 'Completed';
+  const statusColor = getStatusColor(lead.nagpur_associate_lead_visit_status);
+  const isStarted = lead.nagpur_associate_lead_visit_status === 'Pending' || lead.nagpur_associate_lead_visit_status === 'Started';
+  const isCompleted = lead.nagpur_associate_lead_visit_status === 'Completed';
 
   const timelineData = [
-    { label: "Assigned", time: formatDateTime(lead.corporate_visit_date, lead.corporate_visit_time), completed: true, showMap: false },
-    { label: "Visit Started", time: isStarted ? "On Site" : "Pending", completed: isStarted, showMap: isStarted && lead.corporate_visit_start_location },
-    { label: "Completed", time: isCompleted && lead.corporate_visit_complete_time ? formatDateTime(lead.corporate_visit_complete_time) : "Pending", completed: isCompleted, showMap: false }
+    { label: "Assigned", time: formatDateTime(lead.nagpur_associate_visit_date, lead.nagpur_associate_visit_time), completed: true, showMap: false },
+    { label: "Visit Started", time: isStarted ? "On Site" : "Pending", completed: isStarted, showMap: isStarted && lead.nagpur_associate_visit_start_location },
+    { label: "Completed", time: isCompleted && lead.nagpur_associate_visit_complete_time ? formatDateTime(lead.nagpur_associate_visit_complete_time) : "Pending", completed: isCompleted, showMap: false }
   ];
 
   return (
@@ -208,7 +208,7 @@ const LeadItem = ({ lead, onMapClick }) => {
 
         <Stack direction="row" spacing={1} alignItems="center">
           <Chip 
-            label={lead.corporate_lead_visit_status || 'Pending'} 
+            label={lead.nagpur_associate_lead_visit_status || 'Pending'} 
             size="small" 
             sx={{ 
                 bgcolor: expanded ? statusColor : `${statusColor}22`, 
@@ -261,7 +261,7 @@ const LeadItem = ({ lead, onMapClick }) => {
                         {event.showMap && (
                             <IconButton 
                                 size="small" 
-                                onClick={(e) => { e.stopPropagation(); onMapClick(lead.corporate_visit_start_location); }}
+                                onClick={(e) => { e.stopPropagation(); onMapClick(lead.nagpur_associate_visit_start_location); }}
                                 sx={{ 
                                     color: '#fff', 
                                     bgcolor: themeColors.accentBlue, 
