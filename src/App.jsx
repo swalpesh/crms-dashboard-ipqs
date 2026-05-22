@@ -34,6 +34,7 @@ import MyActivity from "./pages/marketing/MyActivity.jsx";
 import PendingFollowup from "./pages/marketing/PendingFollowup.jsx"; 
 import FieldFollowUps from "./pages/marketing/FieldFollowUps.jsx";
 import LeadManager from "./pages/marketing/LeadManager.jsx"; 
+import SolarRequests from "./pages/marketing/SolarRequests.jsx"; // --- NEW IMPORT ---
 
 // Tele
 import TeleDashboard from "./pages/marketing/TeleDashboard.jsx";
@@ -102,7 +103,7 @@ import SilverlinePendingFollowUp from "./pages/marketing/SilverlineAssociatesPen
 import SilverlineLeadManager from "./pages/marketing/SilverlineAssociatesLeadManager.jsx";
 import SilverlineMyTeam from "./pages/marketing/SilverlineAssociatesMyTeam.jsx";
 
-// --- NEW IMPORTS: Trafo Associates ---
+// --- Trafo Associates ---
 import TrafoDashboard from "./pages/marketing/TrafoAssosiatesDashboard.jsx"; 
 import TrafoMyLeads from "./pages/marketing/TrafoAssociatesMyLeads.jsx";
 import TrafoMyActivity from "./pages/marketing/TrafoAssociatesMyactivity.jsx"; 
@@ -110,13 +111,21 @@ import TrafoPendingFollowUp from "./pages/marketing/TrafoAssociatesPendingFollow
 import TrafoLeadManager from "./pages/marketing/TrafoAssociatesLeadManager.jsx";
 import TrafoMyTeam from "./pages/marketing/TrafoAssociatesMyTeam.jsx";
 
-// --- NEW IMPORTS: YK Associates ---
+// --- YK Associates ---
 import YKDashboard from "./pages/marketing/YKAssociatesDashboard.jsx";
 import YKMyLeads from "./pages/marketing/YKAssociatesMyLeads.jsx";
 import YKMyActivity from "./pages/marketing/YKAssociatesMyactivity.jsx"; 
 import YKPendingFollowUp from "./pages/marketing/YKAssociatesPendingFollowUp.jsx";
 import YKLeadManager from "./pages/marketing/YKAssociatesLeadManager.jsx";
 import YKMyTeam from "./pages/marketing/YKAssociatesMyTeam.jsx";
+
+// --- NEW IMPORTS: Kolhapur Associates ---
+import KolhapurDashboard from "./pages/marketing/KolhapurAssociatesDashboard.jsx";
+import KolhapurMyLeads from "./pages/marketing/KolhapurAssociateLeadinfo.jsx";
+import KolhapurMyActivity from "./pages/marketing/KolhapurAssociatesMyactivity.jsx"; 
+import KolhapurPendingFollowUp from "./pages/marketing/KolhapurAssociatesPendingFollowup.jsx";
+import KolhapurLeadManager from "./pages/marketing/KolhapurAssociatesLeadManager.jsx";
+import KolhapurMyTeam from "./pages/marketing/KolhapurAssociateMyTeam.jsx";
 
 // Employee legacy (optional)
 import EmployeeLayout from "./layouts/EmployeeLayout.jsx";
@@ -165,11 +174,12 @@ function detectTeamSlug(dept, role) {
   };
   if (exact[d]) return exact[d];
 
-  // 1. SPECIFIC ASSOCIATES FIRST (Fix applied here for yk / y-k hyphen variations)
+  // 1. SPECIFIC ASSOCIATES FIRST
   if (d.includes("nagpur")) return "nagpur";           
   if (d.includes("silverline")) return "silverline";   
   if (d.includes("trafo")) return "trafo";             
   if (d.includes("yk") || d.includes("y-k")) return "yk"; 
+  if (d.includes("kolhapur")) return "kolhapur"; // NEW KOLHAPUR CHECK
 
   // 2. THEN GENERIC CHECKS
   if (d.includes("assoicate") || d.includes("associate") || d.includes("assoc")) return "associate";
@@ -181,11 +191,12 @@ function detectTeamSlug(dept, role) {
   if (d.includes("payment")) return "payments-team";
   if (d.includes("tele")) return "tele";
 
-  // 3. FALLBACK ROLE CHECKS (Fix applied here for yk / y-k hyphen variations)
+  // 3. FALLBACK ROLE CHECKS
   if (r.includes("nagpur")) return "nagpur";           
   if (r.includes("silverline")) return "silverline";   
   if (r.includes("trafo")) return "trafo";             
   if (r.includes("yk") || r.includes("y-k")) return "yk"; 
+  if (r.includes("kolhapur")) return "kolhapur"; // NEW KOLHAPUR CHECK
 
   if (r.includes("associate")) return "associate";
   if (r.includes("field")) return "field";
@@ -329,6 +340,7 @@ export default function App() {
               <Route path="lead/:id" element={<LeadDetail />} />
               <Route path="masterleads" element={<Leads />} />
               <Route path="lead-management" element={<LeadManagement />} />
+              <Route path="solar-requests" element={<SolarRequests />} /> {/* --- NEW ROUTE --- */}
               <Route path="contacts" element={<Contacts />} />
               <Route path="companies" element={<Companies />} />
               <Route path="quotation-builder" element={<QuotationBuilder />} />
@@ -456,7 +468,7 @@ export default function App() {
                 </Route>
               </Route>
               
-              {/* --- NEW: Trafo Associates --- */}
+              {/* --- Trafo Associates --- */}
               <Route element={<RequireDeptAccess slug="trafo" />}>
                 <Route path="trafo/dashboard" element={<TrafoDashboard />} />
                 <Route path="trafo/leadinfo" element={<TrafoMyLeads />} />
@@ -470,7 +482,7 @@ export default function App() {
                 </Route>
               </Route>
 
-              {/* --- NEW: YK Associates --- */}
+              {/* --- YK Associates --- */}
               <Route element={<RequireDeptAccess slug="yk" />}>
                 <Route path="yk/dashboard" element={<YKDashboard />} />
                 <Route path="yk/leadinfo" element={<YKMyLeads />} />
@@ -481,6 +493,20 @@ export default function App() {
                 <Route element={<RequireHead redirectTo="/marketing/yk/dashboard" />}>
                   <Route path="yk/lead-manager" element={<YKLeadManager />} />
                   <Route path="yk/my-team" element={<YKMyTeam />} />
+                </Route>
+              </Route>
+
+              {/* --- NEW: Kolhapur Associates --- */}
+              <Route element={<RequireDeptAccess slug="kolhapur" />}>
+                <Route path="kolhapur/dashboard" element={<KolhapurDashboard />} />
+                <Route path="kolhapur/leadinfo" element={<KolhapurMyLeads />} />
+                <Route path="kolhapur/my-leads" element={<KolhapurMyLeads />} />
+                <Route path="kolhapur/my-activity" element={<KolhapurMyActivity />} />
+                <Route path="kolhapur/pending-followup" element={<KolhapurPendingFollowUp />} />
+                <Route path="kolhapur/reimbursement" element={<TechnicalReimbursement />} />
+                <Route element={<RequireHead redirectTo="/marketing/kolhapur/dashboard" />}>
+                  <Route path="kolhapur/lead-manager" element={<KolhapurLeadManager />} />
+                  <Route path="kolhapur/my-team" element={<KolhapurMyTeam />} />
                 </Route>
               </Route>
 
