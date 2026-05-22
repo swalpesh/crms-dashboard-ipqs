@@ -476,9 +476,9 @@ const TrafoAssociatesMyactivity = () => {
   // --- MODAL HANDLERS ---
   const handleOpenSchedule = (lead, isRescheduling = false) => { 
     setSelectedLead(lead); 
-    setScheduleDate(lead.trafo_associates_visit_date ? lead.trafo_associates_visit_date.split('T')[0] : '');
-    setScheduleTime(lead.trafo_associates_visit_time || '');
-    setSchedulePriority(lead.trafo_associates_visit_priority || 'Medium');
+    setScheduleDate(lead.trafo_associate_visit_date ? lead.trafo_associate_visit_date.split('T')[0] : '');
+    setScheduleTime(lead.trafo_associate_visit_time || '');
+    setSchedulePriority(lead.trafo_associate_visit_priority || 'Medium');
     setIsRescheduleMode(isRescheduling);
     setScheduleReason(isRescheduling ? 'Trafo Associates Visit Rescheduled.' : '');
     setOpenModal(true); 
@@ -536,10 +536,10 @@ const TrafoAssociatesMyactivity = () => {
         payload = {
           lead_id: selectedLead.lead_id,
           assigned_employee: currentUser?.employee_id || selectedLead.assigned_employee,
-          trafo_associates_visit_date: scheduleDate,
-          trafo_associates_visit_time: formattedTime,
-          trafo_associates_visit_priority: schedulePriority,
-          trafo_associates_visit_type: "Specific",
+          trafo_associate_visit_date: scheduleDate,
+          trafo_associate_visit_time: formattedTime,
+          trafo_associate_visit_priority: schedulePriority,
+          trafo_associate_visit_type: "Specific",
           reason: "Lead Scheduled for Trafo Associates Visit"
         };
       }
@@ -567,7 +567,7 @@ const TrafoAssociatesMyactivity = () => {
       setTimeout(async () => {
         try {
           const notificationPayload = {
-            to_emp_id: "IPQS-H25019",
+            to_emp_id: "IPQS-H25007",
             title: `Visit ${isRescheduleMode ? 'Rescheduled' : 'Scheduled'}`,
             message: `Lead ${selectedLead.company_name || selectedLead.lead_name} has been ${isRescheduleMode ? 'rescheduled' : 'scheduled'} by ${currentUser?.username || 'Employee'} for ${scheduleDate} at ${scheduleTime}.`
           };
@@ -646,7 +646,7 @@ const TrafoAssociatesMyactivity = () => {
 
       // Update Local State instantly
       setScheduledLeads(prevLeads => prevLeads.map(l => 
-        l.lead_id === lead.lead_id ? { ...l, trafo_associates_lead_visit_status: 'Started' } : l
+        l.lead_id === lead.lead_id ? { ...l, trafo_associate_lead_visit_status: 'Started' } : l
       ));
 
       setToast({ open: true, message: 'Visit started successfully!', severity: 'success' });
@@ -655,7 +655,7 @@ const TrafoAssociatesMyactivity = () => {
       setTimeout(async () => {
         try {
           const notificationPayload = {
-            to_emp_id: "IPQS-H25019",
+            to_emp_id: "IPQS-H25007",
             title: "Visit Started",
             message: `Lead ${companyDisplayName} visit started by ${currentUser?.username || 'Employee'}. Location captured.`
           };
@@ -751,7 +751,7 @@ const TrafoAssociatesMyactivity = () => {
       setScheduledLeads(prevLeads => prevLeads.map(l => 
         l.lead_id === endVisitLead.lead_id ? { 
             ...l, 
-            trafo_associates_lead_visit_status: 'Completed', 
+            trafo_associate_lead_visit_status: 'Completed', 
             lead_stage: nextDepartment,
             assigned_employee: isSolutions ? 'IPQS-H5000' : '0' 
         } : l
@@ -766,7 +766,7 @@ const TrafoAssociatesMyactivity = () => {
       // 5. Send Notification to target Head
       setTimeout(async () => {
         try {
-          const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25010'; 
+          const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25030'; 
           const deptName = nextDepartment.replace('-', ' ');
 
           const notificationPayload = {
@@ -799,10 +799,10 @@ const TrafoAssociatesMyactivity = () => {
   const displayedScheduledLeads = useMemo(() => {
     return scheduledLeads.filter((lead) => {
       // 1. Must match active date
-      if (!lead.trafo_associates_visit_date || !lead.trafo_associates_visit_date.startsWith(activeFilterDate)) return false;
+      if (!lead.trafo_associate_visit_date || !lead.trafo_associate_visit_date.startsWith(activeFilterDate)) return false;
 
       // 2. Filter by selected Status Filter
-      const currentStatus = lead.trafo_associates_lead_visit_status || 'Pending';
+      const currentStatus = lead.trafo_associate_lead_visit_status || 'Pending';
       if (statusFilter === 'All') return true;
       if (statusFilter === 'Pending' && currentStatus !== 'Started' && currentStatus !== 'Completed') return true;
       if (statusFilter === 'In Progress' && currentStatus === 'Started') return true;
@@ -843,10 +843,10 @@ const TrafoAssociatesMyactivity = () => {
   // Target Calculations (Based on Today's scheduled leads)
   const todaysTotalLeads = useMemo(() => {
     const todayStr = getTodayString();
-    return scheduledLeads.filter((lead) => lead.trafo_associates_visit_date && lead.trafo_associates_visit_date.startsWith(todayStr));
+    return scheduledLeads.filter((lead) => lead.trafo_associate_visit_date && lead.trafo_associate_visit_date.startsWith(todayStr));
   }, [scheduledLeads]);
 
-  const completedCount = todaysTotalLeads.filter(l => l.trafo_associates_lead_visit_status === 'Completed').length;
+  const completedCount = todaysTotalLeads.filter(l => l.trafo_associate_lead_visit_status === 'Completed').length;
   const totalVisitsCount = todaysTotalLeads.length;
   const progressPercent = totalVisitsCount > 0 ? (completedCount / totalVisitsCount) * 100 : 0;
 
@@ -1088,15 +1088,15 @@ const TrafoAssociatesMyactivity = () => {
               displayedScheduledLeads.map((lead) => (
                 <ActivityCard 
                   key={lead.lead_id}
-                  visitStatus={lead.trafo_associates_lead_visit_status} 
-                  time={formatTime(lead.trafo_associates_visit_time)} 
+                  visitStatus={lead.trafo_associate_lead_visit_status} 
+                  time={formatTime(lead.trafo_associate_visit_time)} 
                   title={lead.company_name || lead.lead_name} 
                   purpose={lead.lead_requirement || 'No specific requirement'} 
                   contact={lead.contact_person_name} 
                   phone={lead.contact_person_phone} 
                   location={lead.company_city && lead.company_state ? `${lead.company_city}, ${lead.company_state}` : 'Location N/A'} 
                   email={lead.company_email || lead.contact_person_email} 
-                  disableStart={!lead.trafo_associates_visit_date?.startsWith(todayStr)} // Disable if not today
+                  disableStart={!lead.trafo_associate_visit_date?.startsWith(todayStr)} // Disable if not today
                   inTrip={inTrip} 
                   onReschedule={() => handleOpenSchedule(lead, true)} // <--- Passes 'true' for isRescheduleMode
                   onStartVisit={() => handleStartVisit(lead)}
@@ -1199,13 +1199,13 @@ const TrafoAssociatesMyactivity = () => {
                    
                    <Grid container spacing={2} sx={{ mb: 2 }}>
                      <Grid item xs={12} sm={4}>
-                       <InfoItem icon={<Clock size={18} />} label="Visit Time" value={formatTime(lead.trafo_associates_visit_time || lead.visit_time)} />
+                       <InfoItem icon={<Clock size={18} />} label="Visit Time" value={formatTime(lead.trafo_associate_visit_time || lead.visit_time)} />
                      </Grid>
                      <Grid item xs={12} sm={4}>
-                       <InfoItem icon={<CalendarPlus size={18} />} label="Visit Date" value={lead.trafo_associates_visit_date || lead.visit_date ? new Date(lead.trafo_associates_visit_date || lead.visit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "Date Not Available"} />
+                       <InfoItem icon={<CalendarPlus size={18} />} label="Visit Date" value={lead.trafo_associate_visit_date || lead.visit_date ? new Date(lead.trafo_associate_visit_date || lead.visit_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "Date Not Available"} />
                      </Grid>
                      <Grid item xs={12} sm={4}>
-                       <InfoItem icon={<MapPin size={18} />} label="Start Location" value={lead.trafo_associates_visit_start_location || lead.start_location || "Coordinates Captured"} />
+                       <InfoItem icon={<MapPin size={18} />} label="Start Location" value={lead.trafo_associate_visit_start_location || lead.start_location || "Coordinates Captured"} />
                      </Grid>
                    </Grid>
                    

@@ -771,7 +771,7 @@ const NagpurAssociatesMyactivity = () => {
       // 5. Send Notification to target Head
       setTimeout(async () => {
         try {
-          const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25010'; 
+          const targetEmpId = isSolutions ? 'IPQS-H5000' : 'IPQS-H25030'; 
           const deptName = nextDepartment.replace('-', ' ');
 
           const notificationPayload = {

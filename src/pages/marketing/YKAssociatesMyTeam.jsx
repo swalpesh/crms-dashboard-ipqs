@@ -162,14 +162,14 @@ const LeadItem = ({ lead, onMapClick }) => {
     return themeColors.textSecondary; // Grey for pending/new
   };
 
-  const statusColor = getStatusColor(lead.corporate_lead_visit_status);
-  const isStarted = lead.corporate_lead_visit_status === 'Pending' || lead.corporate_lead_visit_status === 'Started';
-  const isCompleted = lead.corporate_lead_visit_status === 'Completed';
+  const statusColor = getStatusColor(lead.y_k_enterprises_associate_lead_visit_status);
+  const isStarted = lead.y_k_enterprises_associate_lead_visit_status === 'Pending' || lead.y_k_enterprises_associate_lead_visit_status === 'Started';
+  const isCompleted = lead.y_k_enterprises_associate_lead_visit_status === 'Completed';
 
   const timelineData = [
-    { label: "Assigned", time: formatDateTime(lead.corporate_visit_date, lead.corporate_visit_time), completed: true, showMap: false },
-    { label: "Visit Started", time: isStarted ? "On Site" : "Pending", completed: isStarted, showMap: isStarted && lead.corporate_visit_start_location },
-    { label: "Completed", time: isCompleted && lead.corporate_visit_complete_time ? formatDateTime(lead.corporate_visit_complete_time) : "Pending", completed: isCompleted, showMap: false }
+    { label: "Assigned", time: formatDateTime(lead.y_k_enterprises_associate_visit_date, lead.y_k_enterprises_associate_visit_time), completed: true, showMap: false },
+    { label: "Visit Started", time: isStarted ? "On Site" : "Pending", completed: isStarted, showMap: isStarted && lead.y_k_enterprises_associate_visit_start_location },
+    { label: "Completed", time: isCompleted && lead.y_k_enterprises_associate_visit_complete_time ? formatDateTime(lead.y_k_enterprises_associate_visit_complete_time) : "Pending", completed: isCompleted, showMap: false }
   ];
 
   return (
@@ -208,7 +208,7 @@ const LeadItem = ({ lead, onMapClick }) => {
 
         <Stack direction="row" spacing={1} alignItems="center">
           <Chip 
-            label={lead.corporate_lead_visit_status || 'Pending'} 
+            label={lead.y_k_enterprises_associate_lead_visit_status || 'Pending'} 
             size="small" 
             sx={{ 
                 bgcolor: expanded ? statusColor : `${statusColor}22`, 
@@ -261,7 +261,7 @@ const LeadItem = ({ lead, onMapClick }) => {
                         {event.showMap && (
                             <IconButton 
                                 size="small" 
-                                onClick={(e) => { e.stopPropagation(); onMapClick(lead.corporate_visit_start_location); }}
+                                onClick={(e) => { e.stopPropagation(); onMapClick(lead.y_k_enterprises_associate_visit_start_location); }}
                                 sx={{ 
                                     color: '#fff', 
                                     bgcolor: themeColors.accentBlue, 
@@ -324,7 +324,7 @@ const TeamCard = ({ employee }) => {
                 {(employee.employee_name || employee.username || employee.email || 'Unknown').split('@')[0]}
               </Typography>
               <Typography variant="caption" color="rgba(255,255,255,0.5)" display="block" noWrap sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
-                {(employee.role_id || 'Corporate Employee').replace(/-/g, ' ')}
+                {(employee.role_id || ' ').replace(/-/g, ' ')}
               </Typography>
             </Box>
             <Chip 
@@ -381,8 +381,8 @@ export default function TeamOverview() {
         if (!token) throw new Error("Authentication token missing");
 
         const endpoint = tab === 0 
-            ? `${API_BASE_URL}/api/ykaleads/ykassociates/todays-all-visits`
-            : `${API_BASE_URL}/api/ykaleads/ykassociates/all-leads`;
+            ? `${API_BASE_URL}/api/ykaleads/ykenterprisesassociates/todays-all-visits`
+            : `${API_BASE_URL}/api/ykaleads/ykenterprisesassociates/all-leads`;
 
         const response = await fetch(endpoint, {
             method: "GET",
@@ -426,7 +426,7 @@ export default function TeamOverview() {
               Team Overview
             </Typography>
             <Typography variant="body1" color={themeColors.textSecondary} sx={{ mt: 0.5 }}>
-              Monitor Corporate employees and their assigned tasks in real-time
+              Monitor Employees and their assigned tasks in real-time
             </Typography>
           </Box>
 

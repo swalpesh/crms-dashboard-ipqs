@@ -209,7 +209,7 @@ const TrafoAssociatesLeadManager = () => {
   const handleCompleteAction = async () => {
     // 1. Validation
     if (!selectedLead) return setToast({ open: true, message: 'Please select a lead from the Pending Queue.', severity: 'warning' });
-    if (!selectedEmployee) return setToast({ open: true, message: 'Please select a Corporate person.', severity: 'warning' });
+    if (!selectedEmployee) return setToast({ open: true, message: 'Please select a  person.', severity: 'warning' });
     if (!visitDate || !visitTime) return setToast({ open: true, message: 'Please select date and time.', severity: 'warning' });
 
     setAssigning(true);
@@ -228,10 +228,10 @@ const TrafoAssociatesLeadManager = () => {
       const payload = {
         lead_id: currentLead.lead_id,
         assigned_employee: currentEmployee.employee_id,
-        corporate_visit_date: visitDate,
-        corporate_visit_time: formattedTime,
-        corporate_visit_priority: priority,
-        corporate_visit_type: "Specific",
+        trafo_associate_visit_date: visitDate,
+        trafo_associate_visit_time: formattedTime,
+        trafo_associate_visit_priority: priority,
+        trafo_associate_visit_type: "Specific",
         reason: `New Lead Assigned to You -> ${currentLead.lead_id} (${currentLead.lead_name || currentLead.company_name})`
       };
 

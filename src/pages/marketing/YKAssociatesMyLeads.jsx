@@ -252,11 +252,7 @@ const YKAssociatesMyLeads = () => {
                     let notifyTitle = "New Lead Created";
                     let notifyMessage = `You have created a new lead: ${payload.lead_name}`;
 
-                    if (isTeleMarketing) {
-                        notifyTo = "IPQS-E25017";
-                        notifyTitle = "New Lead Needs Assignment";
-                        notifyMessage = `Lead ${payload.lead_name} created by Tele Marketing Person (${currentUser?.username}). Needs to be assigned.`;
-                    }
+                    
 
                     await fetch(`${API_BASE_URL}/api/notifications/send`, {
                         method: 'POST',

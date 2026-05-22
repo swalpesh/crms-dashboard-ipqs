@@ -564,7 +564,7 @@ const TrafoAssociatesMyLeads = () => {
                             size="small"
                             sx={{ minWidth: 0, p: '4px 10px', textTransform: 'none', color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.3)', borderRadius: 2, fontSize: 12, '&:hover': { borderColor: '#3b82f6', bgcolor: 'rgba(59, 130, 246, 0.1)' } }}
                           >
-                            View
+                            View 
                           </Button>
                         </Box>
                     </Box>

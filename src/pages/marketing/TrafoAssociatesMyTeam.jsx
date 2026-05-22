@@ -162,14 +162,14 @@ const LeadItem = ({ lead, onMapClick }) => {
     return themeColors.textSecondary; // Grey for pending/new
   };
 
-  const statusColor = getStatusColor(lead.corporate_lead_visit_status);
-  const isStarted = lead.corporate_lead_visit_status === 'Pending' || lead.corporate_lead_visit_status === 'Started';
-  const isCompleted = lead.corporate_lead_visit_status === 'Completed';
+  const statusColor = getStatusColor(lead.trafo_associate_lead_visit_status);
+  const isStarted = lead.trafo_associate_lead_visit_status === 'Pending' || lead.trafo_associate_lead_visit_status === 'Started';
+  const isCompleted = lead.trafo_associate_lead_visit_status === 'Completed';
 
   const timelineData = [
-    { label: "Assigned", time: formatDateTime(lead.corporate_visit_date, lead.corporate_visit_time), completed: true, showMap: false },
-    { label: "Visit Started", time: isStarted ? "On Site" : "Pending", completed: isStarted, showMap: isStarted && lead.corporate_visit_start_location },
-    { label: "Completed", time: isCompleted && lead.corporate_visit_complete_time ? formatDateTime(lead.corporate_visit_complete_time) : "Pending", completed: isCompleted, showMap: false }
+    { label: "Assigned", time: formatDateTime(lead.trafo_associate_visit_date, lead.trafo_associate_visit_time), completed: true, showMap: false },
+    { label: "Visit Started", time: isStarted ? "On Site" : "Pending", completed: isStarted, showMap: isStarted && lead.trafo_associate_visit_start_location },
+    { label: "Completed", time: isCompleted && lead.trafo_associate_visit_complete_time ? formatDateTime(lead.trafo_associate_visit_complete_time) : "Pending", completed: isCompleted, showMap: false }
   ];
 
   return (
@@ -208,7 +208,7 @@ const LeadItem = ({ lead, onMapClick }) => {
 
         <Stack direction="row" spacing={1} alignItems="center">
           <Chip 
-            label={lead.corporate_lead_visit_status || 'Pending'} 
+            label={lead.trafo_associate_lead_visit_status || 'Pending'} 
             size="small" 
             sx={{ 
                 bgcolor: expanded ? statusColor : `${statusColor}22`, 
@@ -261,7 +261,7 @@ const LeadItem = ({ lead, onMapClick }) => {
                         {event.showMap && (
                             <IconButton 
                                 size="small" 
-                                onClick={(e) => { e.stopPropagation(); onMapClick(lead.corporate_visit_start_location); }}
+                                onClick={(e) => { e.stopPropagation(); onMapClick(lead.trafo_associate_visit_start_location); }}
                                 sx={{ 
                                     color: '#fff', 
                                     bgcolor: themeColors.accentBlue, 
@@ -324,7 +324,7 @@ const TeamCard = ({ employee }) => {
                 {(employee.employee_name || employee.username || employee.email || 'Unknown').split('@')[0]}
               </Typography>
               <Typography variant="caption" color="rgba(255,255,255,0.5)" display="block" noWrap sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
-                {(employee.role_id || 'Corporate Employee').replace(/-/g, ' ')}
+                {(employee.role_id || '-').replace(/-/g, ' ')}
               </Typography>
             </Box>
             <Chip 
@@ -426,7 +426,7 @@ export default function TeamOverview() {
               Team Overview
             </Typography>
             <Typography variant="body1" color={themeColors.textSecondary} sx={{ mt: 0.5 }}>
-              Monitor Corporate employees and their assigned tasks in real-time
+              Monitor employees and their assigned tasks in real-time
             </Typography>
           </Box>
 
@@ -451,7 +451,7 @@ export default function TeamOverview() {
                 '& .MuiTab-root': { 
                     color: 'rgba(255,255,255,0.5)', 
                     fontWeight: 600, 
-                    textTransform: 'none',
+                    textTransform : 'none',
                     fontSize: '1rem',
                     '&.Mui-selected': { color: '#fff' } 
                 } 
