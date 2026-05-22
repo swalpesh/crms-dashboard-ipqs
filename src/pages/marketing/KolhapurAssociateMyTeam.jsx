@@ -324,7 +324,7 @@ const TeamCard = ({ employee }) => {
                 {(employee.employee_name || employee.username || employee.email || 'Unknown').split('@')[0]}
               </Typography>
               <Typography variant="caption" color="rgba(255,255,255,0.5)" display="block" noWrap sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
-                {(employee.role_id || 'Corporate Employee').replace(/-/g, ' ')}
+                {(employee.role_id || ' ').replace(/-/g, ' ')}
               </Typography>
             </Box>
             <Chip 

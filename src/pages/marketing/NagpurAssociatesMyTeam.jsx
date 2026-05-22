@@ -324,7 +324,7 @@ const TeamCard = ({ employee }) => {
                 {(employee.employee_name || employee.username || employee.email || 'Unknown').split('@')[0]}
               </Typography>
               <Typography variant="caption" color="rgba(255,255,255,0.5)" display="block" noWrap sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
-                {(employee.role_id || 'Corporate Employee').replace(/-/g, ' ')}
+                {(employee.role_id || ' ').replace(/-/g, ' ')}
               </Typography>
             </Box>
             <Chip 
@@ -426,7 +426,7 @@ export default function TeamOverview() {
               Team Overview
             </Typography>
             <Typography variant="body1" color={themeColors.textSecondary} sx={{ mt: 0.5 }}>
-              Monitor Corporate employees and their assigned tasks in real-time
+              Monitor employees and their assigned tasks in real-time
             </Typography>
           </Box>
 
