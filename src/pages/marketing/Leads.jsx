@@ -2,13 +2,13 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box, Typography, Button, Chip, CircularProgress, Avatar, InputBase, Snackbar, Alert,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, FormControl, MenuItem
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, FormControl, MenuItem, Checkbox, Tooltip
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 // Phosphor Icons
-import { CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
+import { CaretRight, MagnifyingGlass, Trash } from "@phosphor-icons/react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
@@ -69,8 +69,8 @@ const glassPanel = {
   borderRadius: '16px' 
 };
 
-// PERFECT ALIGNMENT GRID: Fixed widths for buttons/IDs/Chips, Flexible (fr) for text.
-const tableGridCols = { xs: '1fr', md: '130px 80px 2fr 2fr 100px 100px 2.5fr' };
+// PERFECT ALIGNMENT GRID: Adjusted to include 50px for the new Checkbox column
+const tableGridCols = { xs: '1fr', md: '50px 110px 80px 2fr 2fr 100px 100px 2.5fr' };
 
 /* ================================ main page ================================ */
 export default function MasterLeads() {
@@ -86,6 +86,10 @@ export default function MasterLeads() {
   // Search & Filter
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("All");
+
+  // Selection & Bulk Delete State
+  const [selectedLeadIds, setSelectedLeadIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Assign Modal State
   const [assignOpen, setAssignOpen] = useState(false);
@@ -132,6 +136,9 @@ export default function MasterLeads() {
       const json = await res.json();
       const arr = Array.isArray(json?.leads) ? json.leads : [];
       setNewLeads(arr.map(mapLead)); 
+      
+      // Clear selections on refresh
+      setSelectedLeadIds([]);
     } catch (e) { 
       console.error(e); 
       setNewLeads([]);
@@ -177,12 +184,13 @@ export default function MasterLeads() {
       if (assignDept === "Field-Marketing") targetEmpId = "IPQS-H25002";
       else if (assignDept === "Associate-Marketing") targetEmpId = "IPQS-H25003";
       else if (assignDept === "Corporate-Marketing") targetEmpId = "IPQS-H25019";
-      else if (assignDept === "Technical-Team") targetEmpId = "IPQS-H25010";
+      else if (assignDept === "Technical-Team") targetEmpId = "IPQS-H25030";
       else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000";
       else if (assignDept === "Nagpur-Associates") targetEmpId = "IPQS-E25004";
       else if (assignDept === "Silverline-Associates") targetEmpId = "IPQS-H25009";
       else if (assignDept === "Trafo-Associates") targetEmpId = "IPQS-H25007";
       else if (assignDept === "Y-k-Enterprises-Associates") targetEmpId = "IPQS-H25008";
+      else if (assignDept === "Kolhapur-Associates") targetEmpId = "IPQS-H25010";
 
       if (targetEmpId) {
         setTimeout(async () => {
@@ -211,6 +219,64 @@ export default function MasterLeads() {
     }
   };
 
+  // --- MULTIPLE DELETE LOGIC ---
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedLeadIds(filtered.map(l => l.id));
+    } else {
+      setSelectedLeadIds([]);
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    setSelectedLeadIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedLeadIds.length === 0) return;
+    
+    // Quick confirmation dialog
+    if (!window.confirm(`Are you sure you want to delete ${selectedLeadIds.length} selected lead(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    const token = getToken();
+    setIsDeleting(true);
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/leads/bulk-delete`, {
+        method: "DELETE",
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json" 
+        },
+        body: JSON.stringify({ lead_ids: selectedLeadIds }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to delete leads");
+      }
+
+      // Cache count before clearing array
+      const deletedCount = selectedLeadIds.length;
+      
+      setSelectedLeadIds([]); // Clear selections
+      await fetchAllLeads();  // Refresh the table
+      
+      setSnack({ open: true, type: "success", msg: `Successfully deleted ${deletedCount} lead(s).` });
+
+    } catch (error) {
+      setSnack({ open: true, type: "error", msg: error.message || "An error occurred while deleting leads." });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // --- STYLING HELPERS ---
   const getPriorityColor = (p) => {
     switch(p?.toLowerCase()) {
         case 'high': return { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' };
@@ -272,6 +338,9 @@ export default function MasterLeads() {
                     <option value="Silverline-Associates">Silverline Associates</option>
                     <option value="Trafo-Associates">Trafo Associates</option>
                     <option value="Y-k-Enterprises-Associates">Y-k Enterprises Associates</option>
+                    <option value="Kolhapur-Associates">Kolhapur Associates</option>
+                    <option value="Lost">Lost</option>
+                    <option value="Won">Won</option>
                   </select>
                 </div>
                 <div className="mb-4">
@@ -321,7 +390,31 @@ export default function MasterLeads() {
           )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
             
-            {/* NEW DEPARTMENT FILTER */}
+            {/* BULK DELETE BUTTON (Dynamic Visibility) */}
+            {selectedLeadIds.length > 0 && (
+              <Tooltip title={`Delete ${selectedLeadIds.length} Selected`}>
+                <Button 
+                  variant="contained" 
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                  sx={{ 
+                    minWidth: '40px',
+                    width: '40px',
+                    height: '40px',
+                    p: 0,
+                    borderRadius: '8px', 
+                    bgcolor: 'rgba(239, 68, 68, 0.15)',
+                    color: themeColors.danger,
+                    border: `1px solid rgba(239, 68, 68, 0.3)`,
+                    '&:hover': { bgcolor: themeColors.danger, color: '#fff' }
+                  }}
+                >
+                  {isDeleting ? <CircularProgress size={18} color="inherit" /> : <Trash size={20} weight="fill" />}
+                </Button>
+              </Tooltip>
+            )}
+
+            {/* DEPARTMENT FILTER */}
             <TextField 
                 select 
                 size="small" 
@@ -353,6 +446,15 @@ export default function MasterLeads() {
                     color: '#a0a0c0', fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', 
                     position: 'sticky', top: 0, zIndex: 2, backdropFilter: 'blur(10px)', background: 'rgba(25, 25, 55, 0.9)', pl: 2, pr: 2 
                 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                      <Checkbox 
+                        size="small"
+                        sx={{ color: 'rgba(255,255,255,0.5)', '&.Mui-checked': { color: themeColors.blue } }}
+                        checked={filtered.length > 0 && selectedLeadIds.length === filtered.length}
+                        indeterminate={selectedLeadIds.length > 0 && selectedLeadIds.length < filtered.length}
+                        onChange={handleSelectAll}
+                      />
+                    </Box>
                     <Box>Assign</Box>
                     <Box>Lead ID</Box>
                     <Box>Company & Contact</Box>
@@ -370,15 +472,29 @@ export default function MasterLeads() {
             ) : (
                 filtered.map(lead => {
                     const priorityStyle = getPriorityColor(lead.priority);
+                    const isChecked = selectedLeadIds.includes(lead.id);
+
                     return (
                         <Box key={lead.id} sx={{ 
                             display: 'grid', 
                             gridTemplateColumns: tableGridCols, 
-                            alignItems: 'center', gap: { xs: 2, md: 2 }, p: 2, mb: 1, mx: { md: 2 },
-                            bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 3, transition: 'all 0.2s ease', border: '1px solid transparent', 
-                            '&:hover': { bgcolor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.2)' } 
+                            alignItems: 'center', gap: { xs: 2, md: 2 }, p: { xs: 2, md: '8px 16px' }, mb: 1, mx: { md: 2 },
+                            bgcolor: isChecked ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255,255,255,0.02)', 
+                            borderRadius: 3, transition: 'all 0.2s ease', 
+                            border: isChecked ? `1px solid ${themeColors.blue}` : '1px solid transparent', 
+                            '&:hover': { bgcolor: isChecked ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.08)', borderColor: isChecked ? themeColors.blue : 'rgba(255,255,255,0.2)' } 
                         }}>
                             
+                            {/* Checkbox */}
+                            <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'center' } }}>
+                              <Checkbox 
+                                size="small"
+                                sx={{ color: 'rgba(255,255,255,0.3)', '&.Mui-checked': { color: themeColors.blue } }}
+                                checked={isChecked}
+                                onChange={() => handleSelectOne(lead.id)}
+                              />
+                            </Box>
+
                             {/* Assign Dept Button */}
                             <Box>
                                 <Button variant="outlined" size="small" onClick={() => openAssign(lead)} sx={{ color: themeColors.blue, borderColor: 'rgba(59,130,246,0.3)', textTransform: 'none', borderRadius: 2, whiteSpace: 'nowrap', py: 0.5, px: 1 }}>

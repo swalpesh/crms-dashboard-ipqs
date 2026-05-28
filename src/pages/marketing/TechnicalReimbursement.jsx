@@ -164,6 +164,18 @@ const statusStyle = (status) => {
   return { background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.3)' };
 };
 
+// --- HELPER: ROBUST 7-DAY CHECK ---
+const isClaimExpired = (endDateStr) => {
+  if (!endDateStr) return false;
+  
+  const endDate = new Date(endDateStr);
+  if (isNaN(endDate.getTime())) return false; // Fallback for invalid dates
+
+  // Deadline is exactly 7 days after the end date timestamp
+  const deadline = new Date(endDate.getTime() + (7 * 24 * 60 * 60 * 1000));
+  return new Date() > deadline;
+};
+
 // --- MAIN COMPONENT ---
 const TechnicalReimbursement = () => {
   const theme = useTheme();
@@ -220,18 +232,6 @@ const TechnicalReimbursement = () => {
   const expenseCategories = [
     'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Travel', 'Accommodation', 'Other'
   ];
-
-  // --- HELPER: CHECK IF CLAIM IS EXPIRED (>24 HRS AFTER END DATE) ---
-  const isClaimExpired = (endDateStr) => {
-    if (!endDateStr) return false;
-
-    const [year, month, day] = endDateStr.split('-');
-    const endDate = new Date(year, month - 1, day);
-    endDate.setHours(23, 59, 59, 999);
-
-    const deadline = new Date(endDate.getTime() + (24 * 60 * 60 * 1000));
-    return new Date() > deadline;
-  };
 
   // --- FETCH SUMMARY API ---
   const fetchSummary = async () => {
@@ -307,7 +307,17 @@ const TechnicalReimbursement = () => {
         endpoint = "/api/v1/employees/department/solution-team";
       } else if (role.includes("Quotation-Team")) {
         endpoint = "/api/v1/employees/department/quotation-team";
-      }
+      } else if (role.includes("Kolhapur-Associates")) {
+        endpoint = "/api/v1/employees/department/kolhapur-associates";
+      } else if (role.includes("Nagpur-Associates")) {
+        endpoint = "/api/v1/employees/department/nagpur-associates";
+      } else if (role.includes("Silverline-Associates")) {
+        endpoint = "/api/v1/employees/department/silverline-associates";
+      } else if (role.includes("Trafo-Associates")) {
+        endpoint = "/api/v1/employees/department/trafo-associates";
+      } else if (role.includes("Y-k-Enterprises-Associates")) {
+        endpoint = "/api/v1/employees/department/y-k-enterprises-associates";
+      } 
 
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "GET",
@@ -428,12 +438,13 @@ const TechnicalReimbursement = () => {
   };
 
   // --- Adapter: Convert API Data to Modal Format ---
-  const adaptGroupedDataToTrip = (row) => {
+  const adaptGroupedDataToTrip = (row, isExpired) => {
     return {
       id: row.reimbursement_id,
       company: row.company_name,
       date: row.start_date,
       status: row.res_status || 'Pending',
+      isExpired: isExpired,
       details: {
         advance: '₹0.00',
         submissionDate: row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB') : '-'
@@ -441,8 +452,8 @@ const TechnicalReimbursement = () => {
     };
   };
 
-  const handleViewOpen = (row) => {
-    setSelectedTrip(adaptGroupedDataToTrip(row));
+  const handleViewOpen = (row, isExpired) => {
+    setSelectedTrip(adaptGroupedDataToTrip(row, isExpired));
     setViewOpen(true);
     fetchTripExpenses(row.reimbursement_id);
   };
@@ -608,7 +619,9 @@ const TechnicalReimbursement = () => {
                   filteredReimbursements.map((row, index) => {
                     const status = row.res_status || 'Pending';
                     const statusConfig = statusStyle(status);
-                    const isExpired = isClaimExpired(row.end_date); // Check 24hr expiration
+                    
+                    // --- APPLY ROBUST 7-DAY LOGIC HERE ---
+                    const isExpired = isClaimExpired(row.end_date);
 
                     return (
                       <TableRow key={index} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' }, '& td': { borderBottom: index === filteredReimbursements.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.03)' } }}>
@@ -636,14 +649,18 @@ const TechnicalReimbursement = () => {
                             <Button
                               variant="outlined"
                               size="small"
-                              disabled={isExpired}
-                              onClick={() => handleViewOpen(row)}
+                              // Dynamic fallback: User can always view their history, but adding is disabled
+                              onClick={() => handleViewOpen(row, isExpired)}
                               sx={{
                                 borderRadius: '20px',
                                 textTransform: 'none',
                                 ...(isExpired ? {
-                                  borderColor: 'rgba(255,255,255,0.1) !important',
-                                  color: 'rgba(255,255,255,0.3) !important',
+                                  borderColor: 'rgba(255,255,255,0.2)',
+                                  color: 'rgba(255,255,255,0.6)',
+                                  '&:hover': {
+                                    borderColor: 'rgba(255,255,255,0.4)',
+                                    background: 'rgba(255,255,255,0.05)',
+                                  }
                                 } : {
                                   borderColor: 'rgba(59, 130, 246, 0.5)',
                                   color: '#60a5fa',
@@ -653,7 +670,7 @@ const TechnicalReimbursement = () => {
                                   }
                                 })
                               }}>
-                              Put Claims
+                              {isExpired ? 'View Trip' : 'Put Claims'}
                             </Button>
                           </Box>
                         </TableCell>
@@ -735,6 +752,13 @@ const TechnicalReimbursement = () => {
 
           <DialogContent sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
 
+            {/* EXPIRATION WARNING BANNER */}
+            {selectedTrip.isExpired && (
+              <Alert severity="warning" sx={{ borderRadius: '12px', bgcolor: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                 The 7-day claim window for this trip has expired. You can view your existing expenses, but cannot submit new ones.
+              </Alert>
+            )}
+
             {/* Top Status Card - Full Width Row Layout */}
             <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '16px', p: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
               <Typography variant="subtitle1" color="white" fontWeight={600} mb={2}>Reimbursement Status</Typography>
@@ -778,15 +802,19 @@ const TechnicalReimbursement = () => {
             <Box sx={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', p: 3, bgcolor: 'rgba(255,255,255,0.02)' }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2}>
                 <Typography variant="subtitle1" color="white" fontWeight={600}>Trip Expenses</Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={handleExpenseModalOpen}
-                  sx={{ ...secondaryBtnStyle, py: 0.5, px: 2, fontSize: '13px' }}
-                >
-                  Add Expense
-                </Button>
+                
+                {/* HIDE Add Expense Button if 7 days have passed */}
+                {!selectedTrip.isExpired && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={handleExpenseModalOpen}
+                    sx={{ ...secondaryBtnStyle, py: 0.5, px: 2, fontSize: '13px' }}
+                  >
+                    Add Expense
+                  </Button>
+                )}
               </Box>
 
               <TableContainer sx={{ maxHeight: 300 }}>

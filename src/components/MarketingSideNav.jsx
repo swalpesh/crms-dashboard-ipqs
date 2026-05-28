@@ -331,13 +331,17 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
       items.push({ path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" });
       items.push({ path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" });
     }
+    
+    items.push({ path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" });
+    
     return items;
   };
 
   // --- CUSTOM SOLUTION TEAM ITEMS ---
   const solutionTeamItems = [
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
-    { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "My Leads" }
+    { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "My Leads" },
+    { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" }
   ];
 
   // --- CUSTOM QUOTATION TEAM ITEMS ---
