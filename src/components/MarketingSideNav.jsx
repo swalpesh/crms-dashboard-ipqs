@@ -28,7 +28,6 @@ import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import EditCalendarOutlinedIcon from "@mui/icons-material/EditCalendarOutlined"; 
 import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
 import ReceiptIcon from '@mui/icons-material/Receipt';
-import TrackChangesIcon from '@mui/icons-material/TrackChanges';
 
 import logoUrl from "../assets/logo.png";
 
@@ -293,7 +292,6 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
     { path: "/vouchers", icon: <ReceiptIcon />, label: "Vouchers" },
     { path: "/employees", icon: <GroupsOutlinedIcon />, label: "Employee Profiles" },
-    { path: "/tracker", icon: <TrackChangesIcon />, label: "Expense Tracker" },
   ];
 
   // --- CUSTOM TECHNICAL TEAM ITEMS ---

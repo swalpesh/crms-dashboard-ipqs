@@ -37,12 +37,11 @@ import LeadManager from "./pages/marketing/LeadManager.jsx";
 import SolarRequests from "./pages/marketing/SolarRequests.jsx"; 
 
 // --- NEW IMPORTS: Reimbursement Department ---
-import ReimbursementDashboard from "./pages/marketing/ReimbursementDashboard.jsx"; // Updated
-import VouchersList from "./pages/marketing/ReimbursementVouchers.jsx"; // Updated
+import ReimbursementDashboard from "./pages/marketing/ReimbursementDashboard.jsx"; 
+import VouchersList from "./pages/marketing/ReimbursementVouchers.jsx"; 
 import VoucherDetail from "./pages/marketing/VoucherDetail.jsx";
 import EmployeeProfiles from "./pages/marketing/EmployeeProfiles.jsx";
 import EmployeeDetail from "./pages/marketing/EmployeeDetail.jsx";
-import ExpenseTracker from "./pages/marketing/ExpenseTracker.jsx";
 
 // Tele
 import TeleDashboard from "./pages/marketing/TeleDashboard.jsx";
@@ -364,7 +363,6 @@ export default function App() {
                 <Route path="reimbursement/vouchers/:id" element={<VoucherDetail />} />
                 <Route path="reimbursement/employees" element={<EmployeeProfiles />} />
                 <Route path="reimbursement/employees/:id" element={<EmployeeDetail />} />
-                <Route path="reimbursement/tracker" element={<ExpenseTracker />} />
               </Route>
 
               {/* Tele */}
