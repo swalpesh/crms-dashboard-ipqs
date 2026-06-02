@@ -23,9 +23,12 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'; 
 import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 
-// --- NEW ICONS FOR TECHNICAL TEAM ---
+// --- NEW ICONS FOR TECHNICAL TEAM & REIMBURSEMENT ---
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"; 
 import EditCalendarOutlinedIcon from "@mui/icons-material/EditCalendarOutlined"; 
+import AccountBalanceWalletOutlinedIcon from "@mui/icons-material/AccountBalanceWalletOutlined";
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import TrackChangesIcon from '@mui/icons-material/TrackChanges';
 
 import logoUrl from "../assets/logo.png";
 
@@ -52,6 +55,7 @@ function detectTeamSlug(dept, role) {
     "solutions-team": "solution",
     "quotation-team": "quotation-team",
     "payments-team": "payments-team",
+    "reimbursement-team": "reimbursement", // NEW EXACT MATCH
   };
   if (exact[d]) return exact[d];
 
@@ -63,6 +67,7 @@ function detectTeamSlug(dept, role) {
   if (d.includes("kolhapur")) return "kolhapur";                 
 
   // Generic checks
+  if (d.includes("reimbursement")) return "reimbursement"; // NEW GENERIC CHECK
   if (d.includes("assoicate") || d.includes("associate") || d.includes("assoc")) return "associate";
   if (d.includes("field")) return "field";
   if (d.includes("corporate")) return "corporate";
@@ -79,6 +84,7 @@ function detectTeamSlug(dept, role) {
   if (r.includes("yk") || r.includes("y-k")) return "yk";  
   if (r.includes("kolhapur")) return "kolhapur";     
 
+  if (r.includes("reimbursement")) return "reimbursement"; // NEW ROLE CHECK
   if (r.includes("associate")) return "associate";
   if (r.includes("field")) return "field";
   if (r.includes("corporate")) return "corporate";
@@ -222,7 +228,8 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const silverlineActive = /\/marketing\/silverline\//.test(pathname);
   const trafoActive = /\/marketing\/trafo\//.test(pathname);         
   const ykActive = /\/marketing\/yk\//.test(pathname);               
-  const kolhapurActive = /\/marketing\/kolhapur\//.test(pathname);             
+  const kolhapurActive = /\/marketing\/kolhapur\//.test(pathname);
+  const reimbActive = /\/marketing\/reimbursement\//.test(pathname); // NEW REIMBURSEMENT CHECK             
 
   // open state (Strictly defaults to active route only, ignoring localStorage)
   const [openTele, setOpenTele] = useState(teleActive);
@@ -238,6 +245,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   const [openTrafo, setOpenTrafo] = useState(trafoActive);           
   const [openYk, setOpenYk] = useState(ykActive);                    
   const [openKolhapur, setOpenKolhapur] = useState(kolhapurActive); 
+  const [openReimb, setOpenReimb] = useState(reimbActive); // NEW STATE
 
   // Sync open state when navigation happens
   useEffect(() => {
@@ -254,7 +262,8 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
     setOpenTrafo((prev) => prev || trafoActive);               
     setOpenYk((prev) => prev || ykActive);                     
     setOpenKolhapur((prev) => prev || kolhapurActive);         
-  }, [teleActive, fieldActive, assocActive, corpActive, techActive, solActive, qTeamActive, payTeamActive, nagpurActive, silverlineActive, trafoActive, ykActive, kolhapurActive]);
+    setOpenReimb((prev) => prev || reimbActive); // NEW SYNC
+  }, [teleActive, fieldActive, assocActive, corpActive, techActive, solActive, qTeamActive, payTeamActive, nagpurActive, silverlineActive, trafoActive, ykActive, kolhapurActive, reimbActive]);
 
   // --- STANDARD ITEMS ---
   const mkTeamItems = (includeMyTeam, roleSlug) => {
@@ -278,6 +287,14 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   };
   
   const stdItemsForUser = mkTeamItems(userIsHead, userSlug);
+
+  // --- CUSTOM REIMBURSEMENT ITEMS ---
+  const reimbursementItems = [
+    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
+    { path: "/vouchers", icon: <ReceiptIcon />, label: "Vouchers" },
+    { path: "/employees", icon: <GroupsOutlinedIcon />, label: "Employee Profiles" },
+    { path: "/tracker", icon: <TrackChangesIcon />, label: "Expense Tracker" },
+  ];
 
   // --- CUSTOM TECHNICAL TEAM ITEMS ---
   const techTeamItems = (isHeadView) => [
@@ -417,6 +434,11 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
             <NavItem to="/marketing/lead-management" icon={<ManageAccountsIcon />} label="Lead Management" onNavigate={onNavigate} />
             <NavItem to="/marketing/solar-requests" icon={<LightbulbOutlinedIcon />} label="Solar Requests" onNavigate={onNavigate} />
 
+            {/* --- REIMBURSEMENT HEAD VIEW --- */}
+            <Group title="Reimbursement Dept" icon={<AccountBalanceWalletOutlinedIcon />} basePath="/marketing/reimbursement"
+                  open={openReimb} setOpen={setOpenReimb} selected={/\/marketing\/reimbursement\//.test(pathname)}
+                  onNavigate={onNavigate} items={reimbursementItems} />
+
             <Group title="Field Marketing" icon={<MapOutlinedIcon />} basePath="/marketing/field"
                   open={openField} setOpen={setOpenField} selected={/\/marketing\/field\//.test(pathname)}
                   onNavigate={onNavigate} items={[ 
@@ -482,6 +504,13 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
           </>
         ) : (
           <>
+            {/* --- REIMBURSEMENT USER VIEW --- */}
+            {userSlug === "reimbursement" && (
+              <Group title="Reimbursement Dept" icon={<AccountBalanceWalletOutlinedIcon />} basePath="/marketing/reimbursement"
+                     open={openReimb} setOpen={setOpenReimb} selected={/\/marketing\/reimbursement\//.test(pathname)}
+                     onNavigate={onNavigate} items={reimbursementItems} />
+            )}
+
             {userSlug === "tele" && (
               <Group title="Tele Marketing" icon={<SupportAgentOutlinedIcon />} basePath="/marketing/tele"
                      open={openTele} setOpen={setOpenTele} selected={/\/marketing\/tele\//.test(pathname)}
