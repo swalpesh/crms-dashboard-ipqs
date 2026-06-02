@@ -34,7 +34,15 @@ import MyActivity from "./pages/marketing/MyActivity.jsx";
 import PendingFollowup from "./pages/marketing/PendingFollowup.jsx"; 
 import FieldFollowUps from "./pages/marketing/FieldFollowUps.jsx";
 import LeadManager from "./pages/marketing/LeadManager.jsx"; 
-import SolarRequests from "./pages/marketing/SolarRequests.jsx"; // --- NEW IMPORT ---
+import SolarRequests from "./pages/marketing/SolarRequests.jsx"; 
+
+// --- NEW IMPORTS: Reimbursement Department ---
+import ReimbursementDashboard from "./pages/marketing/ReimbursementDashboard.jsx"; // Updated
+import VouchersList from "./pages/marketing/ReimbursementVouchers.jsx"; // Updated
+import VoucherDetail from "./pages/marketing/VoucherDetail.jsx";
+import EmployeeProfiles from "./pages/marketing/EmployeeProfiles.jsx";
+import EmployeeDetail from "./pages/marketing/EmployeeDetail.jsx";
+import ExpenseTracker from "./pages/marketing/ExpenseTracker.jsx";
 
 // Tele
 import TeleDashboard from "./pages/marketing/TeleDashboard.jsx";
@@ -171,6 +179,7 @@ function detectTeamSlug(dept, role) {
     "solutions-team": "solution",
     "quotation-team": "quotation-team",
     "payments-team": "payments-team",
+    "reimbursement-team": "reimbursement", // EXACT MATCH FOR REIMBURSEMENT
   };
   if (exact[d]) return exact[d];
 
@@ -179,9 +188,10 @@ function detectTeamSlug(dept, role) {
   if (d.includes("silverline")) return "silverline";   
   if (d.includes("trafo")) return "trafo";             
   if (d.includes("yk") || d.includes("y-k")) return "yk"; 
-  if (d.includes("kolhapur")) return "kolhapur"; // NEW KOLHAPUR CHECK
+  if (d.includes("kolhapur")) return "kolhapur"; 
 
   // 2. THEN GENERIC CHECKS
+  if (d.includes("reimbursement")) return "reimbursement"; // GENERIC CHECK REIMBURSEMENT
   if (d.includes("assoicate") || d.includes("associate") || d.includes("assoc")) return "associate";
   if (d.includes("field")) return "field";
   if (d.includes("corporate")) return "corporate";
@@ -196,8 +206,9 @@ function detectTeamSlug(dept, role) {
   if (r.includes("silverline")) return "silverline";   
   if (r.includes("trafo")) return "trafo";             
   if (r.includes("yk") || r.includes("y-k")) return "yk"; 
-  if (r.includes("kolhapur")) return "kolhapur"; // NEW KOLHAPUR CHECK
+  if (r.includes("kolhapur")) return "kolhapur"; 
 
+  if (r.includes("reimbursement")) return "reimbursement"; // ROLE CHECK REIMBURSEMENT
   if (r.includes("associate")) return "associate";
   if (r.includes("field")) return "field";
   if (r.includes("corporate")) return "corporate";
@@ -340,11 +351,21 @@ export default function App() {
               <Route path="lead/:id" element={<LeadDetail />} />
               <Route path="masterleads" element={<Leads />} />
               <Route path="lead-management" element={<LeadManagement />} />
-              <Route path="solar-requests" element={<SolarRequests />} /> {/* --- NEW ROUTE --- */}
+              <Route path="solar-requests" element={<SolarRequests />} /> 
               <Route path="contacts" element={<Contacts />} />
               <Route path="companies" element={<Companies />} />
               <Route path="quotation-builder" element={<QuotationBuilder />} />
               <Route path="saved-quotations" element={<SavedQuotations />} />
+
+              {/* --- NEW: Reimbursement Department --- */}
+              <Route element={<RequireDeptAccess slug="reimbursement" />}>
+                <Route path="reimbursement/dashboard" element={<ReimbursementDashboard />} />
+                <Route path="reimbursement/vouchers" element={<VouchersList />} />
+                <Route path="reimbursement/vouchers/:id" element={<VoucherDetail />} />
+                <Route path="reimbursement/employees" element={<EmployeeProfiles />} />
+                <Route path="reimbursement/employees/:id" element={<EmployeeDetail />} />
+                <Route path="reimbursement/tracker" element={<ExpenseTracker />} />
+              </Route>
 
               {/* Tele */}
               <Route element={<RequireDeptAccess slug="tele" />}>
