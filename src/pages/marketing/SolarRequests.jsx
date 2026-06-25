@@ -1,244 +1,352 @@
-import React, { useState } from 'react';
-import { Box, Typography, Button, Avatar } from '@mui/material';
-import InsertDriveFileOutlinedIcon from '@mui/icons-material/InsertDriveFileOutlined';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Box, Typography, Button, Chip, Avatar, CircularProgress, 
+  InputBase, MenuItem, Select, FormControl, Snackbar, Alert,
+  useTheme, useMediaQuery
+} from '@mui/material';
+import {
+  Search as SearchIcon,
+  VisibilityOutlined as VisibilityIcon,
+  CalendarTodayOutlined as CalendarIcon
+} from '@mui/icons-material';
 
-// Mock data reflecting the Solar Consultation form inputs
-const mockSolarRequests = [
-  {
-    id: 'SR-185',
-    fullName: 'test from trafo',
-    phone: '1234567890',
-    email: 'test@trafo.com',
-    pincode: '422010',
-    location: 'kjad, Anantnag, Jammu and Kashmir, India',
-    priority: 'Medium',
-    billAmount: '5000',
-    hasFile: true
-  },
-  {
-    id: 'SR-186',
-    fullName: 'Rahul Sharma',
-    phone: '9876543210',
-    email: 'rahul.s@email.com',
-    pincode: '411001',
-    location: 'Pune, Maharashtra, India',
-    priority: 'High',
-    billAmount: '8500',
-    hasFile: false
-  },
-  {
-    id: 'SR-187',
-    fullName: 'Amit Kumar',
-    phone: '9988776655',
-    email: 'amit.k88@domain.in',
-    pincode: '110001',
-    location: 'New Delhi, Delhi, India',
-    priority: 'Low',
-    billAmount: '3200',
-    hasFile: true
-  }
-];
+// --- API HELPERS ---
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
-const getInitials = (name) => {
-  if (!name) return 'U';
-  return name.charAt(0).toUpperCase();
+// --- STYLES CONSTANTS ---
+const pageStyle = {
+  minHeight: '100vh',
+  background: '#0f0c29',
+  backgroundImage: `radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.15) 0%, transparent 50%), radial-gradient(circle at 85% 30%, rgba(37, 99, 235, 0.1) 0%, transparent 50%)`,
+  color: '#ffffff',
+  fontFamily: "'Inter', sans-serif",
+  p: { xs: 2, md: 4 },
 };
 
-export default function SolarRequests() {
-  const [requests, setRequests] = useState(mockSolarRequests);
+const cardStyle = {
+  background: 'rgba(30, 32, 55, 0.6)',
+  backdropFilter: 'blur(20px)',
+  border: '1px solid rgba(255, 255, 255, 0.05)',
+  borderRadius: '16px',
+  p: 2.5,
+  mb: 2,
+  display: 'grid',
+  // Adjusted grid for 7 columns to fit the new Lead Stage
+  gridTemplateColumns: { xs: '1fr', md: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 0.8fr' },
+  alignItems: 'center',
+  gap: 2,
+  transition: 'all 0.2s ease',
+  position: 'relative',
+  overflow: 'hidden',
+  '&:hover': {
+    background: 'rgba(40, 42, 70, 0.8)',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+  }
+};
+
+const inputStyle = {
+  bgcolor: 'rgba(255,255,255,0.05)',
+  borderRadius: '12px',
+  border: '1px solid rgba(255,255,255,0.1)',
+  color: '#fff',
+  px: 2,
+  py: 0.5,
+  display: 'flex',
+  alignItems: 'center',
+  '&:hover': { borderColor: 'rgba(255,255,255,0.2)' }
+};
+
+// --- FORMATTERS ---
+const formatCurrency = (amount) => {
+  if (!amount || isNaN(amount)) return "₹0.00";
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2
+  }).format(amount);
+};
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return null;
+  const [hours, minutes] = timeStr.split(':');
+  if (!hours || !minutes) return null;
+  const h = parseInt(hours, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${minutes} ${ampm}`;
+};
+
+// --- MAIN COMPONENT ---
+export default function FollowUps() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const navigate = useNavigate();
+
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deptFilter, setDeptFilter] = useState("All Departments");
+  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+
+  // Extract unique departments from the fetched leads for the filter dropdown
+  const allDepartments = useMemo(() => {
+    const depts = leads.map(l => l.lead_stage).filter(Boolean);
+    return [...new Set(depts)].sort();
+  }, [leads]);
+
+  // --- FETCH API ---
+  const fetchFollowUps = async () => {
+    setLoading(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/api/leads/admin/follow-up`, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const result = await response.json();
+      
+      if (response.ok) {
+        setLeads(result.data || []);
+      } else {
+        throw new Error(result.message || "Failed to fetch follow-ups");
+      }
+    } catch (err) {
+      console.error(err);
+      setToast({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFollowUps();
+  }, []);
+
+  // --- FILTERING ---
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      const q = searchQuery.toLowerCase();
+      const company = (lead.company_name || "").toLowerCase();
+      const contact = (lead.contact_person_name || "").toLowerCase();
+      
+      const matchesSearch = company.includes(q) || contact.includes(q);
+      const matchesDept = deptFilter === "All Departments" || lead.lead_stage === deptFilter;
+
+      return matchesSearch && matchesDept;
+    });
+  }, [leads, searchQuery, deptFilter]);
+
+  // --- COLOR HELPERS ---
+  const getPriorityProps = (priority) => {
+    switch (priority?.toLowerCase()) {
+      case 'high': return { bgcolor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' };
+      case 'medium': return { bgcolor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' };
+      case 'low': return { bgcolor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' };
+      default: return { bgcolor: 'rgba(255, 255, 255, 0.1)', color: '#fff', border: '1px solid rgba(255, 255, 255, 0.2)' };
+    }
+  };
+
+  const getTypeProps = (type) => {
+    switch (type?.toLowerCase()) {
+      case 'service': return { bgcolor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' };
+      case 'product': return { bgcolor: 'rgba(168, 85, 247, 0.15)', color: '#a855f7', border: '1px solid rgba(168, 85, 247, 0.3)' };
+      default: return { bgcolor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' };
+    }
+  };
 
   return (
-    <Box 
-      sx={{ 
-        p: 3, 
-        minHeight: '100vh', 
-        background: 'linear-gradient(to bottom right, #131129, #1a1625)', 
-        color: '#ffffff',
-        fontFamily: "'Inter', sans-serif"
-      }}
-    >
-      <Typography 
-        variant="h5" 
-        sx={{ 
-          fontWeight: 600, 
-          mb: 3, 
-          color: '#fff', 
-          textShadow: '0 0 10px rgba(138, 43, 226, 0.3)' 
-        }}
-      >
-        Solar Consultation Requests
-      </Typography>
-
-      {/* Header Row */}
-      <Box 
-        sx={{ 
-          display: 'grid', 
-          gridTemplateColumns: '120px 100px 2fr 1.5fr 1.5fr 1fr', 
-          gap: 2, 
-          px: 3, 
-          py: 2, 
-          mb: 1.5, 
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)', 
-          fontSize: '12px', 
-          fontWeight: 700, 
-          letterSpacing: '1px', 
-          color: 'rgba(255, 255, 255, 0.5)', 
-          textTransform: 'uppercase' 
-        }}
-      >
-        <Box>ASSIGN</Box>
-        <Box>LEAD ID</Box>
-        <Box>COMPANY & CONTACT</Box>
-        <Box>LOCATION</Box>
-        <Box>TYPE / PRIORITY</Box>
-        <Box>REQUIREMENTS / BILL</Box>
-      </Box>
-
-      {/* Data Rows */}
-      <Box>
-        {requests.map((req) => (
-          <Box 
-            key={req.id} 
-            sx={{ 
-              display: 'grid', 
-              gridTemplateColumns: '120px 100px 2fr 1.5fr 1.5fr 1fr', 
-              gap: 2, 
-              alignItems: 'center',
-              background: 'rgba(30, 26, 60, 0.4)',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-              borderRadius: '100px',
-              px: 3, 
-              py: 1.5, 
-              mb: 1.5,
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1), inset 0 1px 1px rgba(255, 255, 255, 0.05)',
-              '&:hover': {
-                background: 'rgba(45, 35, 80, 0.6)',
-                borderColor: 'rgba(138, 43, 226, 0.4)',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 8px 25px rgba(138, 43, 226, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.1)'
-              }
-            }}
-          >
-            {/* 1. Assign Button */}
-            <Box>
-              <Button 
-                variant="outlined" 
-                sx={{ 
-                  borderRadius: '20px', 
-                  textTransform: 'none', 
-                  fontWeight: 600, 
-                  fontSize: '13px',
-                  borderColor: 'rgba(59, 130, 246, 0.5)',
-                  color: '#3b82f6',
-                  '&:hover': {
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    borderColor: '#3b82f6',
-                    boxShadow: '0 0 10px rgba(59, 130, 246, 0.3)'
-                  }
-                }}
-              >
-                Assign Dept
-              </Button>
-            </Box>
-
-            {/* 2. Lead ID */}
-            <Box sx={{ color: '#3b82f6', fontWeight: 700, fontSize: '14px' }}>
-              {req.id}
-            </Box>
-
-            {/* 3. Company & Contact (Now with Email) */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Avatar 
-                sx={{ 
-                  bgcolor: 'rgba(255, 255, 255, 0.1)', 
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  width: 40, 
-                  height: 40,
-                  fontWeight: 600 
-                }}
-              >
-                {getInitials(req.fullName)}
-              </Avatar>
-              <Box>
-                <Typography sx={{ color: '#fff', fontSize: '14px', fontWeight: 600, lineHeight: 1.2 }}>
-                  {req.fullName}
-                </Typography>
-                <Typography sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '11px', mt: 0.5 }}>
-                  t • {req.phone}
-                </Typography>
-                <Typography sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '11px', mt: 0.2 }}>
-                  e • {req.email}
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* 4. Location */}
-            <Box>
-              <Typography sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '12px' }}>
-                {req.location}
-              </Typography>
-              <Typography sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '11px', mt: 0.5 }}>
-                PIN: {req.pincode}
-              </Typography>
-            </Box>
-
-            {/* 5. Static "Solar" Badge & Priority */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box 
-                sx={{ 
-                  background: 'rgba(255,255,255,0.1)', 
-                  px: 1.5, 
-                  py: 0.5, 
-                  borderRadius: '12px', 
-                  fontSize: '11px',
-                  color: '#fff'
-                }}
-              >
-                Solar
-              </Box>
-              <Box 
-                sx={{ 
-                  color: req.priority === 'High' ? '#ef4444' : req.priority === 'Medium' ? '#f59e0b' : '#10b981',
-                  fontSize: '12px',
-                  fontWeight: 600
-                }}
-              >
-                {req.priority}
-              </Box>
-            </Box>
-
-            {/* 6. Requirements (Avg Bill & File) */}
-            <Box>
-              <Typography sx={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '12px', mb: 0.5 }}>
-                Avg Bill: <Box component="span" sx={{ fontFamily: 'monospace', fontSize: '14px', color: '#e2e8f0', background: 'rgba(0, 0, 0, 0.2)', px: 1, py: 0.5, borderRadius: 1 }}>₹{req.billAmount}</Box>
-              </Typography>
-              
-              {req.hasFile ? (
-                <Button 
-                  variant="text" 
-                  startIcon={<InsertDriveFileOutlinedIcon fontSize="small" />}
-                  sx={{ 
-                    color: '#06b6d4', 
-                    p: 0, 
-                    minWidth: 'auto', 
-                    textTransform: 'none', 
-                    fontSize: '13px',
-                    '&:hover': { background: 'transparent', color: '#fff', textShadow: '0 0 8px rgba(6, 182, 212, 0.6)' }
-                  }}
-                >
-                  View Bill
-                </Button>
-              ) : (
-                <Typography sx={{ color: 'rgba(255, 255, 255, 0.3)', fontSize: '13px' }}>
-                  No file uploaded
-                </Typography>
-              )}
-            </Box>
+    <Box sx={pageStyle}>
+      <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
+        
+        {/* --- HEADER --- */}
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, 
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'flex-start', md: 'center' }, 
+          gap: 3, 
+          mb: 4,
+          bgcolor: 'rgba(30, 32, 55, 0.8)',
+          p: 2.5,
+          borderRadius: '20px',
+          border: '1px solid rgba(255,255,255,0.05)'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="h4" fontWeight={800} color="#fff">Follow-Up's</Typography>
+            <Chip label={`${filteredLeads.length} Pending`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }} />
           </Box>
-        ))}
+
+          <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', md: 'auto' } }}>
+            <Box sx={{ ...inputStyle, flex: 1, minWidth: { md: '300px' } }}>
+              <SearchIcon sx={{ color: 'rgba(255,255,255,0.5)', mr: 1, fontSize: 20 }} />
+              <InputBase 
+                placeholder="Search leads or contacts..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                sx={{ color: '#fff', width: '100%', fontSize: '14px' }} 
+              />
+            </Box>
+            
+            <FormControl size="small">
+              <Select
+                value={deptFilter}
+                onChange={(e) => setDeptFilter(e.target.value)}
+                sx={{ 
+                  ...inputStyle, 
+                  py: 0, 
+                  fontSize: '14px', 
+                  minWidth: '180px',
+                  '& .MuiSelect-select': { py: 1 },
+                  '& .MuiOutlinedInput-notchedOutline': { border: 'none' } 
+                }}
+                MenuProps={{ PaperProps: { sx: { bgcolor: '#1a1625', color: '#fff' } } }}
+              >
+                <MenuItem value="All Departments">All Departments</MenuItem>
+                {allDepartments.map(dept => (
+                  <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
+
+        {/* --- LIST HEADER ROW --- */}
+        {!isMobile && (
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 0.8fr', 
+            gap: 2, 
+            px: 3, 
+            pb: 2, 
+            color: 'rgba(255,255,255,0.5)', 
+            fontSize: '12px', 
+            fontWeight: 700, 
+            letterSpacing: '0.5px' 
+          }}>
+            <Box>LEAD / CONTACT PERSON</Box>
+            <Box>PRIORITY</Box>
+            <Box>LEAD TYPE</Box>
+            <Box>EXPECTED REV.</Box>
+            <Box>LEAD STAGE</Box>
+            <Box>FOLLOW-UP DETAILS</Box>
+            <Box textAlign="right">ACTIONS</Box>
+          </Box>
+        )}
+
+        {/* --- LIST ITEMS --- */}
+        {loading ? (
+          <Box display="flex" justifyContent="center" py={10}>
+            <CircularProgress sx={{ color: '#3b82f6' }} />
+          </Box>
+        ) : filteredLeads.length === 0 ? (
+          <Box textAlign="center" py={10} color="rgba(255,255,255,0.5)">
+            <Typography variant="h6">No pending follow-ups found.</Typography>
+          </Box>
+        ) : (
+          filteredLeads.map((lead) => {
+            const pProps = getPriorityProps(lead.lead_priority);
+            const tProps = getTypeProps(lead.lead_type);
+            
+            const fDate = formatDate(lead.follow_up_date);
+            const fTime = formatTime(lead.follow_up_time);
+
+            return (
+              <Box key={lead.lead_id} sx={cardStyle}>
+                {/* Blue Left Border Accent */}
+                <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', bgcolor: '#3b82f6', borderTopLeftRadius: '16px', borderBottomLeftRadius: '16px' }} />
+
+                {/* COL 1: Lead Info */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, pl: 2 }}>
+                  <Avatar sx={{ bgcolor: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', fontWeight: 'bold' }}>
+                    {lead.company_name?.charAt(0).toUpperCase() || 'L'}
+                  </Avatar>
+                  <Box>
+                    <Typography fontWeight={700} fontSize="15px" color="#fff" noWrap>
+                      {lead.company_name}
+                    </Typography>
+                    <Typography fontSize="13px" color="rgba(255,255,255,0.5)" noWrap>
+                      {lead.contact_person_name || 'No Contact Person'}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* COL 2: Priority */}
+                <Box>
+                  <Chip label={lead.lead_priority || 'N/A'} size="small" sx={{ ...pProps, fontWeight: 700, fontSize: '11px', borderRadius: '6px' }} />
+                </Box>
+
+                {/* COL 3: Lead Type */}
+                <Box>
+                  <Chip label={lead.lead_type || 'N/A'} size="small" sx={{ ...tProps, fontWeight: 700, fontSize: '11px', borderRadius: '6px' }} />
+                </Box>
+
+                {/* COL 4: Expected Revenue */}
+                <Box>
+                  <Typography fontWeight={700} fontSize="14px" sx={{ color: '#10b981' }}>
+                    {formatCurrency(lead.expected_revenue)}
+                  </Typography>
+                </Box>
+
+                {/* COL 5: Lead Stage */}
+                <Box>
+                  <Typography fontWeight={600} fontSize="13px" sx={{ color: '#fff' }}>
+                    {lead.lead_stage || 'N/A'}
+                  </Typography>
+                </Box>
+
+                {/* COL 6: Follow-Up Details */}
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+                  <CalendarIcon sx={{ color: 'rgba(255,255,255,0.4)', fontSize: 18, mt: 0.2 }} />
+                  <Box>
+                    {fDate ? (
+                      <Typography fontWeight={600} fontSize="14px" color="#fff">
+                        {fDate} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>at {fTime || '-'}</span>
+                      </Typography>
+                    ) : (
+                      <Typography fontWeight={600} fontSize="14px" color="#fff">
+                        Not Set <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>at -</span>
+                      </Typography>
+                    )}
+                    <Typography fontSize="12px" color="rgba(255,255,255,0.5)" sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {lead.follow_up_reason || 'No reason provided'}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* COL 7: Actions */}
+                <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                  <Button 
+                    size="small" 
+                    onClick={() => navigate(`/marketing/customer-info/${lead.lead_id}`)}
+                    sx={{ color: '#60a5fa', textTransform: 'none', minWidth: 'auto', p: 1, '&:hover': { bgcolor: 'rgba(96,165,250,0.1)' } }}
+                  >
+                    <VisibilityIcon fontSize="small" sx={{ mr: 0.5 }} /> View
+                  </Button>
+                </Box>
+
+              </Box>
+            );
+          })
+        )}
+
       </Box>
+
+      {/* --- TOAST --- */}
+      <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} sx={{ borderRadius: '12px', width: '100%', border: '1px solid rgba(255,255,255,0.1)' }} variant="filled">
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

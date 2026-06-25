@@ -434,7 +434,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
             {/* IPQS Head Specific Direct Links */}
             <NavItem to="/marketing/masterleads" icon={<AssignmentTurnedInOutlinedIcon />} label="Master Leads" onNavigate={onNavigate} />
             <NavItem to="/marketing/lead-management" icon={<ManageAccountsIcon />} label="Lead Management" onNavigate={onNavigate} />
-            <NavItem to="/marketing/solar-requests" icon={<LightbulbOutlinedIcon />} label="Solar Requests" onNavigate={onNavigate} />
+            <NavItem to="/marketing/quote-followups" icon={<LightbulbOutlinedIcon />} label="Quote Followup's" onNavigate={onNavigate} />
 
             {/* --- REIMBURSEMENT HEAD VIEW --- */}
             <Group title="Reimbursement Dept" icon={<AccountBalanceWalletOutlinedIcon />} basePath="/marketing/reimbursement"

@@ -445,7 +445,7 @@ const TechnicalVisitPlanner = () => {
                   <Typography variant="body2" fontWeight={600} color="#fff">{item.company_name || item.lead_name}</Typography>
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
                     <LocationOnIcon sx={{ fontSize: 14, color: 'rgba(255,255,255,0.4)' }} /> 
-                    {item.company_city ? `${item.company_city}, ${item.company_state}` : 'Location N/A'}
+                    {item.company_city ? `${item.company_address}, ${item.company_city}, ${item.company_state}` : 'Location N/A'}
                   </Typography>
                 </Box>
                 <Chip label={item.lead_status || 'New'} size="small" sx={{ height: 22, fontSize: '0.65rem', bgcolor: 'rgba(239, 68, 68, 0.15)', color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.3)' }} />

@@ -350,7 +350,7 @@ export default function App() {
               <Route path="lead/:id" element={<LeadDetail />} />
               <Route path="masterleads" element={<Leads />} />
               <Route path="lead-management" element={<LeadManagement />} />
-              <Route path="solar-requests" element={<SolarRequests />} /> 
+              <Route path="quote-followups" element={<SolarRequests />} /> 
               <Route path="contacts" element={<Contacts />} />
               <Route path="companies" element={<Companies />} />
               <Route path="quotation-builder" element={<QuotationBuilder />} />
