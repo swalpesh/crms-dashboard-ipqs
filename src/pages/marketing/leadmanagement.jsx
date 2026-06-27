@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box, Typography, Button, Chip, CircularProgress, Avatar, InputBase, Snackbar, Alert,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, FormControl, MenuItem
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, Select, FormControl, MenuItem, Checkbox, Tooltip
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -164,6 +164,10 @@ export default function LeadManagement() {
     try {
       setAssignSaving(true);
       
+      // Dynamically extract Profile Name from local storage, default to 'Admin' if null
+      const profileName = localStorage.getItem("profile_name") || "Admin";
+      const formattedReason = `Updated by Admin: ${profileName} - ${assignReason.trim()}`;
+
       // 1. Assign the lead
       const res = await fetch(`${API_BASE_URL}/api/leads/change-stage`, {
         method: "PATCH",
@@ -171,7 +175,7 @@ export default function LeadManagement() {
         body: JSON.stringify({ 
           lead_id: assignLead.id, 
           new_lead_stage: assignDept, 
-          reason: assignReason.trim() 
+          reason: formattedReason // <-- Sent with Dynamic Admin Prefix
         }),
       });
 
@@ -264,7 +268,6 @@ export default function LeadManagement() {
                     <option value="Corporate-Marketing">Corporate Marketing</option>
                     <option value="Technical-Team">Technical Team</option>
                     <option value="Solutions-Team">Solutions Team</option>
-                    {/* NEW DEPARTMENTS ADDED HERE */}
                     <option value="Nagpur-Associates">Nagpur Associates</option>
                     <option value="Silverline-Associates">Silverline Associates</option>
                     <option value="Trafo-Associates">Trafo Associates</option>

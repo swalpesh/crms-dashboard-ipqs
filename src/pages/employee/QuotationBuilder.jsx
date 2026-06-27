@@ -22,7 +22,8 @@ import {
   Checkbox,
   Collapse,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Chip
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -30,7 +31,7 @@ import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
-
+import AttachFileIcon from "@mui/icons-material/AttachFile";
 
 /* ---------- THEME CONSTANTS ---------- */
 const theme = {
@@ -105,6 +106,14 @@ const glassStyles = {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
 
+const formatFileUrl = (path) => {
+  if (!path) return '#';
+  if (path.startsWith('http')) return path;
+  const cleanPath = path.replace(/\\/g, '/').replace(/^\//, '');
+  const encodedPath = cleanPath.split('/').map(encodeURIComponent).join('/');
+  return `${API_BASE_URL.replace(/\/$/, '')}/${encodedPath}`;
+};
+
 /* ---------- Assets ---------- */
 const HEADER_BANNER_SRC = "/ipqs-letter-header.png";
 const CERTIFICATE_IMG_SRC = "/ipqs-iso9001.png";
@@ -116,6 +125,25 @@ const MONTHS = [
 ];
 
 const CURRENCIES = ["INR", "USD", "EUR", "GBP"];
+
+/* ---------- DEFAULT LETTER BODY ---------- */
+const defaultLetterBody = `Dear Sir,
+
+IPQS is an expert in the field of Energy Saving solutions, designing kVah optimizing products, Power Factor Improvement concepts and implement the same at field and continuously advancing in the field of Power Quality, Reliability and Energy Efficiency solutions. IPQS Team Conduct Energy and Power Quality, Reliability Studies and fulfilling the requirement of Reactive Power, by designing ultra-fast switching devices to switch the serving equipment's, enable to maintain all Power Quality Parameters close to desired without increase in the additional power consumption.
+
+IPQS have designed and implemented PF improvement solutions to optimize KVARH lag and Lead both, designed, developed and successfully implemented such fast-acting devices in many industries to maintain the PF in the states where KVARH based billing is already in place.
+
+
+
+
+Thanks and regards,
+
+For IPQS PRIVATE LIMITED
+
+
+Rohiet Jagtap
+Chief Marketing Head
+Mob.: +91 8956535712`;
 
 /* ---------- Print/Preview CSS ---------- */
 const PRINT_CSS = `
@@ -180,6 +208,23 @@ const PRINT_CSS = `
   .info-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
   .info-table th, .info-table td { border: 1px solid #e5e7eb; padding: 8px 10px; vertical-align: top; }
   .info-table th { width: 36%; background: #f8fafc; text-align: left; }
+
+  /* Option 2 Detailed Terms CSS */
+  .terms-detailed { font-size: 11.5px; line-height: 1.4; padding-bottom: 25mm !important; }
+  .terms-detailed .content { padding-top: 8px; }
+  .terms-detailed .section-title { font-size: 15px; font-weight: 800; text-decoration: underline; border: none; margin-bottom: 12px; padding: 0; }
+  .terms-detailed .term-item { display: flex; margin-bottom: 6px; }
+  .terms-detailed .term-num { width: 22px; font-weight: 800; flex-shrink: 0; }
+  .terms-detailed .term-text { flex: 1; text-align: justify; }
+  .terms-detailed .term-text b { font-weight: 800; }
+  .terms-detailed ul { margin: 4px 0 4px 16px; padding: 0; }
+  .terms-detailed li { margin-bottom: 3px; }
+  .terms-detailed .kv-grid { display: grid; grid-template-columns: 140px 15px 1fr; gap: 4px 0; margin-top: 14px; font-weight: 600; font-size: 11.5px;}
+  .terms-detailed .kv-grid > div { padding: 2px 0; }
+  .terms-detailed-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11.5px; }
+  .terms-detailed-table th, .terms-detailed-table td { padding: 4px 0; vertical-align: top; }
+  .terms-detailed-table th { width: 150px; text-align: left; font-weight: 600; }
+  .terms-detailed-table td.colon { width: 15px; }
 
   .certificate-wrap { display: grid; place-items: center; height: calc(100% - 100px); }
   .certificate-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; border: 1px solid #e5e7eb; }
@@ -246,7 +291,7 @@ export default function QuotationBuilder() {
 
   /* ------------------- Local state ------------------- */
   const [coverFile, setCoverFile] = useState(null);
-  const [coverUrl, setCoverUrl] = useState("/quotation_cover.png"); // Uses imported image by default
+  const [coverUrl, setCoverUrl] = useState("/quotation_cover.png"); 
 
   const [quote, setQuote] = useState({
     quoteNo: "QT-0001",
@@ -262,7 +307,8 @@ export default function QuotationBuilder() {
   const [paymentTerms, setPaymentTerms] = useState({
     useDefault: true,
     advance: "70",
-    balance: "30"
+    balance: "30",
+    option: "1" // Default to Standard Terms
   });
 
   const [leadId, setLeadId] = useState("");
@@ -272,7 +318,7 @@ export default function QuotationBuilder() {
     attention: "",
     address: "",
     subject: "Power Factor Improvement Quotation",
-    body: "Dear Sir/Madam,\n\nPlease find attached quotation...\n\nRegards,\nIPQS Private Limited",
+    body: defaultLetterBody,
   });
 
   const [items, setItems] = useState([
@@ -285,24 +331,21 @@ export default function QuotationBuilder() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [saveError, setSaveError] = useState("");
 
-  // Energy section toggle (collapsed by default)
+  // Solutions API states
+  const [solutions, setSolutions] = useState([]);
+  const [loadingSolutions, setLoadingSolutions] = useState(false);
+
+  // Energy section toggle
   const [energySectionEnabled, setEnergySectionEnabled] = useState(false);
 
   // Energy extra fields
-  const [customerType, setCustomerType] = useState(""); // LT/HT
-  const [billMonth, setBillMonth] = useState("");       // Jan..Dec
-  const [billDuration, setBillDuration] = useState(""); // 6 months / 12 months
+  const [customerType, setCustomerType] = useState(""); 
+  const [billMonth, setBillMonth] = useState("");       
+  const [billDuration, setBillDuration] = useState(""); 
 
   // Energy inputs
   const [energyIn, setEnergyIn] = useState({
-    kwh: 0,
-    kvah: 0,
-    pfTarget: "0.99",
-    perUnit: 0,
-    perUnitWithTax: 0,
-    demandRate: 0,
-    kvaMD: 0,
-    kwMD: 0,
+    kwh: 0, kvah: 0, pfTarget: "0.99", perUnit: 0, perUnitWithTax: 0, demandRate: 0, kvaMD: 0, kwMD: 0,
   });
 
   // ==============================================================
@@ -310,7 +353,6 @@ export default function QuotationBuilder() {
   // ==============================================================
   useEffect(() => {
     if (editQuotation) {
-      // --- If updating from SavedQuotations ---
       setLeadId(editQuotation.lead_number || "");
       
       setRecipient({
@@ -318,13 +360,10 @@ export default function QuotationBuilder() {
         attention: editQuotation.contact_person_name || "",
         address: editQuotation.address || "",
         subject: editQuotation.subject || "Power Factor Improvement Quotation",
-        body: editQuotation.cover_body || "Dear Sir/Madam,\n\nPlease find attached quotation...\n\nRegards,\nIPQS Private Limited",
+        body: editQuotation.cover_body || defaultLetterBody,
       });
 
-      const dateStr = editQuotation.quotation_date 
-        ? new Date(editQuotation.quotation_date).toISOString().split('T')[0] 
-        : new Date().toISOString().slice(0, 10);
-      
+      const dateStr = editQuotation.quotation_date ? new Date(editQuotation.quotation_date).toISOString().split('T')[0] : new Date().toISOString().slice(0, 10);
       const discAmt = Number(editQuotation.discount_amount || 0);
 
       setQuote({
@@ -369,7 +408,6 @@ export default function QuotationBuilder() {
       }
 
     } else if (passedLead) {
-      // --- If creating a fresh quote from Lead Details ---
       setLeadId(passedLead.lead_id || "");
       setRecipient((r) => ({
         ...r,
@@ -384,6 +422,35 @@ export default function QuotationBuilder() {
       }));
     }
   }, [passedLead, editQuotation]);
+
+  // ==============================================================
+  //  FETCH SOLUTIONS API
+  // ==============================================================
+  useEffect(() => {
+    if (!leadId) return;
+
+    const fetchSolutionsActivity = async () => {
+      setLoadingSolutions(true);
+      try {
+        const token = getToken();
+        const res = await fetch(`${API_BASE_URL}/api/leads/${leadId}/activity/IPQS-H5000`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const json = await res.json();
+        
+        if (res.ok && json.data) {
+          const sorted = [...json.data].sort((a, b) => a.id - b.id);
+          setSolutions(sorted);
+        }
+      } catch (err) {
+        console.error("Failed to fetch solutions", err);
+      } finally {
+        setLoadingSolutions(false);
+      }
+    };
+
+    fetchSolutionsActivity();
+  }, [leadId]);
 
   useEffect(() => {
     if (saveError || isSaved) {
@@ -418,13 +485,14 @@ export default function QuotationBuilder() {
     const savMD = savingDemand * demandRate;
     const monthly = savMD + savKvahTax;
     const yearly = monthly * 12;
-    const investment = grand_total;
+    // Investment strictly uses Subtotal without GST
+    const investment = subtotal; 
     const months = monthly > 0 ? investment / monthly : 0;
     const days = months * 30;
     const fiveYearRupees = yearly * 5;
 
     return { existingPF, diffKvahKwh, savKvah, savKvahTax, savingDemand, savMD, monthly, yearly, investment, months, days, fiveYearRupees };
-  }, [energyIn, grand_total]);
+  }, [energyIn, subtotal]);
 
   /* ------------------- Handlers ------------------- */
   const onPickCover = (e) => {
@@ -613,7 +681,7 @@ export default function QuotationBuilder() {
     }
   };
 
-  /* ------------------- ADD TO NOTES LOGIC (Used when Creating New) ------------------- */
+  /* ------------------- ADD TO NOTES LOGIC ------------------- */
   const handleAddNote = async () => {
     if (!leadId) {
         alert("Lead ID is missing. Cannot add note.");
@@ -657,7 +725,7 @@ export default function QuotationBuilder() {
     }
   };
 
-  /* ------------------- DOWNLOAD PDF LOGIC (Used when Updating) ------------------- */
+  /* ------------------- DOWNLOAD PDF LOGIC ------------------- */
   const handleDownloadPdf = async () => {
     try {
       setIsDownloading(true);
@@ -882,59 +950,6 @@ export default function QuotationBuilder() {
             </Grid>
           </Paper>
 
-          {/* ===== Payment Terms ===== */}
-          <Paper sx={glassStyles.glassCard}>
-            <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Payment Terms</Typography>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  sx={{ color: theme.textSecondary, '&.Mui-checked': { color: theme.accentBlue } }}
-                  checked={paymentTerms.useDefault}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setPaymentTerms({ 
-                      useDefault: checked, 
-                      advance: checked ? "70" : paymentTerms.advance, 
-                      balance: checked ? "30" : paymentTerms.balance 
-                    });
-                    setIsSaved(false);
-                  }}
-                />
-              }
-              label={<Typography color={theme.textSecondary}>Use Default (70% Advance / 30% Balance)</Typography>}
-            />
-            {!paymentTerms.useDefault && (
-              <Grid container spacing={2} sx={{ mt: 2 }}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Advance (%)"
-                    type="number"
-                    fullWidth
-                    value={paymentTerms.advance}
-                    onChange={(e) => { 
-                      setPaymentTerms(p => ({ ...p, advance: e.target.value })); 
-                      setIsSaved(false); 
-                    }}
-                    sx={glassStyles.input}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Balance (%)"
-                    type="number"
-                    fullWidth
-                    value={paymentTerms.balance}
-                    onChange={(e) => { 
-                      setPaymentTerms(p => ({ ...p, balance: e.target.value })); 
-                      setIsSaved(false); 
-                    }}
-                    sx={glassStyles.input}
-                  />
-                </Grid>
-              </Grid>
-            )}
-          </Paper>
-
           {/* ===== Cover Letter (Subject & Body) ===== */}
           <Paper sx={glassStyles.glassCard}>
             <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>
@@ -976,6 +991,65 @@ export default function QuotationBuilder() {
               />
             </Box>
           </Paper>
+
+          {/* ===== Solutions Chat Section ===== */}
+          {leadId && (
+            <Paper sx={glassStyles.glassCard}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Solutions Team Recommendations</Typography>
+              {loadingSolutions ? (
+                 <Box display="flex" justifyContent="center" py={2}>
+                    <CircularProgress size={24} sx={{ color: theme.accentBlue }} />
+                 </Box>
+              ) : solutions.length > 0 ? (
+                 <Box sx={{ 
+                    maxHeight: 320, 
+                    overflowY: 'auto', 
+                    pr: 1, 
+                    '&::-webkit-scrollbar': { width: '6px' }, 
+                    '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.2)', borderRadius: '4px' } 
+                 }}>
+                   <Stack spacing={2}>
+                     {solutions.map(sol => (
+                       <Box key={sol.id} sx={{ 
+                          bgcolor: 'rgba(59, 130, 246, 0.08)', 
+                          p: 2, 
+                          borderRadius: '12px', 
+                          border: '1px solid rgba(59, 130, 246, 0.2)' 
+                       }}>
+                         {sol.message && (
+                           <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: sol.attachments?.length > 0 ? 1.5 : 0 }}>
+                             {sol.message}
+                           </Typography>
+                         )}
+                         {sol.attachments && sol.attachments.length > 0 && (
+                           <Stack direction="row" spacing={1} flexWrap="wrap">
+                             {sol.attachments.map(att => (
+                               <Chip 
+                                 key={att.id} 
+                                 icon={<AttachFileIcon />} 
+                                 label={att.file_name} 
+                                 component="a" 
+                                 href={formatFileUrl(att.file_path)} 
+                                 target="_blank" 
+                                 clickable 
+                                 size="small" 
+                                 sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }} 
+                               />
+                             ))}
+                           </Stack>
+                         )}
+                         <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', mt: 1, display: 'block', textAlign: 'right' }}>
+                           {new Date(sol.created_at).toLocaleString('en-GB')}
+                         </Typography>
+                       </Box>
+                     ))}
+                   </Stack>
+                 </Box>
+              ) : (
+                 <Typography variant="body2" color={theme.textSecondary}>No recommendations from the Solutions team yet.</Typography>
+              )}
+            </Paper>
+          )}
 
           {/* ===== Cost table ===== */}
           <Paper sx={glassStyles.glassCard}>
@@ -1265,6 +1339,75 @@ export default function QuotationBuilder() {
               </Box>
             </Paper>
           </Collapse>
+
+          {/* ===== Terms & Conditions (Replaces old Payment Terms) ===== */}
+          <Paper sx={glassStyles.glassCard}>
+            <Typography variant="h6" fontWeight={800} sx={{ mb: 2 }}>Terms & Conditions</Typography>
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  label="T&C Template Option"
+                  value={paymentTerms.option || "1"}
+                  onChange={(e) => {
+                    setPaymentTerms(p => ({ ...p, option: e.target.value }));
+                    setIsSaved(false);
+                  }}
+                  fullWidth
+                  sx={glassStyles.input}
+                >
+                  <MenuItem value="1">Option 1 (Standard & Compact)</MenuItem>
+                  <MenuItem value="2">Option 2 (Detailed full text)</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      sx={{ color: theme.textSecondary, '&.Mui-checked': { color: theme.accentBlue } }}
+                      checked={paymentTerms.useDefault}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setPaymentTerms(p => ({ 
+                          ...p,
+                          useDefault: checked, 
+                          advance: checked ? "70" : p.advance, 
+                          balance: checked ? "30" : p.balance 
+                        }));
+                        setIsSaved(false);
+                      }}
+                    />
+                  }
+                  label={<Typography color={theme.textSecondary}>Use Default (70% Advance / 30% Balance)</Typography>}
+                />
+              </Grid>
+            </Grid>
+
+            {!paymentTerms.useDefault && (
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Advance (%)"
+                    type="number"
+                    fullWidth
+                    value={paymentTerms.advance}
+                    onChange={(e) => { setPaymentTerms(p => ({ ...p, advance: e.target.value })); setIsSaved(false); }}
+                    sx={glassStyles.input}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Balance (%)"
+                    type="number"
+                    fullWidth
+                    value={paymentTerms.balance}
+                    onChange={(e) => { setPaymentTerms(p => ({ ...p, balance: e.target.value })); setIsSaved(false); }}
+                    sx={glassStyles.input}
+                  />
+                </Grid>
+              </Grid>
+            )}
+          </Paper>
         </Grid>
 
         {/* RIGHT — PREVIEW */}
@@ -1277,11 +1420,7 @@ export default function QuotationBuilder() {
                 <div className="doc doc--responsive">
                   {/* COVER */}
                   <div className="page page-cover">
-                    {coverUrl ? (
-                      <img src={coverUrl} alt="Cover" className="cover-img" />
-                    ) : (
-                      <div className="cover-placeholder"><div>Cover Image</div></div>
-                    )}
+                    {coverUrl ? <img src={coverUrl} alt="Cover" className="cover-img" /> : <div className="cover-placeholder"><div>Cover Image</div></div>}
                   </div>
 
                   {/* LETTER pages */}
@@ -1329,19 +1468,10 @@ export default function QuotationBuilder() {
                       <Header bannerSrc={HEADER_BANNER_SRC} />
                       <MetaBar quote={quote} />
                       <div className="section-title">Energy &amp; Cost Saving Calculations</div>
-
-                      <div className="info-line">
-                        <b>Customer Type:</b> {customerType || "—"} &nbsp; | &nbsp;
-                        <b>Bill Reference:</b> {billMonth ? `${billMonth} (${billDuration || "—"})` : "—"}
-                      </div>
-
+                      <div className="info-line"><b>Customer Type:</b> {customerType || "—"} &nbsp; | &nbsp;<b>Bill Reference:</b> {billMonth ? `${billMonth} (${billDuration || "—"})` : "—"}</div>
                       <table className="energy-table">
                         <thead>
-                          <tr>
-                            <th>PARAMETERS FROM ELECTRICITY BILL</th>
-                            <th style={{ width: "14%" }}>UOM</th>
-                            <th style={{ width: "24%" }}>Value</th>
-                          </tr>
+                          <tr><th>PARAMETERS FROM ELECTRICITY BILL</th><th style={{ width: "14%" }}>UOM</th><th style={{ width: "24%" }}>Value</th></tr>
                         </thead>
                         <tbody>
                           <Tr k="Existing KWH Consumption" u="KWH" v={energyIn.kwh} />
@@ -1351,44 +1481,28 @@ export default function QuotationBuilder() {
                           <Tr k="Effective Power Factor can be achieved at" u="PF" v={energyIn.pfTarget} />
                           <Tr k="Commercial Savings in KVAH Energy Charges" u="Rs." v={money(energyCalc.savKvah, quote.currency)} />
                           <Tr k="Commercial Savings in KVAH Energy Charges with all the taxes" u="Rs." v={money(energyCalc.savKvahTax, quote.currency)} />
-
                           <Tr k="Existing KVA Demand (KVA (MD))" u="KVA" v={energyIn.kvaMD} />
                           <Tr k="Existing KW Demand (KW MD)" u="KW" v={energyIn.kwMD} />
                           <Tr k="Saving in Demand" u="" v={energyCalc.savingDemand} />
                           <Tr k="Commercial Savings in KVA (MD) Charges" u="Rs." v={money(energyCalc.savMD, quote.currency)} />
-
-                          <tr>
-                            <td colSpan={2} className="bold">Total MONTHLY Savings (Approx.) based on last Electricity bills provided, as per above calculation</td>
-                            <td className="bold">{money(energyCalc.monthly, quote.currency)}</td>
-                          </tr>
-                          <tr>
-                            <td colSpan={2} className="bold">Total YEARLY Savings (Approx.) based on last Electricity bills provided, as per above calculation</td>
-                            <td className="bold">{money(energyCalc.yearly, quote.currency)}</td>
-                          </tr>
-                          <tr>
-                            <td colSpan={2} className="bold">Investment required as per Proposed System. Total Value of Quotation submitted</td>
-                            <td className="bold">{money(energyCalc.investment, quote.currency)}</td>
-                          </tr>
-                          <tr>
-                            <td colSpan={2} className="bold">NUMBER OF DAYS:</td>
-                            <td>{energyCalc.days ? energyCalc.days.toFixed(0) : "—"}</td>
-                          </tr>
-                          <tr>
-                            <td colSpan={2} className="bold">NUMBER OF MONTHS:</td>
-                            <td>{energyCalc.months ? energyCalc.months.toFixed(1) : "—"}</td>
-                          </tr>
-                          <tr>
-                            <td colSpan={2} className="bold">Savings on Investment in 5 years (in Lakhs)</td>
-                            <td className="bold">{money(energyCalc.fiveYearRupees)}</td>
-                          </tr>
+                          <tr><td colSpan={2} className="bold">Total MONTHLY Savings (Approx.) based on last Electricity bills provided, as per above calculation</td><td className="bold">{money(energyCalc.monthly, quote.currency)}</td></tr>
+                          <tr><td colSpan={2} className="bold">Total YEARLY Savings (Approx.) based on last Electricity bills provided, as per above calculation</td><td className="bold">{money(energyCalc.yearly, quote.currency)}</td></tr>
+                          <tr><td colSpan={2} className="bold">Investment required as per Proposed System. Total Value of Quotation submitted</td><td className="bold">{money(energyCalc.investment, quote.currency)}</td></tr>
+                          <tr><td colSpan={2} className="bold">NUMBER OF DAYS:</td><td>{energyCalc.days ? energyCalc.days.toFixed(0) : "—"}</td></tr>
+                          <tr><td colSpan={2} className="bold">NUMBER OF MONTHS:</td><td>{energyCalc.months ? energyCalc.months.toFixed(1) : "—"}</td></tr>
+                          <tr><td colSpan={2} className="bold">Savings on Investment in 5 years (in Lakhs)</td><td className="bold">{money(energyCalc.fiveYearRupees)}</td></tr>
                         </tbody>
                       </table>
                       <Footer line={footerLine} />
                     </div>
                   )}
 
-                  {/* TERMS & CONDITIONS page */}
-                  <TermsAndConditionsPage bannerSrc={HEADER_BANNER_SRC} footerLine={footerLine} paymentTerms={paymentTerms} />
+                  {/* TERMS & CONDITIONS page (Dynamically selected based on Option 1 or 2) */}
+                  {paymentTerms.option === "2" ? (
+                    <TermsPagesOption2 bannerSrc={HEADER_BANNER_SRC} footerLine={footerLine} paymentTerms={paymentTerms} quote={quote} />
+                  ) : (
+                    <TermsAndConditionsPage bannerSrc={HEADER_BANNER_SRC} footerLine={footerLine} paymentTerms={paymentTerms} />
+                  )}
 
                   {/* CERTIFICATE page */}
                   <CertificatePage bannerSrc={HEADER_BANNER_SRC} footerLine={footerLine} imgSrc={CERTIFICATE_IMG_SRC} />
@@ -1405,20 +1519,12 @@ export default function QuotationBuilder() {
 /* ---------- Small helper row components for tables ---------- */
 function Row({ k, uom, v }) {
   return (
-    <TableRow>
-      <TableCell>{k}</TableCell>
-      <TableCell>{uom || ""}</TableCell>
-      <TableCell>{v}</TableCell>
-    </TableRow>
+    <TableRow><TableCell>{k}</TableCell><TableCell>{uom || ""}</TableCell><TableCell>{v}</TableCell></TableRow>
   );
 }
 function Tr({ k, u, v }) {
   return (
-    <tr>
-      <td>{k}</td>
-      <td>{u}</td>
-      <td className="right">{typeof v === "string" || typeof v === "number" ? v : v}</td>
-    </tr>
+    <tr><td>{k}</td><td>{u}</td><td className="right">{typeof v === "string" || typeof v === "number" ? v : v}</td></tr>
   );
 }
 
@@ -1426,11 +1532,7 @@ function Tr({ k, u, v }) {
 function Header({ bannerSrc }) {
   return (
     <div className="header">
-      {bannerSrc ? (
-        <div className="header-banner"><img src={bannerSrc} alt="IPQS header" /></div>
-      ) : (
-        <div className="brand">IPQS PRIVATE LIMITED</div>
-      )}
+      {bannerSrc ? <div className="header-banner"><img src={bannerSrc} alt="IPQS header" /></div> : <div className="brand">IPQS PRIVATE LIMITED</div>}
     </div>
   );
 }
@@ -1438,19 +1540,13 @@ function MetaBar({ quote }) {
   return (
     <div className="meta-bar">
       <div className="left">{quote.refNo ? <div>Reference: <b>{quote.refNo}</b></div> : <div>&nbsp;</div>}</div>
-      <div className="right">
-        <div>Date: <b>{new Date(quote.date).toLocaleDateString()}</b></div>
-        <div>Quote #: <b>{quote.quoteNo}</b></div>
-      </div>
+      <div className="right"><div>Date: <b>{new Date(quote.date).toLocaleDateString()}</b></div><div>Quote #: <b>{quote.quoteNo}</b></div></div>
     </div>
   );
 }
 function Footer({ line }) {
   return (
-    <div className="footer">
-      <div className="company">IPQS PRIVATE LIMITED</div>
-      <div className="line">{line}</div>
-    </div>
+    <div className="footer"><div className="company">IPQS PRIVATE LIMITED</div><div className="line">{line}</div></div>
   );
 }
 
@@ -1474,21 +1570,11 @@ function LetterPages({ quote, recipient, footerLine, bannerSrc }) {
       img.src = bannerSrc;
       hb.appendChild(img);
       header.appendChild(hb);
-    } else {
-      const brand = document.createElement("div");
-      brand.className = "brand";
-      brand.textContent = "IPQS PRIVATE LIMITED";
-      header.appendChild(brand);
     }
 
     const meta = document.createElement("div");
     meta.className = "meta-bar";
-    meta.innerHTML = `
-      <div class="left">${quote.refNo ? `Reference: <b>${quote.refNo}</b>` : "&nbsp;"}</div>
-      <div class="right">
-        <div>Date: <b>${new Date(quote.date).toLocaleDateString()}</b></div>
-        <div>Quote #: <b>${quote.quoteNo}</b></div>
-      </div>`;
+    meta.innerHTML = `<div class="left">${quote.refNo ? `Reference: <b>${quote.refNo}</b>` : "&nbsp;"}</div><div class="right"><div>Date: <b>${new Date(quote.date).toLocaleDateString()}</b></div><div>Quote #: <b>${quote.quoteNo}</b></div></div>`;
 
     const content = document.createElement("div");
     content.className = "content";
@@ -1507,7 +1593,7 @@ function LetterPages({ quote, recipient, footerLine, bannerSrc }) {
     const makeDiv = (txt, cls = "para") => {
       const el = document.createElement("div");
       el.className = cls;
-      el.textContent = txt;
+      el.innerHTML = txt.replace(/\n/g, '<br/>'); 
       return el;
     };
 
@@ -1515,24 +1601,11 @@ function LetterPages({ quote, recipient, footerLine, bannerSrc }) {
     blocks.push(makeDiv("To,", "line"));
     blocks.push(makeDiv(recipient.company || "—", "bold line"));
     if (recipient.attention) blocks.push(makeDiv(`Attn: ${recipient.attention}`, "line"));
-    (recipient.address || "—")
-      .split("\n")
-      .filter(Boolean)
-      .forEach((l) => blocks.push(makeDiv(l, "line")));
+    (recipient.address || "—").split("\n").filter(Boolean).forEach((l) => blocks.push(makeDiv(l, "line")));
     blocks.push(makeDiv(`Subject: ${recipient.subject || "—"}`, "subject"));
 
-    const paras = (recipient.body || "")
-      .split(/\n{2,}/g)
-      .map((p) => p.trim())
-      .filter(Boolean);
+    const paras = (recipient.body || "").split(/\n{2,}/g).map((p) => p.trim()).filter(Boolean);
     paras.forEach((p) => blocks.push(makeDiv(p, "para")));
-
-    const sign = document.createElement("div");
-    sign.className = "sign";
-    sign.innerHTML = `<div>Thanks & Regards,</div>
-       <div class="bold">For IPQS PRIVATE LIMITED</div>
-       <div style="height:48px"></div>
-       <div class="bold">Authorised Signatory</div>`;
 
     const pagesHtml = [];
     let cursor = 0;
@@ -1546,16 +1619,6 @@ function LetterPages({ quote, recipient, footerLine, bannerSrc }) {
           break;
         }
         cursor += 1;
-      }
-
-      if (cursor >= blocks.length) {
-        content.appendChild(sign);
-        if (content.scrollHeight > available) {
-          content.removeChild(sign);
-          pagesHtml.push(content.innerHTML);
-          content.innerHTML = "";
-          content.appendChild(sign);
-        }
       }
       pagesHtml.push(content.innerHTML);
     }
@@ -1580,7 +1643,7 @@ function LetterPages({ quote, recipient, footerLine, bannerSrc }) {
   );
 }
 
-/* ---------- TERMS PAGE ---------- */
+/* ---------- OPTION 1: TERMS PAGE (Standard & Compact) ---------- */
 function TermsAndConditionsPage({ bannerSrc, footerLine, paymentTerms }) {
   const adv = paymentTerms?.advance || "70";
   const bal = paymentTerms?.balance || "30";
@@ -1630,6 +1693,148 @@ function TermsAndConditionsPage({ bannerSrc, footerLine, paymentTerms }) {
       </div>
       <Footer line={footerLine} />
     </div>
+  );
+}
+
+/* ---------- OPTION 2: DETAILED DYNAMIC AUTO-PAGINATING TERMS PAGE ---------- */
+function TermsPagesOption2({ bannerSrc, footerLine, paymentTerms, quote }) {
+  const [pages, setPages] = useState([]);
+  const adv = paymentTerms?.advance || "70";
+  const bal = paymentTerms?.balance || "30";
+  
+  useEffect(() => {
+    const page = document.createElement("div");
+    page.className = "page page-terms terms-detailed";
+    page.style.position = "absolute";
+    page.style.visibility = "hidden";
+    page.style.left = "-10000px";
+
+    const header = document.createElement("div");
+    header.className = "header";
+    if (bannerSrc) {
+      const hb = document.createElement("div");
+      hb.className = "header-banner";
+      const img = document.createElement("img");
+      img.src = bannerSrc;
+      hb.appendChild(img);
+      header.appendChild(hb);
+    }
+
+    const content = document.createElement("div");
+    content.className = "content";
+
+    page.appendChild(header);
+    page.appendChild(content);
+    document.body.appendChild(page);
+
+    const pageHeight = page.getBoundingClientRect().height || 1123;
+    const headerH = header.getBoundingClientRect().height;
+    const reservedFooter = 90; 
+    const available = pageHeight - headerH - reservedFooter - 40;
+
+    const makeDiv = (html) => {
+      const el = document.createElement("div");
+      el.innerHTML = html;
+      el.style.marginBottom = "4px"; 
+      return el;
+    };
+
+    const blocks = [];
+    blocks.push(makeDiv(`<div class="section-title">TERM & CONDITION</div>`));
+    
+    const termsList = [
+      `<b>Applicability</b><br/>All quotations, proposals, offers, and supply contracts issued by IPQS Private Limited shall be governed exclusively by the terms and conditions stated herein, unless specifically agreed otherwise in writing by IPQS. Any terms mentioned in the customer's purchase order, correspondence, or documents which conflict with these conditions shall not be binding on IPQS unless expressly accepted in writing.`,
+      `<b>Offer Validity & Acceptance</b><ul><li>The quotation shall remain valid for ${quote.validityDays || 30} days from the date of issue, unless withdrawn earlier.</li><li>All orders are subject to final written acceptance by IPQS.</li><li>IPQS reserves the right to correct any clerical, typographical, or calculation errors in the quotation at any time prior to acceptance.</li></ul>`,
+      `<b>Prices</b><ul><li>Prices quoted are based on prevailing costs at the time of quotation.</li><li>Unless otherwise stated, prices are Ex-Works and 100 % in advance.</li><li>GST, duties, levies, packing, transportation, insurance, and any statutory charges shall be charged extra at actuals as applicable.</li><li>Any increase or decrease in statutory taxes or duties after the quotation date shall be adjusted in the contract price accordingly.</li></ul>`,
+      `<b>Payment Terms</b><ul><li>${adv}% Basic Amount Advance with Techno-commercially Cleared Purchase Order.</li><li>${bal}% Basic Amount against Proforma invoice and material readiness before Dispatch.</li><li>Both advance and Final payments will be subject to 100% taxes as applicable.</li><li>In case of delayed payment, IPQS reserves the right to levy interest at 2% per month or part thereof on the outstanding amount from the due date until realization, without prejudice to other legal remedies available.</li></ul>`,
+      `<b>Delivery</b><ul><li>Delivery period shall be as mentioned in the quotation (Ex-Stock / 4–6 weeks) and shall commence from the receipt of confirmed purchase order and advance payment.</li><li>Delivery timelines are indicative and not of the essence of the contract. IPQS shall not be liable for delays caused due to force majeure, logistics issues, statutory delays, or reasons beyond its reasonable control.</li><li>Partial dispatches may be made at IPQS’s discretion.</li><li>If delivery includes transportation to site, unloading shall be the responsibility of the customer.</li></ul>`,
+      `<b>Transfer of Risk & Title</b><ul><li>Risk in the equipment shall pass to the customer upon dispatch from IPQS works or as otherwise specified.</li><li>Ownership and title of the supplied goods shall remain with IPQS until full payment is received.</li><li>In case of resale by the customer prior to full payment, the sale proceeds shall be held in trust for IPQS to the extent of unpaid dues.</li></ul>`,
+      `<b>Storage</b><br/>If the customer fails to take delivery or provide dispatch instructions within 30 days of intimation that the material is ready, IPQS may arrange storage and insurance at the customer's risk and cost. In such cases, full payment shall become immediately due.`,
+      `<b>Inspection & Testing</b><ul><li>Standard visual inspection shall be carried out prior to dispatch.</li><li>FAT / simulation testing, if applicable, shall be conducted at IPQS works.</li><li>Customer or third-party inspection can be arranged upon request and mutual agreement.</li></ul>`,
+      `<b>Installation & Commissioning</b><ul><li>Installation and commissioning, if required, shall be charged extra unless specifically included in the scope.</li><li>Charges shall be ₹10,000 per engineer per day, excluding travel, lodging, boarding, and local conveyance, which shall be borne by the customer.</li></ul>`,
+      `<b>Warranty</b><ul><li>IPQS warrants the supplied equipment for 12 months from the date of supply, against manufacturing defects under normal use and operating conditions.</li><li>Warranty shall be limited to repair or replacement of defective parts at IPQS discretion.</li><li>Warranty does not cover damage due to misuse, improper installation, electrical abnormalities, unauthorized modifications, or normal wear and tear.</li></ul>`,
+      `<b>Limitation of Liability</b><ul><li>IPQS shall not be liable for any indirect, consequential, or incidental losses, including loss of production or profit.</li><li>IPQS's total liability, if any, shall be limited to the value of the equipment supplied.</li></ul>`,
+      `<b>Force Majeure</b><ul><li>IPQS shall not be responsible for failure or delay in performance due to events beyond its control, including but not limited to natural calamities, strikes, governmental actions, supply chain disruptions, or acts of God.</li></ul>`,
+      `<b>Documentation & Descriptions</b><ul><li>All drawings, catalogues, specifications, and technical details are indicative and provided for general guidance only. These shall not form part of the contract unless specifically confirmed in writing by IPQS.</li></ul>`,
+      `<b>Governing Law & Jurisdiction</b><ul><li>The contract shall be governed by and construed in accordance with Indian laws. All disputes shall be subject to Pune jurisdiction only.</li></ul>`,
+      `<b>Commissioning</b><ul><li>In case if time for commissioning extends more than the estimated due to any circumstances behind IPQS control, customer will be charged extra Rs 10,000/- per person per day.</li></ul>`,
+      `<b>Consequential / Indirect Damages</b><ul><li>In no event shall IPQS Private Limited be liable for any consequential, indirect, punitive, or exemplary damages, including loss of profits, business interruption, or loss of good will, whether foreseeable or not, and irrespective of the legal theory under which such damages are claimed.</li></ul>`
+    ];
+
+    termsList.forEach((t, i) => {
+      blocks.push(makeDiv(`<div class="term-item"><div class="term-num">${i+1}.</div><div class="term-text">${t}</div></div>`));
+    });
+
+    blocks.push(makeDiv(`
+      <div class="kv-grid">
+         <div>Mode of transport</div><div class="colon">:</div><div>By Road</div>
+         <div>Unloading</div><div class="colon">:</div><div>Customer Scope</div>
+         <div>Freight</div><div class="colon">:</div><div>Extra at actual</div>
+         <div>Insurance</div><div class="colon">:</div><div>To be arranged by you, if required</div>
+         <div>Consign to</div><div class="colon">:</div><div>As advised by you.</div>
+         <div>Invoice to</div><div class="colon">:</div><div>As advised by you.</div>
+         <div>Packing charges</div><div class="colon">:</div><div>Standard Packing with Wrapping is Inclusive. However, Wooden packing charges will be Extra at actual.</div>
+      </div>
+    `));
+
+    blocks.push(makeDiv(`
+      <table class="terms-detailed-table" style="margin-top: 20px;">
+        <tbody>
+           <tr><td colSpan="3" style="font-size: 13px;"><b>A. Company Details:</b></td></tr>
+           <tr><th>1. Name of Company</th><td class="colon">:</td><td>IPQS PRIVATE LIMITED</td></tr>
+           <tr><th>2. Address</th><td class="colon">:</td><td>209, Gangamai Industrial Complex, M.I.D.C. Ambad,<br/>422010, Maharashtra, India.</td></tr>
+           <tr><th>3. CIN</th><td class="colon">:</td><td>U31909MH2022PTC395396</td></tr>
+           <tr><th>4. GST</th><td class="colon">:</td><td>27AAGCI9596L1ZM</td></tr>
+        </tbody>
+      </table>
+    `));
+
+    blocks.push(makeDiv(`
+      <table class="terms-detailed-table" style="margin-top: 16px;">
+        <tbody>
+           <tr><td colSpan="3" style="font-size: 13px;"><b>B. Bank Details:</b></td></tr>
+           <tr><th>1. Name of Account</th><td class="colon">:</td><td>IPQS PRIVATE LIMITED</td></tr>
+           <tr><th>2. Bank</th><td class="colon">:</td><td>HDFC BANK LTD</td></tr>
+           <tr><th>3. Account Number</th><td class="colon">:</td><td>99909158418924</td></tr>
+           <tr><th>4. IFSC Code</th><td class="colon">:</td><td>HDFC0000878</td></tr>
+        </tbody>
+      </table>
+    `));
+
+    const pagesHtml = [];
+    let cursor = 0;
+
+    while (cursor < blocks.length) {
+      content.innerHTML = "";
+      let addedAny = false;
+      while (cursor < blocks.length) {
+        content.appendChild(blocks[cursor]);
+        if (content.scrollHeight > available && addedAny) {
+          content.removeChild(blocks[cursor]);
+          break;
+        }
+        addedAny = true;
+        cursor += 1;
+      }
+      pagesHtml.push(content.innerHTML);
+    }
+
+    document.body.removeChild(page);
+    setPages(pagesHtml);
+  }, [quote, paymentTerms, bannerSrc]);
+
+  if (pages.length === 0) return null;
+
+  return (
+    <>
+      {pages.map((html, idx) => (
+        <div className="page page-terms terms-detailed" key={idx}>
+          <Header bannerSrc={bannerSrc} />
+          <div className="content" dangerouslySetInnerHTML={{ __html: html }} />
+          <Footer line={footerLine} />
+        </div>
+      ))}
+    </>
   );
 }
 

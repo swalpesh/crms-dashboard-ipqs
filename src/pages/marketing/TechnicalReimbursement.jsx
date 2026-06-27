@@ -1,16 +1,44 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Box, Typography, Button, Grid, Stack, IconButton, InputBase,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Paper, keyframes, useTheme, useMediaQuery, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, MenuItem, InputAdornment,
-  Divider, CircularProgress, Snackbar, Alert, Checkbox, ListItemText,
-  Select, FormControl, InputLabel, Chip
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  Paper, 
+  TextField, 
+  MenuItem, 
+  InputAdornment,
+  Divider, 
+  CircularProgress, 
+  Snackbar, 
+  Alert, 
+  Checkbox, 
+  ListItemText,
+  Select, 
+  FormControl, 
+  InputLabel, 
+  Chip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack,
+  Grid,
+  InputBase
 } from '@mui/material';
 import {
-  Add as AddIcon, AccountBalanceWallet as WalletIcon, ReceiptLong as ReceiptIcon,
-  PieChart as PieChartIcon, Close as CloseIcon, CloudUpload as CloudUploadIcon,
-  Receipt as ReceiptIcon2, Visibility as ViewIcon, Info as InfoIcon, Search as SearchIcon
+  Add as AddIcon, 
+  Receipt as ReceiptIcon2, 
+  Visibility as ViewIcon, 
+  Search as SearchIcon,
+  Close as CloseIcon, 
+  CloudUpload as CloudUploadIcon
 } from '@mui/icons-material';
 
 // --- API HELPERS ---
@@ -23,34 +51,11 @@ const getAuthUser = () => {
 };
 
 // --- ANIMATIONS ---
+import { keyframes, useTheme, useMediaQuery } from '@mui/material';
 const float = keyframes`
   0%, 100% { transform: translate(0, 0); }
   50% { transform: translate(30px, -30px); }
 `;
-
-// --- NEW COMPONENT: ANIMATED COUNTER (01234 Style) ---
-const AnimatedCounter = ({ value, duration = 1000 }) => {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    let startTimestamp = null;
-    const startValue = count;
-    const endValue = parseFloat(value) || 0;
-
-    const step = (timestamp) => {
-      if (!startTimestamp) startTimestamp = timestamp;
-      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-      const currentCount = progress * (endValue - startValue) + startValue;
-      setCount(currentCount);
-      if (progress < 1) {
-        window.requestAnimationFrame(step);
-      }
-    };
-    window.requestAnimationFrame(step);
-  }, [value]);
-
-  return <span>₹{count.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
-};
 
 // --- STYLES CONSTANTS ---
 const pageStyle = {
@@ -86,34 +91,6 @@ const glassPanelStyle = {
   zIndex: 1,
   position: 'relative'
 };
-
-const summaryCardStyle = {
-  background: '#24223a',
-  border: '1px solid rgba(255, 255, 255, 0.05)',
-  borderRadius: '16px',
-  p: 2.5,
-  display: 'flex',
-  alignItems: 'center',
-  gap: 2.5,
-  transition: 'all 0.2s ease',
-  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-  '&:hover': {
-    background: '#2a2744',
-    transform: 'translateY(-2px)',
-  }
-};
-
-const iconBoxStyle = (color, bg) => ({
-  width: '50px',
-  height: '50px',
-  borderRadius: '14px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '24px',
-  color: color,
-  background: bg,
-});
 
 const inputStyle = {
   '& .MuiOutlinedInput-root': {
@@ -159,7 +136,7 @@ const secondaryBtnStyle = {
 
 const statusStyle = (status) => {
   const s = status?.toLowerCase() || '';
-  if (s === 'completed') return { background: 'rgba(34, 197, 94, 0.15)', color: '#22C55E', border: '1px solid rgba(34, 197, 94, 0.3)' };
+  if (s === 'completed' || s === 'approved') return { background: 'rgba(34, 197, 94, 0.15)', color: '#22C55E', border: '1px solid rgba(34, 197, 94, 0.3)' };
   if (s === 'complications') return { background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)' };
   return { background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.3)' };
 };
@@ -169,9 +146,8 @@ const isClaimExpired = (endDateStr) => {
   if (!endDateStr) return false;
   
   const endDate = new Date(endDateStr);
-  if (isNaN(endDate.getTime())) return false; // Fallback for invalid dates
+  if (isNaN(endDate.getTime())) return false; 
 
-  // Deadline is exactly 7 days after the end date timestamp
   const deadline = new Date(endDate.getTime() + (7 * 24 * 60 * 60 * 1000));
   return new Date() > deadline;
 };
@@ -187,17 +163,18 @@ const TechnicalReimbursement = () => {
 
   // --- State ---
   const [reimbursements, setReimbursements] = useState([]);
-  const [summaryData, setSummaryData] = useState({ totalExpense: 0, totalReceived: 0 });
   const [loadingData, setLoadingData] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   // --- Modal States ---
-  const [open, setOpen] = useState(false); // Start Trip
-  const [viewOpen, setViewOpen] = useState(false); // View Details (Put Claims)
-  const [expenseModalOpen, setExpenseModalOpen] = useState(false); // Add Expense
+  const [open, setOpen] = useState(false); 
+  const [viewOpen, setViewOpen] = useState(false); 
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false); 
+  const [advanceModalOpen, setAdvanceModalOpen] = useState(false); 
 
   const [submitting, setSubmitting] = useState(false);
   const [expenseSubmitting, setExpenseSubmitting] = useState(false);
+  const [advanceSubmitting, setAdvanceSubmitting] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
   const [selectedTrip, setSelectedTrip] = useState(null);
@@ -213,27 +190,29 @@ const TechnicalReimbursement = () => {
     end_date: ''
   });
 
-  // --- Add Expense Form Data (Updated fields) ---
+  // --- Add Expense Form Data ---
   const [expenseFormData, setExpenseFormData] = useState({
     category: '',
-    reason: '', // Maps to new Expense Description UI field
+    reason: '', 
     date: '',
     time: '',
     amount: '',
     invoice: null
   });
 
+  // --- Add Advance Form Data ---
+  const [advanceAmount, setAdvanceAmount] = useState('');
+
   // Add Expense Multi-Select State
   const [teamEmployees, setTeamEmployees] = useState([]);
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
 
-  // Expense Categories for dropdown
   const expenseCategories = [
     'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Travel', 'Accommodation', 'Other'
   ];
 
-  // --- FETCH SUMMARY API ---
+  // --- FETCH SUMMARY API (Modified to only fetch list, ignoring counts) ---
   const fetchSummary = async () => {
     setLoadingData(true);
     try {
@@ -244,8 +223,6 @@ const TechnicalReimbursement = () => {
       });
       const json = await response.json();
       if (response.ok) {
-        const total = (json.data || []).reduce((acc, curr) => acc + (parseFloat(curr.total_expense_amount) || 0), 0);
-        setSummaryData(prev => ({ ...prev, totalExpense: total }));
         setReimbursements(json.data || []);
       }
     } catch (err) {
@@ -259,8 +236,63 @@ const TechnicalReimbursement = () => {
     fetchSummary();
   }, []);
 
+  // --- FETCH ADVANCE AMOUNT API ---
+  const fetchAdvanceAmount = useCallback(async (reimbursementId) => {
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE_URL}/api/reimbursements/${reimbursementId}/advance`, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (res.ok) {
+        const amt = parseFloat(json.advance_amount || 0);
+        setSelectedTrip(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            details: {
+              ...prev.details,
+              advance: `₹${amt.toFixed(2)}`,
+              advanceValue: amt
+            }
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Fetch Advance Error:", err);
+    }
+  }, []);
+
+  // --- FETCH APPROVED AMOUNT API ---
+  const fetchApprovedAmount = useCallback(async (reimbursementId) => {
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE_URL}/api/reimbursements/${reimbursementId}/approve-amount`, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (res.ok) {
+        const amt = parseFloat(json.approved_amount || 0);
+        setSelectedTrip(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            details: {
+              ...prev.details,
+              approvedAmount: amt 
+            }
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Fetch Approved Amount Error:", err);
+    }
+  }, []);
+
   // --- FETCH EXPENSES FOR SPECIFIC TRIP ---
-  const fetchTripExpenses = async (reimbursementId) => {
+  const fetchTripExpenses = useCallback(async (reimbursementId) => {
     setLoadingExpenses(true);
     try {
       const token = getToken();
@@ -281,19 +313,24 @@ const TechnicalReimbursement = () => {
     } finally {
       setLoadingExpenses(false);
     }
-  };
+  }, []);
 
-  // Dynamically calculate total expenses based on fetched data
   const tripTotalAmount = useMemo(() => {
     return tripExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
   }, [tripExpenses]);
+
+  // --- CALCULATE REMAINING DIFFERENCE ---
+  const tripRemainingDifference = useMemo(() => {
+    const advance = selectedTrip?.details?.advanceValue || 0;
+    return tripTotalAmount - advance;
+  }, [tripTotalAmount, selectedTrip]);
 
   // --- FETCH TEAM EMPLOYEES (Based on Role) ---
   const fetchTeamEmployees = async () => {
     setLoadingEmployees(true);
     try {
       const token = getToken();
-      let endpoint = "/api/v1/employees/department/field-marketing"; // Default Fallback
+      let endpoint = "/api/v1/employees/department/field-marketing"; 
 
       if (role.includes("Field-Marketing")) {
         endpoint = "/api/v1/employees/department/field-marketing";
@@ -338,14 +375,8 @@ const TechnicalReimbursement = () => {
     }
   };
 
-  // --- CALCULATE SUMMARY TOTALS ---
-  const totalRemainingAmount = summaryData.totalExpense - summaryData.totalReceived;
-
   // --- Handlers ---
-  const handleOpen = () => {
-    setOpen(true);
-  };
-
+  const handleOpen = () => { setOpen(true); };
   const handleClose = () => {
     setOpen(false);
     setFormData({ companyName: '', start_date: '', end_date: '' });
@@ -362,6 +393,16 @@ const TechnicalReimbursement = () => {
     setExpenseFormData({ category: '', reason: '', date: '', time: '', amount: '', invoice: null });
   };
 
+  const handleAdvanceModalOpen = () => {
+    setAdvanceAmount('');
+    setAdvanceModalOpen(true);
+  };
+
+  const handleAdvanceModalClose = () => {
+    setAdvanceModalOpen(false);
+    setAdvanceAmount('');
+  };
+
   const handleEmployeeChange = (event) => {
     const { target: { value } } = event;
     setSelectedEmployees(typeof value === 'string' ? value.split(',') : value);
@@ -376,7 +417,52 @@ const TechnicalReimbursement = () => {
     setExpenseFormData({ ...expenseFormData, invoice: e.target.files[0] });
   };
 
-  // --- SUBMIT NEW EXPENSE API (Inside Put Claims Modal) ---
+  // --- SUBMIT ADVANCE AMOUNT API ---
+  const handleAddAdvanceSubmit = async () => {
+    if (!advanceAmount || parseFloat(advanceAmount) <= 0) {
+      setToast({ open: true, message: "Please enter a valid advance amount.", severity: "error" });
+      return;
+    }
+
+    setAdvanceSubmitting(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/api/reimbursements/${selectedTrip.id}/advance`, {
+        method: 'PUT',
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ advance_amount: parseFloat(advanceAmount) })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setToast({ open: true, message: "Advance amount updated successfully!", severity: "success" });
+        handleAdvanceModalClose();
+        
+        setSelectedTrip(prev => ({
+          ...prev,
+          details: {
+            ...prev.details,
+            advance: `₹${parseFloat(advanceAmount).toFixed(2)}`,
+            advanceValue: parseFloat(advanceAmount)
+          }
+        }));
+        fetchSummary();
+      } else {
+        setToast({ open: true, message: "Failed: " + (result.error || result.message || "Unknown error"), severity: "error" });
+      }
+    } catch (err) {
+      console.error(err);
+      setToast({ open: true, message: "Network Error: " + err.message, severity: "error" });
+    } finally {
+      setAdvanceSubmitting(false);
+    }
+  };
+
+  // --- SUBMIT NEW EXPENSE API ---
   const handleAddExpenseSubmit = async () => {
     if (!expenseFormData.category || !expenseFormData.reason || !expenseFormData.amount || !expenseFormData.date || selectedEmployees.length === 0) {
       setToast({ open: true, message: "Please fill all required fields and select employees", severity: "error" });
@@ -389,14 +475,13 @@ const TechnicalReimbursement = () => {
     }
 
     setExpenseSubmitting(true);
-
     try {
       const token = getToken();
       const submitData = new FormData();
 
       submitData.append('reimbursement_id', selectedTrip.id);
-      submitData.append('description', expenseFormData.category); // Map Category to description based on Postman
-      submitData.append('reason', expenseFormData.reason);        // Map UI Description to reason based on Postman
+      submitData.append('description', expenseFormData.category); 
+      submitData.append('reason', expenseFormData.reason);        
       submitData.append('expense_date', expenseFormData.date);
 
       let timeVal = expenseFormData.time;
@@ -408,14 +493,12 @@ const TechnicalReimbursement = () => {
       submitData.append('associated_employees', JSON.stringify(selectedEmployees));
 
       if (expenseFormData.invoice) {
-        submitData.append('file', expenseFormData.invoice); // Or 'receipt' depending on your backend
+        submitData.append('file', expenseFormData.invoice); 
       }
 
       const response = await fetch(`${API_BASE_URL}/api/reimbursements/expenses`, {
         method: 'POST',
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
+        headers: { "Authorization": `Bearer ${token}` },
         body: submitData
       });
 
@@ -439,14 +522,17 @@ const TechnicalReimbursement = () => {
 
   // --- Adapter: Convert API Data to Modal Format ---
   const adaptGroupedDataToTrip = (row, isExpired) => {
+    const amt = row.advance_amount ? parseFloat(row.advance_amount) : 0;
     return {
       id: row.reimbursement_id,
       company: row.company_name,
       date: row.start_date,
-      status: row.res_status || 'Pending',
+      status: row.res_status || row.status || 'Pending',
       isExpired: isExpired,
       details: {
-        advance: '₹0.00',
+        advance: `₹${amt.toFixed(2)}`,
+        advanceValue: amt,
+        approvedAmount: 0, 
         submissionDate: row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB') : '-'
       }
     };
@@ -456,6 +542,8 @@ const TechnicalReimbursement = () => {
     setSelectedTrip(adaptGroupedDataToTrip(row, isExpired));
     setViewOpen(true);
     fetchTripExpenses(row.reimbursement_id);
+    fetchAdvanceAmount(row.reimbursement_id); 
+    fetchApprovedAmount(row.reimbursement_id); 
   };
 
   const handleViewClose = () => {
@@ -476,10 +564,8 @@ const TechnicalReimbursement = () => {
     }
 
     setSubmitting(true);
-
     try {
       const token = getToken();
-
       const response = await fetch(`${API_BASE_URL}/api/reimbursements`, {
         method: 'POST',
         headers: {
@@ -502,7 +588,6 @@ const TechnicalReimbursement = () => {
       } else {
         setToast({ open: true, message: "Failed: " + (result.message || "Unknown error"), severity: "error" });
       }
-
     } catch (err) {
       setToast({ open: true, message: "Network Error: " + err.message, severity: "error" });
     } finally {
@@ -510,12 +595,11 @@ const TechnicalReimbursement = () => {
     }
   };
 
-  // --- Filtering Logic ---
   const filteredReimbursements = reimbursements.filter((item) => {
     const query = searchQuery.toLowerCase();
     const companyName = item.company_name?.toLowerCase() || '';
     const rId = item.reimbursement_id?.toLowerCase() || '';
-    const status = item.res_status?.toLowerCase() || '';
+    const status = (item.res_status || item.status || '').toLowerCase();
 
     return (
       companyName.includes(query) ||
@@ -547,47 +631,6 @@ const TechnicalReimbursement = () => {
           </Box>
         </Box>
 
-        {/* Accounts Summary */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ fontSize: '18px', fontWeight: 600, mb: 2, pl: 1 }}>Accounts Overview</Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Box sx={summaryCardStyle}>
-                <Box sx={iconBoxStyle('#fca5a5', '#4a2c3a')}><ReceiptIcon /></Box>
-                <Box>
-                  <Typography sx={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', mb: 0.5 }}>Expense Amount</Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#fca5a5', fontSize: '1.6rem' }}>
-                    <AnimatedCounter value={summaryData.totalExpense} />
-                  </Typography>
-                </Box>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Box sx={summaryCardStyle}>
-                <Box sx={iconBoxStyle('#6ee7b7', '#264042')}><WalletIcon /></Box>
-                <Box>
-                  <Typography sx={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', mb: 0.5 }}>Received Amount</Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#6ee7b7', fontSize: '1.6rem' }}>
-                    <AnimatedCounter value={summaryData.totalReceived} />
-                  </Typography>
-                </Box>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Box sx={summaryCardStyle}>
-                <Box sx={iconBoxStyle('#ffffff', '#3f3d4e')}><PieChartIcon /></Box>
-                <Box>
-                  <Typography sx={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', mb: 0.5 }}>Remaining Balance</Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#ffffff', fontSize: '1.6rem' }}>
-                    <AnimatedCounter value={totalRemainingAmount} />
-                  </Typography>
-                </Box>
-              </Box>
-            </Grid>
-          </Grid>
-          <Typography sx={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', mt: 2, pl: 1, display: 'flex', alignItems: 'center', gap: 1 }}><InfoIcon sx={{ fontSize: 16 }} /> Data is updated monthly. Contact IT for discrepancies.</Typography>
-        </Box>
-
         {/* All Trips Table */}
         <Box sx={{ background: 'rgba(20, 20, 40, 0.4)', borderRadius: '24px', p: 3, border: '1px solid rgba(255,255,255,0.08)' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
@@ -617,60 +660,48 @@ const TechnicalReimbursement = () => {
                   <TableRow><TableCell colSpan={6} align="center" sx={{ py: 4 }}><CircularProgress size={30} /></TableCell></TableRow>
                 ) : filteredReimbursements.length > 0 ? (
                   filteredReimbursements.map((row, index) => {
-                    const status = row.res_status || 'Pending';
+                    const status = row.res_status || row.status || 'Pending';
                     const statusConfig = statusStyle(status);
                     
-                    // --- APPLY ROBUST 7-DAY LOGIC HERE ---
                     const isExpired = isClaimExpired(row.end_date);
+                    // --- View Only Check: If it's expired OR if it's completed ---
+                    const isViewOnly = isExpired || status === 'Completed' || status === 'Approved';
 
                     return (
                       <TableRow key={index} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' }, '& td': { borderBottom: index === filteredReimbursements.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.03)' } }}>
-
                         <TableCell sx={{ color: '#3b82f6', fontWeight: 600 }}>{row.reimbursement_id}</TableCell>
-
                         <TableCell sx={{ py: 2 }}>
                           <Typography sx={{ fontWeight: 500, fontSize: '14px', color: '#fff' }}>{row.company_name}</Typography>
                         </TableCell>
-
                         <TableCell sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>
                           {row.start_date ? new Date(row.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                         </TableCell>
-
                         <TableCell sx={{ color: '#fff', fontWeight: 600 }}>₹{row.total_expense_amount}</TableCell>
-
                         <TableCell>
                           <Box component="span" sx={{ fontSize: '12px', fontWeight: 600, padding: '6px 12px', borderRadius: '20px', background: statusConfig.background, color: statusConfig.color, border: statusConfig.border, display: 'inline-block' }}>
                             {status}
                           </Box>
                         </TableCell>
-
                         <TableCell align="right">
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1.5 }}>
                             <Button
                               variant="outlined"
                               size="small"
-                              // Dynamic fallback: User can always view their history, but adding is disabled
                               onClick={() => handleViewOpen(row, isExpired)}
                               sx={{
                                 borderRadius: '20px',
                                 textTransform: 'none',
-                                ...(isExpired ? {
+                                ...(isViewOnly ? {
                                   borderColor: 'rgba(255,255,255,0.2)',
                                   color: 'rgba(255,255,255,0.6)',
-                                  '&:hover': {
-                                    borderColor: 'rgba(255,255,255,0.4)',
-                                    background: 'rgba(255,255,255,0.05)',
-                                  }
+                                  '&:hover': { borderColor: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.05)' }
                                 } : {
                                   borderColor: 'rgba(59, 130, 246, 0.5)',
                                   color: '#60a5fa',
-                                  '&:hover': {
-                                    borderColor: '#3b82f6',
-                                    background: 'rgba(59, 130, 246, 0.1)',
-                                  }
+                                  '&:hover': { borderColor: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)' }
                                 })
                               }}>
-                              {isExpired ? 'View Trip' : 'Put Claims'}
+                              {isViewOnly ? 'View Trip' : 'Put Claims'}
                             </Button>
                           </Box>
                         </TableCell>
@@ -694,15 +725,7 @@ const TechnicalReimbursement = () => {
         </DialogTitle>
         <DialogContent sx={{ mt: 3 }}>
           <Stack spacing={3}>
-            <TextField
-              label="Company Name"
-              name="companyName"
-              value={formData.companyName}
-              onChange={handleChange}
-              placeholder="Enter Company Name"
-              fullWidth
-              sx={inputStyle}
-            />
+            <TextField label="Company Name" name="companyName" value={formData.companyName} onChange={handleChange} placeholder="Enter Company Name" fullWidth sx={inputStyle} />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField type="date" label="Start Date" name="start_date" value={formData.start_date} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} sx={inputStyle} />
               <TextField type="date" label="End Date" name="end_date" value={formData.end_date} onChange={handleChange} fullWidth InputLabelProps={{ shrink: true }} sx={inputStyle} />
@@ -752,27 +775,44 @@ const TechnicalReimbursement = () => {
 
           <DialogContent sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
 
-            {/* EXPIRATION WARNING BANNER */}
-            {selectedTrip.isExpired && (
+            {/* EXPIRATION / COMPLETED WARNING BANNER */}
+            {selectedTrip.status === 'Completed' || selectedTrip.status === 'Approved' ? (
+              <Alert severity="success" sx={{ borderRadius: '12px', bgcolor: 'rgba(16, 185, 129, 0.1)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                 This trip has been marked as Completed. No further items can be added.
+              </Alert>
+            ) : selectedTrip.isExpired && (
               <Alert severity="warning" sx={{ borderRadius: '12px', bgcolor: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-                 The 7-day claim window for this trip has expired. You can view your existing expenses, but cannot submit new ones.
+                 The 7-day claim window for this trip has expired. You can view your existing history, but cannot submit adjustments.
               </Alert>
             )}
 
-            {/* Top Status Card - Full Width Row Layout */}
+            {/* Top Status Card */}
             <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '16px', p: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
               <Typography variant="subtitle1" color="white" fontWeight={600} mb={2}>Reimbursement Status</Typography>
 
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={4}>
+                <Grid item xs={12} sm={3}>
                   <Typography color="rgba(255,255,255,0.6)" fontSize="13px" mb={0.5}>Total Amount</Typography>
                   <Typography color="white" fontWeight={600} fontSize="16px">₹{tripTotalAmount.toFixed(2)}</Typography>
                 </Grid>
-                <Grid item xs={12} sm={4}>
-                  <Typography color="rgba(255,255,255,0.6)" fontSize="13px" mb={0.5}>Amount Received</Typography>
+                <Grid item xs={12} sm={3}>
+                  <Typography color="rgba(255,255,255,0.6)" fontSize="13px" mb={0.5}>Advance Amount</Typography>
                   <Typography color="white" fontWeight={600} fontSize="16px">{selectedTrip.details.advance}</Typography>
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                
+                {/* --- REMAINING DIFFERENCE DISPLAY --- */}
+                <Grid item xs={12} sm={3}>
+                  <Typography color="rgba(255,255,255,0.6)" fontSize="13px" mb={0.5}>Remaining Amount</Typography>
+                  <Typography 
+                    fontWeight={600} 
+                    fontSize="16px"
+                    sx={{ color: tripRemainingDifference >= 0 ? '#10B981' : '#EF4444' }} 
+                  >
+                    {tripRemainingDifference >= 0 ? `₹${tripRemainingDifference.toFixed(2)}` : `-₹${Math.abs(tripRemainingDifference).toFixed(2)}`}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={12} sm={3}>
                   <Typography color="rgba(255,255,255,0.6)" fontSize="13px" mb={0.5}>Current Status</Typography>
                   <Typography
                     color={selectedTrip.status === 'Pending' ? '#EF4444' : selectedTrip.status === 'Complications' ? '#F59E0B' : '#10B981'}
@@ -789,7 +829,7 @@ const TechnicalReimbursement = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <Typography color="rgba(255,255,255,0.6)" fontSize="13px" mb={0.5}>Approved Amount</Typography>
-                  <Typography color="#10b981" fontWeight={700} fontSize="16px">₹0.00</Typography>
+                  <Typography color="#10b981" fontWeight={700} fontSize="16px">₹{(selectedTrip?.details?.approvedAmount || 0).toFixed(2)}</Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography color="rgba(255,255,255,0.6)" fontSize="13px" mb={0.5}>Rejected Amount</Typography>
@@ -798,26 +838,44 @@ const TechnicalReimbursement = () => {
               </Grid>
             </Box>
 
-            {/* Expenses Table & Add Expense Button */}
+            {/* Expenses Table & Actions */}
             <Box sx={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', p: 3, bgcolor: 'rgba(255,255,255,0.02)' }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2} flexWrap="wrap" gap={2}>
                 <Typography variant="subtitle1" color="white" fontWeight={600}>Trip Expenses</Typography>
                 
-                {/* HIDE Add Expense Button if 7 days have passed */}
-                {!selectedTrip.isExpired && (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={handleExpenseModalOpen}
-                    sx={{ ...secondaryBtnStyle, py: 0.5, px: 2, fontSize: '13px' }}
-                  >
-                    Add Expense
-                  </Button>
+                {/* ACTIONS - HIDE Buttons if 7 days passed or status is finalized */}
+                {(!selectedTrip.isExpired && selectedTrip.status !== 'Completed' && selectedTrip.status !== 'Approved') && (
+                  <Stack direction="row" spacing={1.5}>
+                    {/* --- ADD ADVANCE AMOUNT ACTION BUTTON --- */}
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleAdvanceModalOpen}
+                      disabled={selectedTrip.details?.advanceValue > 0}
+                      sx={{ 
+                        ...secondaryBtnStyle, 
+                        py: 0.5, 
+                        px: 2, 
+                        fontSize: '13px',
+                        ...(selectedTrip.details?.advanceValue > 0 && { opacity: 0.5 }) 
+                      }}
+                    >
+                      Add Advance
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={handleExpenseModalOpen}
+                      sx={{ ...secondaryBtnStyle, py: 0.5, px: 2, fontSize: '13px' }}
+                    >
+                      Add Expense
+                    </Button>
+                  </Stack>
                 )}
               </Box>
 
-              <TableContainer sx={{ maxHeight: 300 }}>
+              <TableContainer sx={{ maxHeight: 400 }}>
                 <Table stickyHeader size="small">
                   <TableHead>
                     <TableRow>
@@ -828,11 +886,7 @@ const TechnicalReimbursement = () => {
                   </TableHead>
                   <TableBody>
                     {loadingExpenses ? (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 4 }}>
-                          <CircularProgress size={24} sx={{ color: '#3b82f6' }} />
-                        </TableCell>
-                      </TableRow>
+                      <TableRow><TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 4 }}><CircularProgress size={24} /></TableCell></TableRow>
                     ) : tripExpenses && tripExpenses.length > 0 ? (
                       tripExpenses.map((exp, i) => (
                         <TableRow key={i} sx={{ '& td': { borderBottom: '1px solid rgba(255,255,255,0.05)', py: 2 } }}>
@@ -842,8 +896,6 @@ const TechnicalReimbursement = () => {
                           <TableCell sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px' }}>{exp.expense_time || '-'}</TableCell>
                           <TableCell sx={{ color: '#fff', fontSize: '13px', fontWeight: 500 }}>{exp.description || '-'}</TableCell>
                           <TableCell sx={{ color: '#fff', fontWeight: 600, fontSize: '13px' }}>₹{exp.amount || '0'}</TableCell>
-
-                          {/* RECEIPT VIEW BUTTON COLUMN */}
                           <TableCell>
                             {exp.receipt_path ? (
                               <IconButton
@@ -852,12 +904,7 @@ const TechnicalReimbursement = () => {
                                 href={exp.receipt_path.startsWith('http') ? exp.receipt_path : `${API_BASE_URL.replace(/\/$/, '')}/${exp.receipt_path.replace(/\\/g, '/').replace(/^\//, '')}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                sx={{
-                                  color: '#60a5fa',
-                                  bgcolor: 'rgba(59, 130, 246, 0.1)',
-                                  borderRadius: '8px',
-                                  '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.2)' }
-                                }}
+                                sx={{ color: '#60a5fa', bgcolor: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.2)' } }}
                               >
                                 <ViewIcon fontSize="small" />
                               </IconButton>
@@ -868,17 +915,50 @@ const TechnicalReimbursement = () => {
                         </TableRow>
                       ))
                     ) : (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 5, color: 'grey.600' }}>
-                          No expenses added yet.
-                        </TableCell>
-                      </TableRow>
+                      <TableRow><TableCell colSpan={5} align="center" sx={{ borderBottom: 'none', py: 5, color: 'grey.600' }}>No expenses added yet.</TableCell></TableRow>
                     )}
-                    {/* Total Row */}
+                    
+                    {/* --- TABLE FOOTER: MULTI-ROW BREAKDOWN --- */}
                     <TableRow>
-                      <TableCell colSpan={3} align="right" sx={{ color: 'rgba(255,255,255,0.6)', borderBottom: 'none', pt: 3 }}>Total Expenses Made:</TableCell>
-                      <TableCell colSpan={2} sx={{ color: '#fff', fontWeight: 700, fontSize: '16px', borderBottom: 'none', pt: 3 }}>₹{tripTotalAmount.toFixed(2)}</TableCell>
+                      <TableCell colSpan={3} align="right" sx={{ borderBottom: 'none', pt: 3, pb: 1, color: 'rgba(255,255,255,0.6)' }}>
+                        Total Expenses Made:
+                      </TableCell>
+                      <TableCell colSpan={2} sx={{ borderBottom: 'none', pt: 3, pb: 1, color: '#fff', fontWeight: 600, fontSize: '15px' }}>
+                        ₹{tripTotalAmount.toFixed(2)}
+                      </TableCell>
                     </TableRow>
+                    
+                    <TableRow>
+                      <TableCell colSpan={3} align="right" sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)', pt: 1, pb: 2, color: 'rgba(255,255,255,0.6)' }}>
+                        Advance Amount Received:
+                      </TableCell>
+                      <TableCell colSpan={2} sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)', pt: 1, pb: 2, color: '#6ee7b7', fontWeight: 600, fontSize: '15px' }}>
+                        - ₹{(selectedTrip?.details?.advanceValue || 0).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+
+                    <TableRow>
+                      <TableCell colSpan={3} align="right" sx={{ borderBottom: 'none', pt: 2, pb: 1, color: '#fff', fontWeight: 600, fontSize: '14px' }}>
+                        {tripRemainingDifference > 0 
+                          ? 'Company Owes You:' 
+                          : tripRemainingDifference < 0 
+                            ? 'You Owe Company:' 
+                            : 'Settled (No Dues):'}
+                      </TableCell>
+                      <TableCell colSpan={2} sx={{ borderBottom: 'none', pt: 2, pb: 1, color: tripRemainingDifference >= 0 ? '#10B981' : '#EF4444', fontWeight: 800, fontSize: '18px' }}>
+                        ₹{Math.abs(tripRemainingDifference).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+
+                    <TableRow>
+                      <TableCell colSpan={3} align="right" sx={{ color: 'rgba(255,255,255,0.8)', borderBottom: 'none', py: 3, fontWeight: 600 }}>
+                        Admin Approved Total:
+                      </TableCell>
+                      <TableCell colSpan={2} sx={{ color: '#10b981', fontWeight: '800', fontSize: '1.4rem', borderBottom: 'none', py: 3 }}>
+                        ₹{(selectedTrip?.details?.approvedAmount || 0).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -887,22 +967,16 @@ const TechnicalReimbursement = () => {
             {/* Timeline */}
             <Box sx={{ bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '16px', p: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
               <Typography variant="subtitle1" color="white" fontWeight={600} mb={3}>Timeline</Typography>
-
               <Stack spacing={0}>
-                {/* Step 1: Submitted */}
                 <Box sx={{ position: 'relative', pb: 3, pl: 3, borderLeft: '2px solid #3b82f6' }}>
                   <Box sx={{ position: 'absolute', left: '-5px', top: 0, width: 8, height: 8, borderRadius: '50%', bgcolor: '#3b82f6', boxShadow: '0 0 10px #3b82f6' }} />
                   <Typography color="white" fontSize="13px" fontWeight={500} lineHeight={1}>Reimbursement Created</Typography>
                   <Typography color="rgba(255,255,255,0.5)" fontSize="11px" mt={0.5}>{selectedTrip.details.submissionDate}</Typography>
                 </Box>
-
-                {/* Step 2: Approved / Completed */}
                 <Box sx={{ position: 'relative', pb: 3, pl: 3, borderLeft: `2px solid ${selectedTrip.status === 'Completed' ? '#10b981' : 'rgba(255,255,255,0.1)'}` }}>
                   <Box sx={{ position: 'absolute', left: '-5px', top: 0, width: 8, height: 8, borderRadius: '50%', bgcolor: selectedTrip.status === 'Completed' ? '#10b981' : 'transparent', border: `2px solid ${selectedTrip.status === 'Completed' ? '#10b981' : 'rgba(255,255,255,0.3)'}` }} />
                   <Typography color={selectedTrip.status === 'Completed' ? "white" : "rgba(255,255,255,0.5)"} fontSize="13px" fontWeight={500} lineHeight={1}>Completed</Typography>
                 </Box>
-
-                {/* Step 3: Credited */}
                 <Box sx={{ position: 'relative', pl: 3 }}>
                   <Box sx={{ position: 'absolute', left: '-5px', top: 0, width: 8, height: 8, borderRadius: '50%', bgcolor: 'transparent', border: '2px solid rgba(255,255,255,0.3)' }} />
                   <Typography color="rgba(255,255,255,0.5)" fontSize="13px" fontWeight={500} lineHeight={1}>Credited</Typography>
@@ -914,7 +988,7 @@ const TechnicalReimbursement = () => {
         </Dialog>
       )}
 
-      {/* --- ADD EXPENSE MODAL (MULTI-SELECT & DROPDOWN) --- */}
+      {/* --- ADD EXPENSE MODAL --- */}
       <Dialog open={expenseModalOpen} onClose={handleExpenseModalClose} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: '#1a1625', backgroundImage: 'linear-gradient(to bottom right, #1a1625, #0f0c29)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', zIndex: 9999 } }}>
         <DialogTitle sx={{ color: '#fff', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           Add New Expense
@@ -923,9 +997,7 @@ const TechnicalReimbursement = () => {
         <DialogContent sx={{ mt: 2 }}>
           <Stack spacing={3}>
             {loadingEmployees ? (
-              <Box display="flex" justifyContent="center" py={2}>
-                <CircularProgress size={24} sx={{ color: '#3b82f6' }} />
-              </Box>
+              <Box display="flex" justifyContent="center" py={2}><CircularProgress size={24} sx={{ color: '#3b82f6' }} /></Box>
             ) : (
               <FormControl fullWidth sx={inputStyle}>
                 <InputLabel id="demo-multiple-checkbox-label">Select Employees</InputLabel>
@@ -948,10 +1020,7 @@ const TechnicalReimbursement = () => {
                 >
                   {teamEmployees.map((emp) => (
                     <MenuItem key={emp.employee_id} value={emp.employee_id}>
-                      <Checkbox
-                        checked={selectedEmployees.indexOf(emp.employee_id) > -1}
-                        sx={{ color: 'rgba(255,255,255,0.5)', '&.Mui-checked': { color: '#3b82f6' } }}
-                      />
+                      <Checkbox checked={selectedEmployees.indexOf(emp.employee_id) > -1} sx={{ color: 'rgba(255,255,255,0.5)', '&.Mui-checked': { color: '#3b82f6' } }} />
                       <ListItemText primary={`${emp.first_name} ${emp.last_name}`} />
                     </MenuItem>
                   ))}
@@ -959,7 +1028,6 @@ const TechnicalReimbursement = () => {
               </FormControl>
             )}
 
-            {/* EXPENSE CATEGORY DROPDOWN */}
             <FormControl fullWidth sx={inputStyle}>
               <InputLabel id="expense-category-label">Expense Category</InputLabel>
               <Select
@@ -970,28 +1038,15 @@ const TechnicalReimbursement = () => {
                 label="Expense Category"
                 MenuProps={{ PaperProps: { sx: { bgcolor: '#131129', color: '#fff', '& .MuiMenuItem-root:hover': { bgcolor: 'rgba(255,255,255,0.1)' }, '& .Mui-selected': { bgcolor: 'rgba(59,130,246,0.3) !important' } } } }}
               >
-                {['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Travel', 'Accommodation', 'Other'].map((cat) => (
-                  <MenuItem key={cat} value={cat}>{cat}</MenuItem>
-                ))}
+                {expenseCategories.map((cat) => <MenuItem key={cat} value={cat}>{cat}</MenuItem>)}
               </Select>
             </FormControl>
 
-            {/* EXPENSE DESCRIPTION INPUT (Always visible, mapped to "reason" for API) */}
-            <TextField
-              label="Expense Description"
-              name="reason"
-              value={expenseFormData.reason}
-              onChange={handleExpenseChange}
-              placeholder="Enter expense details"
-              fullWidth
-              sx={inputStyle}
-            />
-
+            <TextField label="Expense Description" name="reason" value={expenseFormData.reason} onChange={handleExpenseChange} placeholder="Enter expense details" fullWidth sx={inputStyle} />
             <Stack direction="row" spacing={2}>
               <TextField type="date" label="Date" name="date" value={expenseFormData.date} onChange={handleExpenseChange} fullWidth InputLabelProps={{ shrink: true }} sx={inputStyle} />
               <TextField type="time" label="Time" name="time" value={expenseFormData.time} onChange={handleExpenseChange} fullWidth InputLabelProps={{ shrink: true }} sx={inputStyle} />
             </Stack>
-
             <TextField type="number" label="Amount" name="amount" value={expenseFormData.amount} onChange={handleExpenseChange} fullWidth InputProps={{ startAdornment: <InputAdornment position="start"><Typography color="white">₹</Typography></InputAdornment> }} sx={inputStyle} />
 
             <Box sx={{ border: '2px dashed rgba(255,255,255,0.2)', borderRadius: '12px', p: 3, textAlign: 'center', cursor: 'pointer', transition: '0.3s', '&:hover': { borderColor: '#3b82f6', bgcolor: 'rgba(59, 130, 246, 0.05)' } }} component="label">
@@ -1007,6 +1062,52 @@ const TechnicalReimbursement = () => {
           <Button onClick={handleExpenseModalClose} sx={{ color: 'rgba(255,255,255,0.6)', textTransform: 'none' }}>Cancel</Button>
           <Button variant="contained" onClick={handleAddExpenseSubmit} disabled={expenseSubmitting} sx={{ bgcolor: '#3b82f6', borderRadius: '20px', textTransform: 'none', px: 3 }}>
             {expenseSubmitting ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : "Submit Expense"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* --- ADD ADVANCE AMOUNT DIALOG MODAL --- */}
+      <Dialog 
+        open={advanceModalOpen} 
+        onClose={handleAdvanceModalClose} 
+        maxWidth="xs" 
+        fullWidth 
+        PaperProps={{ 
+          sx: { 
+            bgcolor: '#1a1625', 
+            backgroundImage: 'linear-gradient(to bottom right, #1a1625, #0f0c29)', 
+            borderRadius: '24px', 
+            border: '1px solid rgba(255,255,255,0.1)', 
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', 
+            zIndex: 10000 
+          } 
+        }}
+      >
+        <DialogTitle sx={{ color: '#fff', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Add Advance Amount
+          <IconButton onClick={handleAdvanceModalClose} sx={{ color: 'rgba(255,255,255,0.5)' }}><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ mt: 3 }}>
+          <Stack spacing={2}>
+            <Typography variant="body2" color="rgba(255,255,255,0.6)">
+              Enter the advance amount received from the company for this trip.
+            </Typography>
+            <TextField 
+              type="number" 
+              label="Advance Amount" 
+              value={advanceAmount} 
+              onChange={(e) => setAdvanceAmount(e.target.value)} 
+              fullWidth 
+              autoFocus
+              InputProps={{ startAdornment: <InputAdornment position="start"><Typography color="white">₹</Typography></InputAdornment> }} 
+              sx={inputStyle} 
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <Button onClick={handleAdvanceModalClose} sx={{ color: 'rgba(255,255,255,0.6)', textTransform: 'none' }}>Cancel</Button>
+          <Button variant="contained" onClick={handleAddAdvanceSubmit} disabled={advanceSubmitting} sx={{ bgcolor: '#3b82f6', borderRadius: '20px', textTransform: 'none', px: 3 }}>
+            {advanceSubmitting ? <CircularProgress size={24} sx={{ color: '#fff' }} /> : "Submit Advance"}
           </Button>
         </DialogActions>
       </Dialog>

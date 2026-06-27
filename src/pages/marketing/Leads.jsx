@@ -31,7 +31,7 @@ function mapLead(api) {
     requirement: api.lead_requirement || "Unknown",
     location,
     priority: api.lead_priority || "Medium",
-    stage: api.lead_stage || "Unassigned", // Used for department filtering
+    stage: api.lead_stage || "Unassigned", 
     _raw: api,
   };
 }
@@ -69,7 +69,7 @@ const glassPanel = {
   borderRadius: '16px' 
 };
 
-// PERFECT ALIGNMENT GRID: Adjusted to include 50px for the new Checkbox column
+// PERFECT ALIGNMENT GRID
 const tableGridCols = { xs: '1fr', md: '50px 110px 80px 2fr 2fr 100px 100px 2.5fr' };
 
 /* ================================ main page ================================ */
@@ -100,23 +100,17 @@ export default function MasterLeads() {
 
   const [snack, setSnack] = useState({ open: false, type: "success", msg: "" });
 
-  // Get unique departments for the dropdown dynamically
   const allDepartments = useMemo(() => {
     return Array.from(new Set(newLeads.map(l => l.stage))).filter(Boolean).sort();
   }, [newLeads]);
 
-  // Dynamic Filtering (Search Text + Department Dropdown)
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return newLeads.filter((l) => {
-      // Text Search
       const matchesSearch = !q || [l.leadNo, l.company, l.contact, l.phone, l.leadType, l.location, l.requirement]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
-      
-      // Department Filter
       const matchesDept = deptFilter === "All" || !deptFilter || l.stage === deptFilter;
-
       return matchesSearch && matchesDept;
     });
   }, [newLeads, search, deptFilter]);
@@ -137,7 +131,6 @@ export default function MasterLeads() {
       const arr = Array.isArray(json?.leads) ? json.leads : [];
       setNewLeads(arr.map(mapLead)); 
       
-      // Clear selections on refresh
       setSelectedLeadIds([]);
     } catch (e) { 
       console.error(e); 
@@ -165,33 +158,39 @@ export default function MasterLeads() {
     try {
       setAssignSaving(true);
       
-      // 1. Assign the lead
-      const res = await fetch(`${API_BASE_URL}/api/leads/change-stage`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ 
-          lead_id: assignLead.id, 
-          new_lead_stage: assignDept, 
-          reason: assignReason.trim() 
-        }),
-      });
-
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.message || "Failed to change lead stage");
-
-      // 2. Trigger Notification based on Department
+      // 1. Determine Target Employee ID based on Department FIRST
       let targetEmpId = "";
       if (assignDept === "Field-Marketing") targetEmpId = "IPQS-H25002";
       else if (assignDept === "Associate-Marketing") targetEmpId = "IPQS-H25003";
       else if (assignDept === "Corporate-Marketing") targetEmpId = "IPQS-H25019";
       else if (assignDept === "Technical-Team") targetEmpId = "IPQS-H25030";
-      else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000";
+      else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000"; 
       else if (assignDept === "Nagpur-Associates") targetEmpId = "IPQS-E25004";
       else if (assignDept === "Silverline-Associates") targetEmpId = "IPQS-H25009";
       else if (assignDept === "Trafo-Associates") targetEmpId = "IPQS-H25007";
       else if (assignDept === "Y-k-Enterprises-Associates") targetEmpId = "IPQS-H25008";
       else if (assignDept === "Kolhapur-Associates") targetEmpId = "IPQS-H25010";
 
+      // Dynamically extract Profile Name from local storage, default to 'Admin' if null
+      const profileName = localStorage.getItem("profile_name") || "Admin";
+      const formattedReason = `Updated by Admin: ${profileName} - ${assignReason.trim()}`;
+
+      // 2. Assign the lead 
+      const res = await fetch(`${API_BASE_URL}/api/leads/change-stage`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ 
+          lead_id: assignLead.id, 
+          new_lead_stage: assignDept, 
+          assigned_employee: targetEmpId, 
+          reason: formattedReason // <-- Sent with Dynamic Admin Prefix
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || "Failed to change lead stage");
+
+      // 3. Trigger Notification based on Department
       if (targetEmpId) {
         setTimeout(async () => {
           try {
@@ -221,26 +220,17 @@ export default function MasterLeads() {
 
   // --- MULTIPLE DELETE LOGIC ---
   const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedLeadIds(filtered.map(l => l.id));
-    } else {
-      setSelectedLeadIds([]);
-    }
+    if (e.target.checked) setSelectedLeadIds(filtered.map(l => l.id));
+    else setSelectedLeadIds([]);
   };
 
   const handleSelectOne = (id) => {
-    setSelectedLeadIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
+    setSelectedLeadIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
   };
 
   const handleBulkDelete = async () => {
     if (selectedLeadIds.length === 0) return;
-    
-    // Quick confirmation dialog
-    if (!window.confirm(`Are you sure you want to delete ${selectedLeadIds.length} selected lead(s)? This action cannot be undone.`)) {
-      return;
-    }
+    if (!window.confirm(`Are you sure you want to delete ${selectedLeadIds.length} selected lead(s)? This action cannot be undone.`)) return;
 
     const token = getToken();
     setIsDeleting(true);
@@ -248,27 +238,18 @@ export default function MasterLeads() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/leads/bulk-delete`, {
         method: "DELETE",
-        headers: { 
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json" 
-        },
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ lead_ids: selectedLeadIds }),
       });
 
       const data = await res.json().catch(() => ({}));
-      
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to delete leads");
-      }
+      if (!res.ok) throw new Error(data.message || "Failed to delete leads");
 
-      // Cache count before clearing array
       const deletedCount = selectedLeadIds.length;
-      
-      setSelectedLeadIds([]); // Clear selections
-      await fetchAllLeads();  // Refresh the table
+      setSelectedLeadIds([]); 
+      await fetchAllLeads();  
       
       setSnack({ open: true, type: "success", msg: `Successfully deleted ${deletedCount} lead(s).` });
-
     } catch (error) {
       setSnack({ open: true, type: "error", msg: error.message || "An error occurred while deleting leads." });
     } finally {
@@ -390,7 +371,7 @@ export default function MasterLeads() {
           )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
             
-            {/* BULK DELETE BUTTON (Dynamic Visibility) */}
+            {/* BULK DELETE BUTTON */}
             {selectedLeadIds.length > 0 && (
               <Tooltip title={`Delete ${selectedLeadIds.length} Selected`}>
                 <Button 
@@ -473,6 +454,7 @@ export default function MasterLeads() {
                 filtered.map(lead => {
                     const priorityStyle = getPriorityColor(lead.priority);
                     const isChecked = selectedLeadIds.includes(lead.id);
+                    const isWon = lead.stage === "Won"; 
 
                     return (
                         <Box key={lead.id} sx={{ 
@@ -482,11 +464,36 @@ export default function MasterLeads() {
                             bgcolor: isChecked ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255,255,255,0.02)', 
                             borderRadius: 3, transition: 'all 0.2s ease', 
                             border: isChecked ? `1px solid ${themeColors.blue}` : '1px solid transparent', 
+                            position: 'relative', 
+                            overflow: 'hidden', 
                             '&:hover': { bgcolor: isChecked ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.08)', borderColor: isChecked ? themeColors.blue : 'rgba(255,255,255,0.2)' } 
                         }}>
                             
-                            {/* Checkbox */}
-                            <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'center' } }}>
+                            {/* --- CLOSED BANNER (Top Left Slanted Ribbon) --- */}
+                            {isWon && (
+                                <Box sx={{ 
+                                    position: 'absolute', 
+                                    top: '12px', 
+                                    left: '-32px', 
+                                    width: '120px',
+                                    textAlign: 'center',
+                                    bgcolor: '#10b981', 
+                                    color: '#fff', 
+                                    fontSize: '9px', 
+                                    fontWeight: 900, 
+                                    py: 0.5, 
+                                    letterSpacing: '1px',
+                                    textTransform: 'uppercase',
+                                    transform: 'rotate(-45deg)',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                    zIndex: 10,
+                                    pointerEvents: 'none' 
+                                }}>
+                                    Closed
+                                </Box>
+                            )}
+
+                            <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'center' }, zIndex: 11 }}>
                               <Checkbox 
                                 size="small"
                                 sx={{ color: 'rgba(255,255,255,0.3)', '&.Mui-checked': { color: themeColors.blue } }}
@@ -495,21 +502,33 @@ export default function MasterLeads() {
                               />
                             </Box>
 
-                            {/* Assign Dept Button */}
                             <Box>
-                                <Button variant="outlined" size="small" onClick={() => openAssign(lead)} sx={{ color: themeColors.blue, borderColor: 'rgba(59,130,246,0.3)', textTransform: 'none', borderRadius: 2, whiteSpace: 'nowrap', py: 0.5, px: 1 }}>
+                                <Button 
+                                  variant="outlined" 
+                                  size="small" 
+                                  onClick={() => openAssign(lead)} 
+                                  disabled={isWon} 
+                                  sx={{ 
+                                    color: themeColors.blue, 
+                                    borderColor: 'rgba(59,130,246,0.3)', 
+                                    textTransform: 'none', 
+                                    borderRadius: 2, 
+                                    whiteSpace: 'nowrap', 
+                                    py: 0.5, 
+                                    px: 1,
+                                    '&.Mui-disabled': { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' } 
+                                  }}
+                                >
                                     Assign Dept
                                 </Button>
                             </Box>
 
-                            {/* Lead ID */}
                             <Box>
                                 <Button size="small" onClick={() => goDetail(lead)} sx={{ color: themeColors.blue, fontWeight: 700, p: 0, minWidth: 0, justifyContent: 'flex-start' }}>
                                     {lead.leadNo}
                                 </Button>
                             </Box>
 
-                            {/* Company & Contact */}
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                                 <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 16, fontWeight: 700, width: 36, height: 36 }}>
                                     {lead.company?.charAt(0).toUpperCase()}
@@ -520,24 +539,20 @@ export default function MasterLeads() {
                                 </Box>
                             </Box>
 
-                            {/* Location */}
                             <Box sx={{ color: '#ddd' }}>
                                 <Typography variant="body2" sx={{ fontSize: 13, whiteSpace: 'normal', wordWrap: 'break-word', lineHeight: 1.4 }}>
                                   {lead.location || '-'}
                                 </Typography>
                             </Box>
 
-                            {/* Lead Type */}
                             <Box>
                                 <Chip label={lead.leadType || 'N/A'} size="small" sx={{ height: 22, fontSize: 10, fontWeight: 600, bgcolor: 'rgba(255,255,255,0.1)', color: '#fff' }} />
                             </Box>
 
-                            {/* Priority */}
                             <Box>
                                 <Chip label={lead.priority} size="small" sx={{ height: 22, fontSize: 10, fontWeight: 600, bgcolor: priorityStyle.bg, color: priorityStyle.text }} />
                             </Box>
 
-                            {/* Requirements (Clean Text Only, No Avatar, Full Visibility) */}
                             <Box>
                                 <Typography variant="body2" fontSize={13} color="#e2e8f0" sx={{ whiteSpace: 'normal', wordWrap: 'break-word', lineHeight: 1.4 }}>
                                     {lead.requirement || '-'}
@@ -549,7 +564,6 @@ export default function MasterLeads() {
                 })
             )}
         </Box>
-
       </Box>
 
       <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack({ ...snack, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
