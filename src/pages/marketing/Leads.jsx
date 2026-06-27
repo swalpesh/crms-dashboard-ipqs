@@ -164,22 +164,26 @@ export default function MasterLeads() {
       else if (assignDept === "Associate-Marketing") targetEmpId = "IPQS-H25003";
       else if (assignDept === "Corporate-Marketing") targetEmpId = "IPQS-H25019";
       else if (assignDept === "Technical-Team") targetEmpId = "IPQS-H25030";
-      else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000"; // Automatically targets IPQS-H5000
+      else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000"; 
       else if (assignDept === "Nagpur-Associates") targetEmpId = "IPQS-E25004";
       else if (assignDept === "Silverline-Associates") targetEmpId = "IPQS-H25009";
       else if (assignDept === "Trafo-Associates") targetEmpId = "IPQS-H25007";
       else if (assignDept === "Y-k-Enterprises-Associates") targetEmpId = "IPQS-H25008";
       else if (assignDept === "Kolhapur-Associates") targetEmpId = "IPQS-H25010";
 
-      // 2. Assign the lead (Now passing assigned_employee into the database)
+      // Dynamically extract Profile Name from local storage, default to 'Admin' if null
+      const profileName = localStorage.getItem("profile_name") || "Admin";
+      const formattedReason = `Updated by Admin: ${profileName} - ${assignReason.trim()}`;
+
+      // 2. Assign the lead 
       const res = await fetch(`${API_BASE_URL}/api/leads/change-stage`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ 
           lead_id: assignLead.id, 
           new_lead_stage: assignDept, 
-          assigned_employee: targetEmpId, // <-- Fixed: Sending employee ID instead of 0
-          reason: assignReason.trim() 
+          assigned_employee: targetEmpId, 
+          reason: formattedReason // <-- Sent with Dynamic Admin Prefix
         }),
       });
 
@@ -450,6 +454,7 @@ export default function MasterLeads() {
                 filtered.map(lead => {
                     const priorityStyle = getPriorityColor(lead.priority);
                     const isChecked = selectedLeadIds.includes(lead.id);
+                    const isWon = lead.stage === "Won"; 
 
                     return (
                         <Box key={lead.id} sx={{ 
@@ -459,10 +464,36 @@ export default function MasterLeads() {
                             bgcolor: isChecked ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255,255,255,0.02)', 
                             borderRadius: 3, transition: 'all 0.2s ease', 
                             border: isChecked ? `1px solid ${themeColors.blue}` : '1px solid transparent', 
+                            position: 'relative', 
+                            overflow: 'hidden', 
                             '&:hover': { bgcolor: isChecked ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.08)', borderColor: isChecked ? themeColors.blue : 'rgba(255,255,255,0.2)' } 
                         }}>
                             
-                            <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'center' } }}>
+                            {/* --- CLOSED BANNER (Top Left Slanted Ribbon) --- */}
+                            {isWon && (
+                                <Box sx={{ 
+                                    position: 'absolute', 
+                                    top: '12px', 
+                                    left: '-32px', 
+                                    width: '120px',
+                                    textAlign: 'center',
+                                    bgcolor: '#10b981', 
+                                    color: '#fff', 
+                                    fontSize: '9px', 
+                                    fontWeight: 900, 
+                                    py: 0.5, 
+                                    letterSpacing: '1px',
+                                    textTransform: 'uppercase',
+                                    transform: 'rotate(-45deg)',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                    zIndex: 10,
+                                    pointerEvents: 'none' 
+                                }}>
+                                    Closed
+                                </Box>
+                            )}
+
+                            <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'center' }, zIndex: 11 }}>
                               <Checkbox 
                                 size="small"
                                 sx={{ color: 'rgba(255,255,255,0.3)', '&.Mui-checked': { color: themeColors.blue } }}
@@ -472,7 +503,22 @@ export default function MasterLeads() {
                             </Box>
 
                             <Box>
-                                <Button variant="outlined" size="small" onClick={() => openAssign(lead)} sx={{ color: themeColors.blue, borderColor: 'rgba(59,130,246,0.3)', textTransform: 'none', borderRadius: 2, whiteSpace: 'nowrap', py: 0.5, px: 1 }}>
+                                <Button 
+                                  variant="outlined" 
+                                  size="small" 
+                                  onClick={() => openAssign(lead)} 
+                                  disabled={isWon} 
+                                  sx={{ 
+                                    color: themeColors.blue, 
+                                    borderColor: 'rgba(59,130,246,0.3)', 
+                                    textTransform: 'none', 
+                                    borderRadius: 2, 
+                                    whiteSpace: 'nowrap', 
+                                    py: 0.5, 
+                                    px: 1,
+                                    '&.Mui-disabled': { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' } 
+                                  }}
+                                >
                                     Assign Dept
                                 </Button>
                             </Box>

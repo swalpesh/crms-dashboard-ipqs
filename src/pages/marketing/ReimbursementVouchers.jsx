@@ -377,8 +377,8 @@ export default function VouchersList() {
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.text(`${data.employee_name}`, 14, finalY + 7);
-      doc.text("System Admin", pageWidth / 2 - 20, finalY + 7);
-      doc.text("Finance Head", pageWidth - 45, finalY + 7);
+      doc.text("Satyam Singh", pageWidth / 2 - 20, finalY + 7);
+      doc.text("General Manager", pageWidth - 45, finalY + 7);
 
       // --- EXPENSES PAGE ---
       doc.addPage();
