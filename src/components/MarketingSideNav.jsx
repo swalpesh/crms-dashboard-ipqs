@@ -266,10 +266,11 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
   // --- STANDARD ITEMS ---
   const mkTeamItems = (includeMyTeam, roleSlug) => {
-    // If Tele Marketing employee or head, ONLY show Leads.
+    // If Tele Marketing employee or head, show Leads and Follow-Ups.
     if (roleSlug === "tele") {
       return [
-        { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" }
+        { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
+        { path: "/follow-ups", icon: <AssignmentTurnedInOutlinedIcon />, label: "Follow-Up's" }
       ];
     }
 

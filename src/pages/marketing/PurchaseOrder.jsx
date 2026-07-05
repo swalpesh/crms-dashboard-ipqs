@@ -162,31 +162,30 @@ const PurchaseOrder = () => {
     fetchPOLeads();
   }, []);
 
-  // --- PO RECEIVED HANDLER ---
+ // --- PO RECEIVED HANDLER ---
   const handlePOReceived = async (leadId) => {
     setProcessingId(leadId);
     try {
       const token = getToken();
-      const response = await fetch(`${API_BASE_URL}/api/v1/quotations/send-back`, {
+      
+      // Updated API endpoint and payload as requested
+      const response = await fetch(`${API_BASE_URL}/api/leads/finalize`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json' 
         },
         body: JSON.stringify({
-          lead_id: leadId,
-          new_lead_stage: "Won",
-          assigned_employee: "0",
-          reason: "Lead Won."
+          lead_id: leadId
         })
       });
 
       if (response.ok) {
-        setToast({ open: true, message: "Lead marked as Won successfully!", severity: "success" });
+        setToast({ open: true, message: "Purchase Order finalized successfully!", severity: "success" });
         fetchPOLeads(); // Refresh the list to remove it
       } else {
         const errData = await response.json();
-        throw new Error(errData.message || "Failed to update lead status.");
+        throw new Error(errData.message || "Failed to finalize lead.");
       }
     } catch (error) {
       console.error(error);

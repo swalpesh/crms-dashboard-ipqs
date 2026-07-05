@@ -77,7 +77,7 @@ const getAuthUser = () => {
 const isQuotationTeamHead = () => {
   const user = getAuthUser();
   if (!user) return false;
-  return user.role_id === 'Quotation-Team-Head' || user.role_name === 'Quotation-Team-Head';
+  return user.role_id === 'Quotation-Team-Head' || user.role_name === 'Quotation-Team-Head' || user.role_id === 'ipqsHead';
 };
 
 // Helper to format time (e.g., "14:30:00" -> "02:30 PM")
