@@ -266,10 +266,11 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
   // --- STANDARD ITEMS ---
   const mkTeamItems = (includeMyTeam, roleSlug) => {
-    // If Tele Marketing employee or head, ONLY show Leads.
+    // If Tele Marketing employee or head, show Leads and Follow-Ups.
     if (roleSlug === "tele") {
       return [
-        { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" }
+        { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
+        { path: "/follow-ups", icon: <AssignmentTurnedInOutlinedIcon />, label: "Follow-Up's" }
       ];
     }
 
@@ -289,9 +290,9 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
   // --- CUSTOM REIMBURSEMENT ITEMS ---
   const reimbursementItems = [
-    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" },
+    // { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Dashboard" }, // HIDDEN AS REQUESTED
     { path: "/vouchers", icon: <ReceiptIcon />, label: "Vouchers" },
-    { path: "/employees", icon: <GroupsOutlinedIcon />, label: "Employee Profiles" },
+    // { path: "/employees", icon: <GroupsOutlinedIcon />, label: "Employee Profiles" }, // HIDDEN AS REQUESTED
   ];
 
   // --- CUSTOM TECHNICAL TEAM ITEMS ---
@@ -468,7 +469,17 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                     { path: "/visit-planner", icon: <EditCalendarOutlinedIcon />, label: "Visit Planner" },
                     { path: "/team-manager", icon: <GroupsOutlinedIcon />, label: "Team Manager" } 
                   ]} />
+
+            {/* --- ADDED: SOLUTION & QUOTATION FOR ADMIN VIEW --- */}
+            <Group title="Solution Department" icon={<LightbulbOutlinedIcon />} basePath="/marketing/solution"
+                  open={openSol} setOpen={setOpenSol} selected={/\/marketing\/solution\//.test(pathname)}
+                  onNavigate={onNavigate} items={solutionTeamItems} />
+
+            <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
+                  open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
+                  onNavigate={onNavigate} items={quotationTeamItems} />
                   
+            {/* --- HIDDEN AS REQUESTED --- 
             <Group title="Nagpur Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/nagpur"
                   open={openNagpur} setOpen={setOpenNagpur} selected={/\/marketing\/nagpur\//.test(pathname)}
                   onNavigate={onNavigate} items={[ 
@@ -482,6 +493,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                     { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
                     { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
                   ]} />
+            */}
 
             <Group title="Trafo Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/trafo"
                   open={openTrafo} setOpen={setOpenTrafo} selected={/\/marketing\/trafo\//.test(pathname)}
@@ -490,12 +502,14 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                     { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
                   ]} />
 
+            {/* --- HIDDEN AS REQUESTED --- 
             <Group title="YK Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/yk"
                   open={openYk} setOpen={setOpenYk} selected={/\/marketing\/yk\//.test(pathname)}
                   onNavigate={onNavigate} items={[ 
                     { path: "/lead-manager", icon: <ManageAccountsIcon />, label: "Lead Manager" },
                     { path: "/my-team", icon: <GroupOutlinedIcon />, label: "My Team" } 
                   ]} />
+            */}
 
             <Group title="Kolhapur Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/kolhapur"
                   open={openKolhapur} setOpen={setOpenKolhapur} selected={/\/marketing\/kolhapur\//.test(pathname)}
@@ -550,6 +564,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
             )}
 
             {/* --- PARTNER TEAMS --- */}
+            {/* --- HIDDEN AS REQUESTED --- 
             {userSlug === "nagpur" && (
               <Group title="Nagpur Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/nagpur"
                      open={openNagpur} setOpen={setOpenNagpur} selected={/\/marketing\/nagpur\//.test(pathname)}
@@ -561,6 +576,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      open={openSilverline} setOpen={setOpenSilverline} selected={/\/marketing\/silverline\//.test(pathname)}
                      onNavigate={onNavigate} items={partnerTeamItems(userIsHead)} />
             )}
+            */}
 
             {userSlug === "trafo" && (
               <Group title="Trafo Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/trafo"
@@ -568,11 +584,13 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
                      onNavigate={onNavigate} items={partnerTeamItems(userIsHead)} />
             )}
 
+            {/* --- HIDDEN AS REQUESTED --- 
             {userSlug === "yk" && (
               <Group title="YK Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/yk"
                      open={openYk} setOpen={setOpenYk} selected={/\/marketing\/yk\//.test(pathname)}
                      onNavigate={onNavigate} items={partnerTeamItems(userIsHead)} />
             )}
+            */}
 
             {userSlug === "kolhapur" && (
               <Group title="Kolhapur Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/kolhapur"

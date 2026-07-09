@@ -459,8 +459,8 @@ export default function App() {
                 <Route path="payments-team/q-invoices" element={<PaymentsTeamQInvoices />} />
               </Route>
 
-              {/* --- Nagpur Associates --- */}
-              <Route element={<RequireDeptAccess slug="nagpur" />}>
+              {/* --- Nagpur Associates (HIDDEN AS REQUESTED) --- */}
+              {/* <Route element={<RequireDeptAccess slug="nagpur" />}>
                 <Route path="nagpur/dashboard" element={<NagpurDashboard />} />
                 <Route path="nagpur/leadinfo" element={<NagpurMyLeads />} />
                 <Route path="nagpur/my-leads" element={<NagpurMyLeads />} />
@@ -472,8 +472,10 @@ export default function App() {
                   <Route path="nagpur/my-team" element={<NagpurMyTeam />} />
                 </Route>
               </Route>
+              */}
 
-              {/* --- Silverline Associates --- */}
+              {/* --- Silverline Associates (HIDDEN AS REQUESTED) --- */}
+              {/*
               <Route element={<RequireDeptAccess slug="silverline" />}>
                 <Route path="silverline/dashboard" element={<SilverlineDashboard />} />
                 <Route path="silverline/leadinfo" element={<SilverlineMyLeads />} />
@@ -486,6 +488,7 @@ export default function App() {
                   <Route path="silverline/my-team" element={<SilverlineMyTeam />} />
                 </Route>
               </Route>
+              */}
               
               {/* --- Trafo Associates --- */}
               <Route element={<RequireDeptAccess slug="trafo" />}>
@@ -501,7 +504,8 @@ export default function App() {
                 </Route>
               </Route>
 
-              {/* --- YK Associates --- */}
+              {/* --- YK Associates (HIDDEN AS REQUESTED) --- */}
+              {/*
               <Route element={<RequireDeptAccess slug="yk" />}>
                 <Route path="yk/dashboard" element={<YKDashboard />} />
                 <Route path="yk/leadinfo" element={<YKMyLeads />} />
@@ -514,6 +518,7 @@ export default function App() {
                   <Route path="yk/my-team" element={<YKMyTeam />} />
                 </Route>
               </Route>
+              */}
 
               {/* --- NEW: Kolhapur Associates --- */}
               <Route element={<RequireDeptAccess slug="kolhapur" />}>
@@ -560,9 +565,13 @@ export default function App() {
               <Route path="employees" element={<SaEmployees />} />
               <Route path="roles" element={<SaRoles />} />
               <Route path="departments" element={<SaDepartments />} />
+              
+              {/* Additions to Admin Profile */}
               <Route path="dashboard/field" element={<FieldDashboard />} />
               <Route path="dashboard/corporate" element={<CorporateDashboard />} />
               <Route path="dashboard/associate" element={<AssociateDashboard />} />
+              <Route path="dashboard/solution" element={<SolutionDashboard />} />
+              <Route path="dashboard/quotation" element={<QuotationTeamDashboard />} />
             </Route>
           </Route>
         </Route>

@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Chip, Avatar, CircularProgress, 
   InputBase, MenuItem, Select, FormControl, Snackbar, Alert,
+  Dialog, DialogTitle, DialogContent, DialogActions,
   useTheme, useMediaQuery
 } from '@mui/material';
 import {
   Search as SearchIcon,
   VisibilityOutlined as VisibilityIcon,
-  CalendarTodayOutlined as CalendarIcon
+  CalendarTodayOutlined as CalendarIcon,
+  HistoryOutlined as HistoryIcon
 } from '@mui/icons-material';
 
 // --- API HELPERS ---
@@ -33,8 +35,7 @@ const cardStyle = {
   p: 2.5,
   mb: 2,
   display: 'grid',
-  // Adjusted grid for 7 columns to fit the new Lead Stage
-  gridTemplateColumns: { xs: '1fr', md: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 0.8fr' },
+  gridTemplateColumns: { xs: '1fr', md: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 1.5fr' },
   alignItems: 'center',
   gap: 2,
   transition: 'all 0.2s ease',
@@ -96,7 +97,14 @@ export default function FollowUps() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("All Departments");
+  const [showTodayOnly, setShowTodayOnly] = useState(false); // NEW STATE: Today's Followups
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+
+  // History Modal States
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyData, setHistoryData] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [currentHistoryLead, setCurrentHistoryLead] = useState("");
 
   // Extract unique departments from the fetched leads for the filter dropdown
   const allDepartments = useMemo(() => {
@@ -132,8 +140,36 @@ export default function FollowUps() {
     fetchFollowUps();
   }, []);
 
+  // --- FETCH HISTORY API ---
+  const handleOpenHistory = async (leadId) => {
+    setCurrentHistoryLead(leadId);
+    setHistoryModalOpen(true);
+    setLoadingHistory(true);
+    setHistoryData([]);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/leads/${leadId}/followups`, {
+        method: "GET"
+      });
+      const result = await response.json();
+      
+      if (response.ok) {
+        setHistoryData(result.data || []);
+      } else {
+        throw new Error(result.message || "Failed to fetch follow-up history");
+      }
+    } catch (err) {
+      console.error(err);
+      setToast({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   // --- FILTERING ---
   const filteredLeads = useMemo(() => {
+    const today = new Date();
+    
     return leads.filter((lead) => {
       const q = searchQuery.toLowerCase();
       const company = (lead.company_name || "").toLowerCase();
@@ -141,10 +177,23 @@ export default function FollowUps() {
       
       const matchesSearch = company.includes(q) || contact.includes(q);
       const matchesDept = deptFilter === "All Departments" || lead.lead_stage === deptFilter;
+      
+      let matchesToday = true;
+      if (showTodayOnly) {
+        if (!lead.follow_up_date) {
+          matchesToday = false;
+        } else {
+          const leadDate = new Date(lead.follow_up_date);
+          matchesToday = 
+            leadDate.getDate() === today.getDate() &&
+            leadDate.getMonth() === today.getMonth() &&
+            leadDate.getFullYear() === today.getFullYear();
+        }
+      }
 
-      return matchesSearch && matchesDept;
+      return matchesSearch && matchesDept && matchesToday;
     });
-  }, [leads, searchQuery, deptFilter]);
+  }, [leads, searchQuery, deptFilter, showTodayOnly]);
 
   // --- COLOR HELPERS ---
   const getPriorityProps = (priority) => {
@@ -186,16 +235,35 @@ export default function FollowUps() {
             <Chip label={`${filteredLeads.length} Pending`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontWeight: 600 }} />
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', md: 'auto' } }}>
-            <Box sx={{ ...inputStyle, flex: 1, minWidth: { md: '300px' } }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, width: { xs: '100%', md: 'auto' } }}>
+            <Box sx={{ ...inputStyle, flex: 1, minWidth: { xs: '100%', sm: '200px', md: '250px' } }}>
               <SearchIcon sx={{ color: 'rgba(255,255,255,0.5)', mr: 1, fontSize: 20 }} />
               <InputBase 
-                placeholder="Search leads or contacts..." 
+                placeholder="Search leads..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 sx={{ color: '#fff', width: '100%', fontSize: '14px' }} 
               />
             </Box>
+
+            <Button
+              variant={showTodayOnly ? "contained" : "outlined"}
+              onClick={() => setShowTodayOnly(!showTodayOnly)}
+              sx={{
+                textTransform: 'none',
+                borderRadius: '12px',
+                borderColor: showTodayOnly ? 'transparent' : 'rgba(255,255,255,0.2)',
+                bgcolor: showTodayOnly ? '#3b82f6' : 'transparent',
+                color: '#fff',
+                whiteSpace: 'nowrap',
+                '&:hover': {
+                  bgcolor: showTodayOnly ? '#2563eb' : 'rgba(255,255,255,0.1)',
+                  borderColor: showTodayOnly ? 'transparent' : 'rgba(255,255,255,0.3)',
+                }
+              }}
+            >
+              Today's Follow-ups
+            </Button>
             
             <FormControl size="small">
               <Select
@@ -205,8 +273,9 @@ export default function FollowUps() {
                   ...inputStyle, 
                   py: 0, 
                   fontSize: '14px', 
-                  minWidth: '180px',
-                  '& .MuiSelect-select': { py: 1 },
+                  minWidth: '160px',
+                  height: '100%',
+                  '& .MuiSelect-select': { py: 1.2 },
                   '& .MuiOutlinedInput-notchedOutline': { border: 'none' } 
                 }}
                 MenuProps={{ PaperProps: { sx: { bgcolor: '#1a1625', color: '#fff' } } }}
@@ -224,7 +293,7 @@ export default function FollowUps() {
         {!isMobile && (
           <Box sx={{ 
             display: 'grid', 
-            gridTemplateColumns: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 0.8fr', 
+            gridTemplateColumns: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 1.5fr', 
             gap: 2, 
             px: 3, 
             pb: 2, 
@@ -324,7 +393,14 @@ export default function FollowUps() {
                 </Box>
 
                 {/* COL 7: Actions */}
-                <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                  <Button 
+                    size="small" 
+                    onClick={() => handleOpenHistory(lead.lead_id)}
+                    sx={{ color: '#a855f7', textTransform: 'none', minWidth: 'auto', p: 1, '&:hover': { bgcolor: 'rgba(168, 85, 247, 0.1)' } }}
+                  >
+                    <HistoryIcon fontSize="small" sx={{ mr: 0.5 }} /> History
+                  </Button>
                   <Button 
                     size="small" 
                     onClick={() => navigate(`/marketing/customer-info/${lead.lead_id}`)}
@@ -340,6 +416,75 @@ export default function FollowUps() {
         )}
 
       </Box>
+
+      {/* --- HISTORY MODAL --- */}
+      <Dialog 
+        open={historyModalOpen} 
+        onClose={() => setHistoryModalOpen(false)} 
+        maxWidth="sm" 
+        fullWidth 
+        PaperProps={{ 
+          sx: { 
+            bgcolor: '#1a1a2e', 
+            color: '#fff', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(255,255,255,0.1)',
+            backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.02), rgba(0,0,0,0.2))'
+          } 
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HistoryIcon /> Follow-Up History: {currentHistoryLead}
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2, minHeight: '300px', p: 3 }}>
+          {loadingHistory ? (
+            <Box display="flex" justifyContent="center" alignItems="center" height="100%" minHeight="200px">
+              <CircularProgress sx={{ color: '#3b82f6' }} />
+            </Box>
+          ) : historyData.length === 0 ? (
+            <Typography color="rgba(255,255,255,0.5)" textAlign="center" mt={4}>
+              No follow-up history found for this lead.
+            </Typography>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {historyData.map((item) => (
+                <Box 
+                  key={item.id} 
+                  sx={{ 
+                    bgcolor: 'rgba(255,255,255,0.03)', 
+                    p: 2, 
+                    borderRadius: '12px', 
+                    border: '1px solid rgba(255,255,255,0.05)' 
+                  }}
+                >
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography variant="caption" sx={{ color: '#a0a0c0', fontWeight: 600 }}>
+                      By: {item.updated_by_emp_id}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#a0a0c0' }}>
+                      {new Date(item.created_at).toLocaleString('en-IN', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: true
+                      })}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ color: '#fff', mb: 0.5 }}>
+                    <strong>Scheduled For:</strong> {formatDate(item.new_followup_date)} at {formatTime(item.new_followup_time)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    <strong>Reason:</strong> {item.new_followup_reason || "No reason specified."}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ borderTop: '1px solid rgba(255,255,255,0.05)', p: 2 }}>
+          <Button onClick={() => setHistoryModalOpen(false)} sx={{ color: '#a0a0c0', fontWeight: 600 }}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* --- TOAST --- */}
       <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
