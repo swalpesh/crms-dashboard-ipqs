@@ -449,22 +449,7 @@ const TelePendingFollowups = () => {
 
                   {/* Actions */}
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      onClick={() => handleViewClick(lead.lead_id)}
-                      startIcon={<VisibilityIcon />} 
-                      sx={{ 
-                        minWidth: 0,
-                        borderColor: 'rgba(59, 130, 246, 0.4)', 
-                        color: theme.accent, 
-                        textTransform: 'none', 
-                        borderRadius: '8px', 
-                        '&:hover': { borderColor: theme.accent, bgcolor: 'rgba(59, 130, 246, 0.1)' } 
-                      }}
-                    >
-                      View
-                    </Button>
+                    
                     <Button 
                       variant="outlined" 
                       size="small" 
