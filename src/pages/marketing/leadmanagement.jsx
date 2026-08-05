@@ -191,6 +191,8 @@ export default function LeadManagement() {
       if (assignDept === "Field-Marketing") targetEmpId = "IPQS-H25002";
       else if (assignDept === "Associate-Marketing") targetEmpId = "IPQS-H25003";
       else if (assignDept === "Corporate-Marketing") targetEmpId = "IPQS-H25019";
+      else if (assignDept === "Technical-Team") targetEmpId = "IPQS-H25030";
+      else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000"; 
       else if (assignDept === "Nagpur-Associates") targetEmpId = "IPQS-E25004";
       else if (assignDept === "Silverline-Associates") targetEmpId = "IPQS-H25009";
       else if (assignDept === "Trafo-Associates") targetEmpId = "IPQS-H25007";
@@ -268,6 +270,8 @@ export default function LeadManagement() {
                     <option value="Field-Marketing">Field Marketing</option>
                     <option value="Associate-Marketing">Associate Marketing</option>
                     <option value="Corporate-Marketing">Corporate Marketing</option>
+                    <option value="Technical-Team">Technical Team</option>
+                    <option value="Solutions-Team">Solutions Team</option>
                     <option value="Nagpur-Associates">Nagpur Associates</option>
                     <option value="Silverline-Associates">Silverline Associates</option>
                     <option value="Trafo-Associates">Trafo Associates</option>
