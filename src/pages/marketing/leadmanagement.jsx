@@ -32,6 +32,7 @@ function mapLead(api) {
     location,
     priority: api.lead_priority || "Medium",
     stage: api.lead_stage || "Unassigned", 
+    status: api.lead_status || "", // Added lead_status mapping here
     _raw: api,
   };
 }
@@ -107,7 +108,7 @@ export default function LeadManagement() {
 
   const [snack, setSnack] = useState({ open: false, type: "success", msg: "" });
 
-  // Dynamic Filtering (Search Text + Default Department)
+  // Dynamic Filtering (Search Text + Default Department + Status New)
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return allLeads.filter((l) => {
@@ -119,7 +120,10 @@ export default function LeadManagement() {
       // 2. Exact Department Match
       const matchesDept = l.stage === DEFAULT_DEPT;
 
-      return matchesSearch && matchesDept;
+      // 3. Status is new Match
+      const matchesStatus = l.status?.toLowerCase() === "new";
+
+      return matchesSearch && matchesDept && matchesStatus;
     });
   }, [allLeads, search]);
 
