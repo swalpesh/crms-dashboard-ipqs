@@ -134,6 +134,7 @@ const TechnicalVisitPlanner = () => {
   const [scheduleType, setScheduleType] = useState('my');
   const [priority, setPriority] = useState('Medium');
   const [techSearch, setTechSearch] = useState('');
+  const [leadSearch, setLeadSearch] = useState('');
   
   // Selection State
   const [selectedLead, setSelectedLead] = useState(null);
@@ -237,7 +238,7 @@ const TechnicalVisitPlanner = () => {
       setSelectedLead(null);
       setSelectedEmployee(null);
 
-      // 2. Trigger Notification (Delayed by 3 seconds)
+      // 2. Trigger Notification
       setTimeout(async () => {
         try {
             console.log("Sending Notification...");
@@ -267,6 +268,13 @@ const TechnicalVisitPlanner = () => {
 
   const filteredTechs = useMemo(() => employees.filter(emp => emp.username.toLowerCase().includes(techSearch.toLowerCase())), [employees, techSearch]);
   
+  const filteredLeads = useMemo(() => {
+    return unassignedLeads.filter(lead => {
+      const name = lead.company_name || lead.lead_name || '';
+      return name.toLowerCase().includes(leadSearch.toLowerCase());
+    });
+  }, [unassignedLeads, leadSearch]);
+
   const getLoadStatus = (count) => {
     if (count < 3) return { label: 'Low', color: themeColors.statusGreen };
     if (count < 6) return { label: 'Medium', color: themeColors.statusYellow };
@@ -310,11 +318,10 @@ const TechnicalVisitPlanner = () => {
     setPopupData(null);
   };
 
-  // --- SUB-COMPONENTS ---
+  // --- SUB-COMPONENTS AS VARIABLES (Prevents input focus loss on re-render) ---
 
-  const CalendarSection = () => (
+  const renderCalendarSection = (
     <Box sx={glassPanelStyle}>
-      {/* Toggle */}
       <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', p: 0.5, display: 'flex', mb: 3, border: '1px solid rgba(255,255,255,0.05)' }}>
         <Button 
           onClick={() => setScheduleType('my')} 
@@ -342,14 +349,12 @@ const TechnicalVisitPlanner = () => {
         </Button>
       </Box>
 
-      {/* Calendar Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <IconButton sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }} onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}><ChevronLeftIcon /></IconButton>
         <Typography variant="h6" fontWeight={700} sx={{ letterSpacing: 0.5 }}>{monthName} {viewDate.getFullYear()}</Typography>
         <IconButton sx={{ color: 'rgba(255,255,255,0.7)', bgcolor: 'rgba(255,255,255,0.05)', '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' } }} onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}><ChevronRightIcon /></IconButton>
       </Box>
 
-      {/* Days Grid */}
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, textAlign: 'center', mb: 1 }}>
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => (<Typography key={d} sx={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', fontWeight: 700 }}>{d}</Typography>))}
       </Box>
@@ -383,7 +388,6 @@ const TechnicalVisitPlanner = () => {
         })}
       </Box>
 
-      {/* Popover for Task */}
       <Popover 
         open={Boolean(anchorEl)} 
         anchorEl={anchorEl} 
@@ -411,25 +415,35 @@ const TechnicalVisitPlanner = () => {
     </Box>
   );
 
-  const QueueSection = () => (
+  const renderQueueSection = (
     <Box sx={glassPanelStyle}>
-      <Typography variant="h6" fontWeight={700} mb={3} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography variant="h6" fontWeight={700} mb={2} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
          <span style={{ width: 4, height: 24, background: '#3b82f6', borderRadius: 2, display: 'inline-block' }}></span>
          Pending Visits Queue
       </Typography>
       
+      <Box sx={{ ...inputStyle, display: 'flex', alignItems: 'center', gap: 1, mb: 3, py: 1 }}>
+        <SearchIcon sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 20 }} />
+        <InputBase 
+          placeholder="Search pending visits..." 
+          sx={{ color: '#fff', fontSize: '0.9rem', width: '100%' }} 
+          value={leadSearch} 
+          onChange={(e) => setLeadSearch(e.target.value)} 
+        />
+      </Box>
+
       {loading ? (
         <Box display="flex" justifyContent="center" p={4}><CircularProgress sx={{ color: '#fff' }} /></Box>
-      ) : unassignedLeads.length === 0 ? (
+      ) : filteredLeads.length === 0 ? (
         <Box display="flex" justifyContent="center" p={4}><Typography color="rgba(255,255,255,0.5)">No unassigned leads found</Typography></Box>
       ) : (
-        <Stack spacing={1.5} sx={{ height: '420px', overflowY: 'auto', pr: 1, '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '4px' } }}>
-          {unassignedLeads.map((item, i) => {
+        <Stack spacing={1.5} sx={{ height: '360px', overflowY: 'auto', pr: 1, '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '4px' } }}>
+          {filteredLeads.map((item, i) => {
             const isSelected = selectedLead?.lead_id === item.lead_id;
             return (
               <Box 
                 key={item.lead_id || i} 
-                onClick={() => setSelectedLead(item)}
+                onClick={() => setSelectedLead(isSelected ? null : item)}
                 sx={{ 
                   bgcolor: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.02)', 
                   border: isSelected ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.05)', 
@@ -457,11 +471,10 @@ const TechnicalVisitPlanner = () => {
     </Box>
   );
 
-  const AssignSection = () => (
+  const renderAssignSection = (
     <Box sx={glassPanelStyle}>
       <Typography variant="h6" fontWeight={700} mb={3}>Assign Visit</Typography>
       
-      {/* Date & Time */}
       <Grid container spacing={2} mb={3}>
         <Grid item xs={6}>
             <Typography variant="caption" color="rgba(255,255,255,0.6)" mb={0.5} display="block" fontWeight={600}>Visit Date</Typography>
@@ -473,7 +486,6 @@ const TechnicalVisitPlanner = () => {
         </Grid>
       </Grid>
 
-      {/* Priority */}
       <Box mb={4}>
         <Typography variant="caption" color="rgba(255,255,255,0.6)" mb={1} display="block" fontWeight={600}>Priority Level</Typography>
         <Stack direction="row" spacing={1}>
@@ -496,18 +508,15 @@ const TechnicalVisitPlanner = () => {
         </Stack>
       </Box>
 
-      {/* Employee List */}
       <Box>
         <Typography variant="caption" color="rgba(255,255,255,0.6)" mb={1} display="block" fontWeight={600}>Select Technician</Typography>
         <Box sx={{ bgcolor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', p: 2 }}>
           
-          {/* Search */}
           <Box sx={{ ...inputStyle, display: 'flex', alignItems: 'center', gap: 1, mb: 2, py: 1 }}>
             <SearchIcon sx={{ color: 'rgba(255,255,255,0.5)', fontSize: 20 }} />
             <InputBase placeholder="Search technician..." sx={{ color: '#fff', fontSize: '0.9rem', width: '100%' }} value={techSearch} onChange={(e) => setTechSearch(e.target.value)} />
           </Box>
 
-          {/* List */}
           <Stack spacing={1} sx={{ maxHeight: '200px', overflowY: 'auto', pr: 0.5, '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.1)', borderRadius: '4px' } }}>
             {filteredTechs.map((emp, i) => {
               const status = getLoadStatus(emp.total_leads);
@@ -538,7 +547,6 @@ const TechnicalVisitPlanner = () => {
         </Box>
       </Box>
 
-      {/* Action Button */}
       <Button 
         fullWidth 
         variant="contained" 
@@ -553,7 +561,6 @@ const TechnicalVisitPlanner = () => {
 
   return (
     <Box sx={pageStyle}>
-      {/* Background Blobs */}
       <Box sx={{ ...orbStyle, width: '600px', height: '600px', background: 'rgba(91, 33, 182, 0.25)', top: '-10%', left: '-10%', animation: `${liquidMove} 15s infinite alternate` }} />
       <Box sx={{ ...orbStyle, width: '500px', height: '500px', background: 'rgba(59, 130, 246, 0.2)', bottom: '-10%', right: '-5%', animation: `${liquidMove} 20s infinite alternate-reverse` }} />
 
@@ -570,17 +577,16 @@ const TechnicalVisitPlanner = () => {
         <Grid container spacing={3}>
           <Grid item xs={12} lg={8}>
             <Grid container spacing={3}>
-              <Grid item xs={12} md={6}><CalendarSection /></Grid>
-              <Grid item xs={12} md={6}><QueueSection /></Grid>
+              <Grid item xs={12} md={6}>{renderCalendarSection}</Grid>
+              <Grid item xs={12} md={6}>{renderQueueSection}</Grid>
             </Grid>
           </Grid>
           <Grid item xs={12} lg={4}>
-            <AssignSection />
+            {renderAssignSection}
           </Grid>
         </Grid>
       </Box>
 
-      {/* Toast Notification */}
       <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })} sx={{ borderRadius: '12px', width: '100%', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }} variant="filled">
           {toast.message}
