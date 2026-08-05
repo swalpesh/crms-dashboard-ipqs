@@ -317,7 +317,6 @@ export default function LeadManagement() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="caption" sx={{ color: '#a0a0c0', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 }}>Total Leads</Typography>
-                {/* Dynamically display filtered count */}
                 <Typography variant="h5" fontWeight={800} sx={{ mt: 0.5 }}><AnimatedCounter end={filtered.length} /></Typography>
               </Box>
             </Box>
