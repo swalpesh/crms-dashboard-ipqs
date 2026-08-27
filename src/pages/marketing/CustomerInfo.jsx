@@ -53,7 +53,8 @@ import {
   MapPin,
   CaretLeft,
   X,
-  Plus
+  Plus,
+  PhoneCall // <-- Added for Follow-Up
 } from "@phosphor-icons/react";
 
 // MUI Icons for Upload
@@ -191,7 +192,6 @@ const MetricBox = ({ label, value, isProbability }) => (
 );
 
 // --- FULLY FIXED FIELD ROW ALIGNMENT ---
-// Added strict column widths for the labels to prevent text from merging
 const FieldRow = ({ label, value, icon, isLink, isUser, isWarning, onClick }) => (
   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: { xs: 2, sm: 4 }, fontSize: '0.95rem' }}>
     <Typography sx={{ color: themeColors.textSecondary, flexShrink: 0, width: { xs: '120px', sm: '150px' }, pt: '2px' }}>
@@ -601,10 +601,30 @@ const CustomerInfo = () => {
   const priorityColor = priority === 'High' ? themeColors.danger : priority === 'Medium' ? themeColors.warning : themeColors.success;
   const priorityBg = priority === 'High' ? 'rgba(255, 69, 58, 0.2)' : priority === 'Medium' ? 'rgba(253, 203, 110, 0.2)' : 'rgba(0, 184, 148, 0.2)';
 
+  // --- SMART PIPELINE LOGIC ---
   const stage = leadData?.lead_stage || '';
-  const techActive = stage === 'Technical-Team' || stage === 'Solutions-Team' || stage === 'Quotations' || stage === 'Quotation-Team';
-  const solActive = stage === 'Solutions-Team' || stage === 'Quotations' || stage === 'Quotation-Team';
-  const quotActive = stage === 'Quotations' || stage === 'Quotation-Team';
+  let currentStageIndex = 1;
+
+  if (stage === 'Technical-Team') currentStageIndex = 2;
+  else if (stage === 'Solutions-Team') currentStageIndex = 3;
+  else if (stage === 'Quotations' || stage === 'Quotation-Team') currentStageIndex = 4;
+
+  // Override to Follow-Up if the status explicitly says so
+  if (leadData?.lead_status?.toLowerCase() === 'follow-up') {
+      currentStageIndex = 5;
+  }
+
+  // If closed or won, complete everything
+  if (stage === 'Won' || stage === 'Lost') {
+      currentStageIndex = 6;
+  }
+
+  // Gets the exact visual state of the pipeline element
+  const getStatus = (stepIndex) => {
+      if (currentStageIndex > stepIndex) return 'completed';
+      if (currentStageIndex === stepIndex) return 'active';
+      return 'pending';
+  };
 
   if (loading) {
     return (
@@ -653,11 +673,12 @@ const CustomerInfo = () => {
 
         {/* Pipeline Status */}
         <Box sx={{ display: { xs: 'none', md: 'flex' }, bgcolor: 'rgba(0,0,0,0.3)', borderRadius: '50px', p: 0.5, mb: 4, overflow: 'visible', backdropFilter: 'blur(5px)' }}>
-          <PipelineStep label="Lead Created" status="completed" icon={CheckCircle} />
-          <PipelineStep label="Marketing" status="completed" icon={CheckCircle} />
-          <PipelineStep label="Technical" status={techActive ? 'active' : 'pending'} icon={Wrench} />
-          <PipelineStep label="Solutions" status={solActive ? 'active' : 'pending'} icon={Lightbulb} />
-          <PipelineStep label="Quotations" status={quotActive ? 'active' : 'pending'} icon={Receipt} />
+          <PipelineStep label="Lead Created" status={getStatus(0)} icon={CheckCircle} />
+          <PipelineStep label="Marketing" status={getStatus(1)} icon={CheckCircle} />
+          <PipelineStep label="Technical" status={getStatus(2)} icon={Wrench} />
+          <PipelineStep label="Solutions" status={getStatus(3)} icon={Lightbulb} />
+          <PipelineStep label="Quotations" status={getStatus(4)} icon={Receipt} />
+          <PipelineStep label="Follow-Up" status={getStatus(5)} icon={PhoneCall} />
         </Box>
 
         {/* Header Card */}

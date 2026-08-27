@@ -4,13 +4,16 @@ import {
   Box, Typography, Button, Chip, Avatar, CircularProgress, 
   InputBase, MenuItem, Select, FormControl, Snackbar, Alert,
   Dialog, DialogTitle, DialogContent, DialogActions,
-  useTheme, useMediaQuery
+  useTheme, useMediaQuery, IconButton
 } from '@mui/material';
 import {
   Search as SearchIcon,
   VisibilityOutlined as VisibilityIcon,
   CalendarTodayOutlined as CalendarIcon,
-  HistoryOutlined as HistoryIcon
+  HistoryOutlined as HistoryIcon,
+  ScheduleOutlined as ScheduleIcon,
+  CheckCircleOutlined as CheckCircleIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 
 // --- API HELPERS ---
@@ -35,7 +38,7 @@ const cardStyle = {
   p: 2.5,
   mb: 2,
   display: 'grid',
-  gridTemplateColumns: { xs: '1fr', md: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 1.5fr' },
+  gridTemplateColumns: { xs: '1fr', md: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 2.5fr' },
   alignItems: 'center',
   gap: 2,
   transition: 'all 0.2s ease',
@@ -97,7 +100,7 @@ export default function FollowUps() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("All Departments");
-  const [showTodayOnly, setShowTodayOnly] = useState(false); // NEW STATE: Today's Followups
+  const [showTodayOnly, setShowTodayOnly] = useState(false);
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
   // History Modal States
@@ -106,7 +109,15 @@ export default function FollowUps() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [currentHistoryLead, setCurrentHistoryLead] = useState("");
 
-  // Extract unique departments from the fetched leads for the filter dropdown
+  // Reschedule Modal States
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [actionLead, setActionLead] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [approvalLoadingId, setApprovalLoadingId] = useState(null);
+
   const allDepartments = useMemo(() => {
     const depts = leads.map(l => l.lead_stage).filter(Boolean);
     return [...new Set(depts)].sort();
@@ -140,7 +151,7 @@ export default function FollowUps() {
     fetchFollowUps();
   }, []);
 
-  // --- FETCH HISTORY API ---
+  // --- HANDLERS ---
   const handleOpenHistory = async (leadId) => {
     setCurrentHistoryLead(leadId);
     setHistoryModalOpen(true);
@@ -159,10 +170,95 @@ export default function FollowUps() {
         throw new Error(result.message || "Failed to fetch follow-up history");
       }
     } catch (err) {
-      console.error(err);
       setToast({ open: true, message: err.message, severity: "error" });
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const handleOpenReschedule = (lead) => {
+    setActionLead(lead);
+    setRescheduleDate(lead.follow_up_date ? lead.follow_up_date.split('T')[0] : '');
+    setRescheduleTime(lead.follow_up_time || '');
+    setRescheduleReason(lead.follow_up_reason || '');
+    setRescheduleOpen(true);
+  };
+
+  const submitReschedule = async () => {
+    if (!rescheduleDate || !rescheduleTime || !rescheduleReason.trim()) {
+      setToast({ open: true, message: 'Please fill out the date, time, and reason.', severity: 'warning' });
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/api/fleads/${actionLead.lead_id}/status`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead_status: 'follow-up',
+          follow_up_date: rescheduleDate,
+          follow_up_time: rescheduleTime,
+          follow_up_reason: rescheduleReason
+        })
+      });
+      
+      if (!response.ok) throw new Error("Failed to reschedule follow-up");
+      
+      setToast({ open: true, message: 'Follow-up rescheduled successfully!', severity: 'success' });
+      setRescheduleOpen(false);
+      fetchFollowUps();
+    } catch (err) {
+      setToast({ open: true, message: err.message, severity: 'error' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // --- APPROVE HANDLER (DUAL API CALL matching reference snippet) ---
+  const handleApprove = async (lead) => {
+    setApprovalLoadingId(lead.lead_id);
+    try {
+      const token = getToken();
+
+      const changeStagePromise = fetch(`${API_BASE_URL}/api/fleads/change-stage`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          lead_id: lead.lead_id,
+          new_lead_stage: "Quotation-Team",
+          reason: "PO Confirmed"
+        })
+      });
+
+      const poStatusPromise = fetch(`${API_BASE_URL}/api/leads/po-status`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({
+          lead_id: lead.lead_id,
+          po_confirmed: "Yes"
+        })
+      });
+
+      const [resStage, resPO] = await Promise.all([changeStagePromise, poStatusPromise]);
+
+      if (resStage.ok && resPO.ok) {
+        setToast({ open: true, message: "Lead Approved: Stage changed and PO confirmed!", severity: "success" });
+        fetchFollowUps(); 
+      } else {
+        throw new Error("One or more requests failed. Please check the logs.");
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ open: true, message: error.message, severity: "error" });
+    } finally {
+      setApprovalLoadingId(null);
     }
   };
 
@@ -293,7 +389,7 @@ export default function FollowUps() {
         {!isMobile && (
           <Box sx={{ 
             display: 'grid', 
-            gridTemplateColumns: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 1.5fr', 
+            gridTemplateColumns: '2.5fr 1fr 1fr 1.2fr 1.2fr 2.5fr 2.5fr', 
             gap: 2, 
             px: 3, 
             pb: 2, 
@@ -328,6 +424,7 @@ export default function FollowUps() {
             
             const fDate = formatDate(lead.follow_up_date);
             const fTime = formatTime(lead.follow_up_time);
+            const isApproving = approvalLoadingId === lead.lead_id;
 
             return (
               <Box key={lead.lead_id} sx={cardStyle}>
@@ -393,20 +490,35 @@ export default function FollowUps() {
                 </Box>
 
                 {/* COL 7: Actions */}
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
                   <Button 
                     size="small" 
                     onClick={() => handleOpenHistory(lead.lead_id)}
-                    sx={{ color: '#a855f7', textTransform: 'none', minWidth: 'auto', p: 1, '&:hover': { bgcolor: 'rgba(168, 85, 247, 0.1)' } }}
+                    sx={{ color: '#a855f7', textTransform: 'none', minWidth: 'auto', p: '6px 10px', '&:hover': { bgcolor: 'rgba(168, 85, 247, 0.1)' } }}
                   >
                     <HistoryIcon fontSize="small" sx={{ mr: 0.5 }} /> History
                   </Button>
                   <Button 
                     size="small" 
                     onClick={() => navigate(`/marketing/customer-info/${lead.lead_id}`)}
-                    sx={{ color: '#60a5fa', textTransform: 'none', minWidth: 'auto', p: 1, '&:hover': { bgcolor: 'rgba(96,165,250,0.1)' } }}
+                    sx={{ color: '#60a5fa', textTransform: 'none', minWidth: 'auto', p: '6px 10px', '&:hover': { bgcolor: 'rgba(96,165,250,0.1)' } }}
                   >
                     <VisibilityIcon fontSize="small" sx={{ mr: 0.5 }} /> View
+                  </Button>
+                  <Button 
+                    size="small" 
+                    onClick={() => handleOpenReschedule(lead)}
+                    sx={{ color: '#a0a0c0', textTransform: 'none', minWidth: 'auto', p: '6px 10px', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)', color: '#fff' } }}
+                  >
+                    <ScheduleIcon fontSize="small" sx={{ mr: 0.5 }} /> Reschedule
+                  </Button>
+                  <Button 
+                    size="small" 
+                    onClick={() => handleApprove(lead)}
+                    disabled={isApproving}
+                    sx={{ color: '#10b981', textTransform: 'none', minWidth: 'auto', p: '6px 10px', '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.1)' } }}
+                  >
+                    <CheckCircleIcon fontSize="small" sx={{ mr: 0.5 }} /> {isApproving ? 'Approving...' : 'Approve'}
                   </Button>
                 </Box>
 
@@ -416,6 +528,93 @@ export default function FollowUps() {
         )}
 
       </Box>
+
+      {/* --- RESCHEDULE MODAL --- */}
+      <Dialog 
+        open={rescheduleOpen} 
+        onClose={() => setRescheduleOpen(false)} 
+        maxWidth="xs" 
+        fullWidth 
+        PaperProps={{ 
+          sx: { 
+            bgcolor: '#1a1a2e', 
+            color: '#fff', 
+            borderRadius: '20px', 
+            border: '1px solid rgba(255,255,255,0.1)',
+            backgroundImage: 'linear-gradient(to bottom right, rgba(255,255,255,0.02), rgba(0,0,0,0.2))',
+            p: 1
+          } 
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+          <Typography variant="h6" fontWeight={800}>Re-schedule Follow-Up</Typography>
+          <IconButton onClick={() => setRescheduleOpen(false)} sx={{ color: 'rgba(255,255,255,0.5)', '&:hover': { color: '#fff' } }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pb: 1 }}>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 3 }}>
+            Scheduling for <span style={{ color: '#3b82f6', fontWeight: 600 }}>{actionLead?.company_name}</span>
+          </Typography>
+          
+          <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', mb: 1, display: 'block' }}>Date</Typography>
+              <input 
+                type="date" 
+                value={rescheduleDate}
+                onChange={(e) => setRescheduleDate(e.target.value)}
+                style={{ 
+                  width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', 
+                  borderRadius: '12px', color: '#fff', padding: '12px', outline: 'none',
+                  colorScheme: 'dark'
+                }} 
+              />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', mb: 1, display: 'block' }}>Time</Typography>
+              <input 
+                type="time" 
+                value={rescheduleTime}
+                onChange={(e) => setRescheduleTime(e.target.value)}
+                style={{ 
+                  width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', 
+                  borderRadius: '12px', color: '#fff', padding: '12px', outline: 'none',
+                  colorScheme: 'dark'
+                }} 
+              />
+            </Box>
+          </Box>
+
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" sx={{ color: '#3b82f6', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', mb: 1, display: 'block' }}>Reason for Follow-Up</Typography>
+            <textarea 
+              rows="3" 
+              placeholder="Enter reason or next steps..."
+              value={rescheduleReason}
+              onChange={(e) => setRescheduleReason(e.target.value)}
+              style={{ 
+                width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', 
+                borderRadius: '12px', color: '#fff', padding: '12px', outline: 'none', resize: 'none',
+                fontFamily: 'inherit'
+              }} 
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3, pt: 0, justifyContent: 'space-between' }}>
+          <Button onClick={() => setRescheduleOpen(false)} sx={{ color: 'rgba(255,255,255,0.5)', textTransform: 'none' }}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={submitReschedule} 
+            disabled={actionLoading}
+            sx={{ bgcolor: '#3b82f6', color: '#fff', borderRadius: '12px', textTransform: 'none', px: 3, '&:hover': { bgcolor: '#2563eb' } }}
+          >
+            {actionLoading ? "Confirming..." : "Confirm Reschedule"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* --- HISTORY MODAL --- */}
       <Dialog 

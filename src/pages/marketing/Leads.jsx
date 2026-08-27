@@ -8,7 +8,7 @@ import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 // Phosphor Icons
-import { CaretRight, MagnifyingGlass, Trash } from "@phosphor-icons/react";
+import { CaretRight, MagnifyingGlass, Trash, Plus, Fire } from "@phosphor-icons/react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const getToken = () => localStorage.getItem("auth_token") || sessionStorage.getItem("auth_token");
@@ -20,18 +20,20 @@ const getAuthUser = () => {
 
 function mapLead(api) {
   const location = [api.company_address, api.company_city, api.company_state, api.company_country].filter(Boolean).join(", ");
-  
+
   return {
     id: api.lead_id,
     leadNo: api.lead_id,
     company: api.company_name,
     contact: api.contact_person_name,
     phone: api.contact_person_phone,
-    leadType: api.lead_type || api.lead_requirement || "N/A", 
+    leadType: api.lead_type || api.lead_requirement || "N/A",
     requirement: api.lead_requirement || "Unknown",
     location,
     priority: api.lead_priority || "Medium",
-    stage: api.lead_stage || "Unassigned", 
+    stage: api.lead_stage || "Unassigned",
+    leadStatus: api.lead_status || "new", // Track status for follow-up and new
+    poConfirmed: api.po_confirmed === "Yes" || api.po_confirmed === true, // NEW: PO confirmation flag
     _raw: api,
   };
 }
@@ -59,14 +61,15 @@ const themeColors = {
   success: '#10b981',
   warning: '#f59e0b',
   danger: '#ef4444',
+  purple: '#8b5cf6', // NEW: PO Confirmed color
 };
 
-const glassPanel = { 
-  background: 'rgba(255, 255, 255, 0.04)', 
-  backdropFilter: 'blur(16px)', 
-  border: '1px solid rgba(255, 255, 255, 0.1)', 
-  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)', 
-  borderRadius: '16px' 
+const glassPanel = {
+  background: 'rgba(255, 255, 255, 0.04)',
+  backdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255, 255, 255, 0.1)',
+  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+  borderRadius: '16px'
 };
 
 // PERFECT ALIGNMENT GRID
@@ -79,13 +82,14 @@ export default function MasterLeads() {
   const navigate = useNavigate();
   const authUser = getAuthUser();
 
-  // Data buckets 
+  // Data buckets
   const [newLeads, setNewLeads] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Search & Filter
+  // Search & Filters
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("All"); // STATUS FILTER
 
   // Selection & Bulk Delete State
   const [selectedLeadIds, setSelectedLeadIds] = useState([]);
@@ -98,58 +102,203 @@ export default function MasterLeads() {
   const [assignReason, setAssignReason] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
 
+  // --- Create Lead Modal State ---
+  const [showModal, setShowModal] = useState(false);
+  const [isHotLead, setIsHotLead] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [countries, setCountries] = useState([]);
+  const [formStates, setFormStates] = useState([]);
+  const [formCities, setFormCities] = useState([]);
+  const [loadingFormLoc, setLoadingFormLoc] = useState({ states: false, cities: false });
+
+  const [formData, setFormData] = useState({
+    lead_name: '', company_name: '', company_contact_number: '', company_email: '',
+    company_website: 'https://www.', contact_person_name: '', contact_person_phone: '',
+    contact_person_email: '', company_address: '', company_country: 'India',
+    company_state: '', company_city: '', zipcode: '', industry_type: '',
+    lead_requirement: '', lead_type: 'Product', lead_priority: 'Medium'
+  });
+
   const [snack, setSnack] = useState({ open: false, type: "success", msg: "" });
 
   const allDepartments = useMemo(() => {
     return Array.from(new Set(newLeads.map(l => l.stage))).filter(Boolean).sort();
   }, [newLeads]);
 
+  // COMBINED FILTERING LOGIC
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return newLeads.filter((l) => {
+      // 1. Text Search
       const matchesSearch = !q || [l.leadNo, l.company, l.contact, l.phone, l.leadType, l.location, l.requirement]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
+
+      // 2. Department Filter
       const matchesDept = deptFilter === "All" || !deptFilter || l.stage === deptFilter;
-      return matchesSearch && matchesDept;
+
+      // 3. Status Filter (New, Follow-Up, Closed, PO-Confirmed)
+      let matchesStatus = true;
+      if (statusFilter === "New") {
+        matchesStatus = l.leadStatus?.toLowerCase() === "new" && l.stage !== "Won" && l.stage !== "Lost";
+      } else if (statusFilter === "Follow-Up") {
+        matchesStatus = l.leadStatus?.toLowerCase() === "follow-up" && l.stage !== "Won" && l.stage !== "Lost";
+      } else if (statusFilter === "Closed") {
+        matchesStatus = l.stage === "Won" || l.stage === "Lost";
+      } else if (statusFilter === "PO-Confirmed") {
+        matchesStatus = l.poConfirmed === true;
+      }
+
+      return matchesSearch && matchesDept && matchesStatus;
     });
-  }, [newLeads, search, deptFilter]);
+  }, [newLeads, search, deptFilter, statusFilter]);
 
   /* ================== API FETCHING ================== */
   async function fetchAllLeads() {
     const token = getToken();
     if (!token) return;
-    
-    setLoading(true); 
+
+    setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/leads/all`, { 
-        headers: { Authorization: `Bearer ${token}` } 
+      const res = await fetch(`${API_BASE_URL}/api/leads/all`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error("Failed to fetch");
-      
+
       const json = await res.json();
       const arr = Array.isArray(json?.leads) ? json.leads : [];
-      setNewLeads(arr.map(mapLead)); 
-      
+      setNewLeads(arr.map(mapLead));
+
       setSelectedLeadIds([]);
-    } catch (e) { 
-      console.error(e); 
+    } catch (e) {
+      console.error(e);
       setNewLeads([]);
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => { fetchAllLeads(); }, []);
 
+  // --- Initialize External Countries (Only for Modal) ---
+  useEffect(() => {
+    fetch("https://countriesnow.space/api/v0.1/countries/iso")
+      .then(res => res.json())
+      .then(result => {
+          setCountries(result.data || []);
+          if(showModal) handleFormCountryChange("India");
+      }).catch(err => console.error(err));
+  }, [showModal]);
+
+  // --- CREATE FORM HANDLERS ---
+  const handleLeadNameChange = (e) => {
+    const val = e.target.value;
+    setFormData(prev => ({ ...prev, lead_name: val, company_name: val }));
+  };
+
+  const handleFormCountryChange = (countryName) => {
+    setFormData(prev => ({ ...prev, company_country: countryName, company_state: '', company_city: '' }));
+    setFormStates([]); setFormCities([]);
+    if(!countryName) return;
+
+    setLoadingFormLoc(prev => ({ ...prev, states: true }));
+    fetch("https://countriesnow.space/api/v0.1/countries/states", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ country: countryName })
+    }).then(res => res.json()).then(result => {
+        setFormStates(result.data?.states || []);
+        setLoadingFormLoc(prev => ({ ...prev, states: false }));
+    });
+  };
+
+  const handleFormStateChange = (stateName) => {
+    setFormData(prev => ({ ...prev, company_state: stateName, company_city: '' }));
+    setFormCities([]);
+    if(!stateName) return;
+
+    setLoadingFormLoc(prev => ({ ...prev, cities: true }));
+    fetch("https://countriesnow.space/api/v0.1/countries/state/cities", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ country: formData.company_country, state: stateName })
+    }).then(res => res.json()).then(result => {
+        setFormCities(result.data || []);
+        setLoadingFormLoc(prev => ({ ...prev, cities: false }));
+    });
+  };
+
+  const handleCreateChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleCreateSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.company_name || !formData.lead_name) {
+        setSnack({ open: true, msg: "Lead Name and Company Name are required", type: "error" });
+        return;
+    }
+    setSubmitting(true);
+    try {
+        const token = getToken();
+
+        // Extract profile_name from local storage to inject into the creation reason
+        const profileName = localStorage.getItem("profile_name") || "Admin";
+        const creationReason = `New Lead Created Show Admin Profile : ${profileName}`;
+
+        const payload = {
+            ...formData,
+            assigned_employee: "0",
+            lead_status: "new",
+            lead_stage: "IpqsHead",
+            expected_closing_date: null,
+            expected_revenue: 0,
+            probability: 50,
+            mark_as_hot_lead: isHotLead,
+            follow_up_reason: null,
+            follow_up_date: null,
+            follow_up_time: null,
+            notes: null,
+            reason: creationReason // <-- Added dynamic reason string
+        };
+
+        const response = await fetch(`${API_BASE_URL}/api/adminprofiles/create-lead`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            setSnack({ open: true, msg: "Lead Created Successfully!", type: "success" });
+            setShowModal(false);
+            fetchAllLeads();
+            setFormData({
+                lead_name: '', company_name: '', company_contact_number: '', company_email: '',
+                company_website: 'https://www.', contact_person_name: '', contact_person_phone: '',
+                contact_person_email: '', company_address: '', company_country: 'India', company_state: '',
+                company_city: '', zipcode: '', industry_type: '', lead_requirement: '',
+                lead_type: 'Product', lead_priority: 'Medium'
+            });
+            setIsHotLead(false);
+        } else {
+            throw new Error(data.message || "Failed to create lead");
+        }
+    } catch (error) {
+        setSnack({ open: true, msg: error.message, type: "error" });
+    } finally {
+        setSubmitting(false);
+    }
+  };
+
   // --- Actions ---
   const goDetail = (lead) => navigate(`/marketing/customer-info/${encodeURIComponent(lead?.id || lead?.leadNo)}`);
 
-  const openAssign = (lead) => { 
-    setAssignLead(lead); 
-    setAssignDept(""); 
-    setAssignReason(""); 
-    setAssignOpen(true); 
+  const openAssign = (lead) => {
+    setAssignLead(lead);
+    setAssignDept("");
+    setAssignReason("");
+    setAssignOpen(true);
   };
 
   const saveAssign = async () => {
@@ -157,14 +306,14 @@ export default function MasterLeads() {
     const token = getToken();
     try {
       setAssignSaving(true);
-      
+
       // 1. Determine Target Employee ID based on Department FIRST
       let targetEmpId = "";
       if (assignDept === "Field-Marketing") targetEmpId = "IPQS-H25002";
       else if (assignDept === "Associate-Marketing") targetEmpId = "IPQS-H25003";
       else if (assignDept === "Corporate-Marketing") targetEmpId = "IPQS-H25019";
       else if (assignDept === "Technical-Team") targetEmpId = "IPQS-H25030";
-      else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000"; 
+      else if (assignDept === "Solutions-Team") targetEmpId = "IPQS-H5000";
       else if (assignDept === "Nagpur-Associates") targetEmpId = "IPQS-E25004";
       else if (assignDept === "Silverline-Associates") targetEmpId = "IPQS-H25009";
       else if (assignDept === "Trafo-Associates") targetEmpId = "IPQS-H25007";
@@ -175,14 +324,14 @@ export default function MasterLeads() {
       const profileName = localStorage.getItem("profile_name") || "Admin";
       const formattedReason = `Updated by Admin: ${profileName} - ${assignReason.trim()}`;
 
-      // 2. Assign the lead 
+      // 2. Assign the lead
       const res = await fetch(`${API_BASE_URL}/api/leads/change-stage`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ 
-          lead_id: assignLead.id, 
-          new_lead_stage: assignDept, 
-          assigned_employee: targetEmpId, 
+        body: JSON.stringify({
+          lead_id: assignLead.id,
+          new_lead_stage: assignDept,
+          assigned_employee: targetEmpId,
           reason: formattedReason // <-- Sent with Dynamic Admin Prefix
         }),
       });
@@ -209,12 +358,12 @@ export default function MasterLeads() {
 
       await fetchAllLeads(); // Refresh table
       setSnack({ open: true, type: "success", msg: `Lead successfully moved to ${assignDept.replace("-", " ")}.` });
-      setAssignOpen(false); 
-      setAssignLead(null); 
+      setAssignOpen(false);
+      setAssignLead(null);
     } catch (e) {
       setSnack({ open: true, type: "error", msg: e.message || "Failed to change stage" });
-    } finally { 
-      setAssignSaving(false); 
+    } finally {
+      setAssignSaving(false);
     }
   };
 
@@ -234,7 +383,7 @@ export default function MasterLeads() {
 
     const token = getToken();
     setIsDeleting(true);
-    
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/leads/bulk-delete`, {
         method: "DELETE",
@@ -246,9 +395,9 @@ export default function MasterLeads() {
       if (!res.ok) throw new Error(data.message || "Failed to delete leads");
 
       const deletedCount = selectedLeadIds.length;
-      setSelectedLeadIds([]); 
-      await fetchAllLeads();  
-      
+      setSelectedLeadIds([]);
+      await fetchAllLeads();
+
       setSnack({ open: true, type: "success", msg: `Successfully deleted ${deletedCount} lead(s).` });
     } catch (error) {
       setSnack({ open: true, type: "error", msg: error.message || "An error occurred while deleting leads." });
@@ -268,19 +417,19 @@ export default function MasterLeads() {
   };
 
   const filterInputStyle = {
-    "& .MuiOutlinedInput-root": { 
+    "& .MuiOutlinedInput-root": {
         color: "#fff", bgcolor: "rgba(0,0,0,0.2)", borderRadius: '8px', height: '40px', fontSize: '0.85rem',
-        "& fieldset": { borderColor: "rgba(255,255,255,0.1)" }, 
-        "&:hover fieldset": { borderColor: "#3b82f6" }, 
-        "&.Mui-focused fieldset": { borderColor: "#3b82f6" } 
+        "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
+        "&:hover fieldset": { borderColor: "#3b82f6" },
+        "&.Mui-focused fieldset": { borderColor: "#3b82f6" }
     },
-    "& .MuiInputLabel-root": { color: "#a0a0c0", fontSize: '0.8rem', top: '-4px' }, 
+    "& .MuiInputLabel-root": { color: "#a0a0c0", fontSize: '0.8rem', top: '-4px' },
     "& .MuiSvgIcon-root": { color: "#3b82f6" }
   };
 
   return (
     <Box sx={{ minHeight: '100vh', width: '100%', background: themeColors.bgGradient, color: '#fff', p: { xs: 1, md: 4 }, fontFamily: "'Inter', sans-serif" }}>
-      
+
       {/* --- INJECTED CSS FOR MODAL --- */}
       <style>{`
         .modal-content { background: #0f1028 !important; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px; box-shadow: 0 0 40px rgba(0, 0, 0, 0.8); }
@@ -294,6 +443,8 @@ export default function MasterLeads() {
         .btn-sexy-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
         .btn-sexy-secondary { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; border-radius: 10px; padding: 12px 24px; font-weight: 600; transition: all 0.2s ease; }
         .btn-sexy-secondary:hover { background: rgba(255,255,255,0.05); color: #fff; border-color: #fff; }
+
+        .hot-lead-box { background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(249, 115, 22, 0.05)); border: 1px solid rgba(249, 115, 22, 0.4); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between; margin-top: 25px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.1); }
       `}</style>
 
       {/* --- ASSIGN DEPT MODAL --- */}
@@ -340,8 +491,141 @@ export default function MasterLeads() {
         </div>
       )}
 
+      {/* --- CREATE LEAD MODAL --- */}
+      {showModal && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1300 }} tabIndex="-1">
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title fw-bold text-white fs-4">Create New Lead</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <form onSubmit={handleCreateSubmit}>
+
+                  {/* Section 1 */}
+                  <div className="sexy-header mt-0">Company Details</div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Lead Name <span className="text-danger">*</span></label>
+                    <input type="text" className="form-control sexy-input" name="lead_name" value={formData.lead_name} onChange={handleLeadNameChange} placeholder="Give Your Lead a Name" required />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Company Name <span className="text-danger">*</span></label>
+                    <input type="text" className="form-control sexy-input" name="company_name" value={formData.company_name} onChange={handleCreateChange} placeholder="Auto-fills from Lead Name" required disabled />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Company Contact Number</label>
+                    <input type="text" className="form-control sexy-input" name="company_contact_number" value={formData.company_contact_number} onChange={handleCreateChange} placeholder="Direct Line" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Company Email</label>
+                    <input type="email" className="form-control sexy-input" name="company_email" value={formData.company_email} onChange={handleCreateChange} placeholder="info@company.com" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Company Website</label>
+                    <input type="text" className="form-control sexy-input" name="company_website" value={formData.company_website} onChange={handleCreateChange} placeholder="https://www.company.com" />
+                  </div>
+
+                  {/* Section 2 */}
+                  <div className="sexy-header">Contact Person</div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Person Name</label>
+                    <input type="text" className="form-control sexy-input" name="contact_person_name" value={formData.contact_person_name} onChange={handleCreateChange} placeholder="John Doe" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Person Phone</label>
+                    <input type="text" className="form-control sexy-input" name="contact_person_phone" value={formData.contact_person_phone} onChange={handleCreateChange} placeholder="Direct line" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Person Email</label>
+                    <input type="email" className="form-control sexy-input" name="contact_person_email" value={formData.contact_person_email} onChange={handleCreateChange} placeholder="john@company.com" />
+                  </div>
+
+                  {/* Section 3 */}
+                  <div className="sexy-header">Location & Industry</div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Address</label>
+                    <textarea className="form-control sexy-input" rows="2" name="company_address" value={formData.company_address} onChange={handleCreateChange} placeholder="Full street address"></textarea>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Country</label>
+                    <select className="form-select sexy-input" name="company_country" value={formData.company_country} onChange={(e) => handleFormCountryChange(e.target.value)}>
+                        {countries.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">{loadingFormLoc.states ? "Loading States..." : "State"}</label>
+                    <select className="form-select sexy-input" name="company_state" value={formData.company_state} onChange={(e) => handleFormStateChange(e.target.value)} disabled={!formData.company_country}>
+                        <option value="">Select State</option>
+                        {formStates.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">{loadingFormLoc.cities ? "Loading Cities..." : "City"}</label>
+                    <select className="form-select sexy-input" name="company_city" value={formData.company_city} onChange={(e) => setFormData({...formData, company_city: e.target.value})} disabled={!formData.company_state}>
+                        <option value="">Select City</option>
+                        {formCities.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Zipcode</label>
+                    <input type="text" className="form-control sexy-input" name="zipcode" value={formData.zipcode} onChange={handleCreateChange} placeholder="123456" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Industry Type</label>
+                    <input type="text" className="form-control sexy-input" name="industry_type" value={formData.industry_type} onChange={handleCreateChange} placeholder="e.g. Manufacturing" />
+                  </div>
+
+                  {/* Section 4 */}
+                  <div className="sexy-header">Lead Specifics</div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Requirement</label>
+                    <textarea className="form-control sexy-input" rows="3" name="lead_requirement" value={formData.lead_requirement} onChange={handleCreateChange} placeholder="Describe the client requirement..."></textarea>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Lead Type</label>
+                    <select className="form-select sexy-input" name="lead_type" value={formData.lead_type} onChange={handleCreateChange}>
+                        <option value="Product">Product</option>
+                        <option value="Service">Service</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="sexy-label">Priority</label>
+                    <select className="form-select sexy-input" name="lead_priority" value={formData.lead_priority} onChange={handleCreateChange}>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                  </div>
+
+                  {/* Hot Lead Switch */}
+                  <div className="hot-lead-box">
+                    <div>
+                        <div className="text-warning fw-bold mb-1" style={{ fontSize: '0.9rem' }}><Fire weight="fill" style={{ marginRight: '8px' }} /> Mark as Hot Lead</div>
+                        <div style={{ fontSize: '0.75rem', color: '#cbd5e1' }}>Prioritize this lead for immediate attention</div>
+                    </div>
+                    <div className="form-check form-switch">
+                        <input className="form-check-input" type="checkbox" role="switch" style={{ width: '3.5em', height: '1.8em', cursor: 'pointer', backgroundColor: isHotLead ? '#f97316' : '#475569', borderColor: 'transparent' }} checked={isHotLead} onChange={(e) => setIsHotLead(e.target.checked)} />
+                    </div>
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="d-grid gap-3 d-md-flex justify-content-md-end mt-4 pt-3 border-top border-secondary">
+                    <button type="button" className="btn btn-sexy-secondary px-4" onClick={() => setShowModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-sexy-primary px-5" disabled={submitting}>
+                      {submitting ? <><span className="spinner-border spinner-border-sm me-2"></span>Saving...</> : 'Save Lead'}
+                    </button>
+                  </div>
+
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Box sx={{ maxWidth: 1400, mx: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
-        
+
         {/* DASHBOARD HEADER */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: themeColors.textSecondary }}>
@@ -370,20 +654,20 @@ export default function MasterLeads() {
             </Box>
           )}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: { xs: '100%', md: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
-            
+
             {/* BULK DELETE BUTTON */}
             {selectedLeadIds.length > 0 && (
               <Tooltip title={`Delete ${selectedLeadIds.length} Selected`}>
-                <Button 
-                  variant="contained" 
+                <Button
+                  variant="contained"
                   onClick={handleBulkDelete}
                   disabled={isDeleting}
-                  sx={{ 
+                  sx={{
                     minWidth: '40px',
                     width: '40px',
                     height: '40px',
                     p: 0,
-                    borderRadius: '8px', 
+                    borderRadius: '8px',
                     bgcolor: 'rgba(239, 68, 68, 0.15)',
                     color: themeColors.danger,
                     border: `1px solid rgba(239, 68, 68, 0.3)`,
@@ -396,39 +680,74 @@ export default function MasterLeads() {
             )}
 
             {/* DEPARTMENT FILTER */}
-            <TextField 
-                select 
-                size="small" 
-                value={deptFilter} 
-                onChange={(e) => setDeptFilter(e.target.value)} 
+            <TextField
+                select
+                size="small"
+                value={deptFilter}
+                onChange={(e) => setDeptFilter(e.target.value)}
                 sx={{ minWidth: { xs: '100%', sm: 180 }, ...filterInputStyle }}
             >
                 <MenuItem value="All">All Departments</MenuItem>
                 {allDepartments.map(d => <MenuItem key={d} value={d}>{d}</MenuItem>)}
             </TextField>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 2, px: 2, py: 1, border: '1px solid rgba(255,255,255,0.05)', flex: 1, minWidth: { md: 300 }, width: '100%' }}>
+            {/* STATUS FILTER */}
+            <TextField
+                select
+                size="small"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 140 }, ...filterInputStyle }}
+            >
+                <MenuItem value="All">All Status</MenuItem>
+                <MenuItem value="New">New</MenuItem>
+                <MenuItem value="Follow-Up">Follow-Up</MenuItem>
+                <MenuItem value="Closed">Closed</MenuItem>
+                <MenuItem value="PO-Confirmed">PO Confirmed</MenuItem>
+            </TextField>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 2, px: 2, py: 1, border: '1px solid rgba(255,255,255,0.05)', flex: 1, minWidth: { md: 250 }, width: '100%' }}>
               <MagnifyingGlass size={20} color="#a0a0c0" />
               <InputBase placeholder="Search leads by name, company, etc..." value={search} onChange={(e) => setSearch(e.target.value)} sx={{ ml: 1, color: '#fff', fontSize: 14, width: '100%' }} />
             </Box>
+
+            {/* CREATE LEAD BUTTON */}
+            <Button
+              variant="contained"
+              startIcon={<Plus weight="bold" />}
+              onClick={() => setShowModal(true)}
+              sx={{
+                bgcolor: '#3b82f6',
+                color: '#fff',
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: '16px',
+                px: 3,
+                height: 42,
+                whiteSpace: 'nowrap',
+                '&:hover': { bgcolor: '#2563eb' }
+              }}
+            >
+              Create
+            </Button>
           </Box>
         </Box>
 
         {/* TABLE ROW */}
         <Box sx={{ ...glassPanel, p: 0, maxHeight: '65vh', overflowY: 'auto', '&::-webkit-scrollbar': { width: '8px' }, '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.1)', borderRadius: '10px' } }}>
-            
+
             {/* TABLE HEADER */}
             {!isMobile && (
-                <Box sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: tableGridCols.md, 
+                <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: tableGridCols.md,
                     alignItems: 'center', pb: 2, mb: 2, pt: 2,
-                    borderBottom: '1px solid rgba(255,255,255,0.1)', 
-                    color: '#a0a0c0', fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', 
-                    position: 'sticky', top: 0, zIndex: 2, backdropFilter: 'blur(10px)', background: 'rgba(25, 25, 55, 0.9)', pl: 2, pr: 2 
+                    borderBottom: '1px solid rgba(255,255,255,0.1)',
+                    color: '#a0a0c0', fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase',
+                    position: 'sticky', top: 0, zIndex: 2, backdropFilter: 'blur(10px)', background: 'rgba(25, 25, 55, 0.9)', pl: 2, pr: 2
                 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                      <Checkbox 
+                      <Checkbox
                         size="small"
                         sx={{ color: 'rgba(255,255,255,0.5)', '&.Mui-checked': { color: themeColors.blue } }}
                         checked={filtered.length > 0 && selectedLeadIds.length === filtered.length}
@@ -445,7 +764,7 @@ export default function MasterLeads() {
                     <Box>Requirements</Box>
                 </Box>
             )}
-            
+
             {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
             ) : filtered.length === 0 ? (
@@ -454,47 +773,98 @@ export default function MasterLeads() {
                 filtered.map(lead => {
                     const priorityStyle = getPriorityColor(lead.priority);
                     const isChecked = selectedLeadIds.includes(lead.id);
-                    const isWon = lead.stage === "Won"; 
+                    const isWon = lead.stage === "Won" || lead.stage === "Lost";
+                    const isFollowUp = lead.leadStatus?.toLowerCase() === "follow-up";
+                    const isPoConfirmed = lead.poConfirmed === true; // NEW
+                    const disableAssign = isWon || isFollowUp || isPoConfirmed; // UPDATED
 
                     return (
-                        <Box key={lead.id} sx={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: tableGridCols, 
+                        <Box key={lead.id} sx={{
+                            display: 'grid',
+                            gridTemplateColumns: tableGridCols,
                             alignItems: 'center', gap: { xs: 2, md: 2 }, p: { xs: 2, md: '8px 16px' }, mb: 1, mx: { md: 2 },
-                            bgcolor: isChecked ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255,255,255,0.02)', 
-                            borderRadius: 3, transition: 'all 0.2s ease', 
-                            border: isChecked ? `1px solid ${themeColors.blue}` : '1px solid transparent', 
-                            position: 'relative', 
-                            overflow: 'hidden', 
-                            '&:hover': { bgcolor: isChecked ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.08)', borderColor: isChecked ? themeColors.blue : 'rgba(255,255,255,0.2)' } 
+                            bgcolor: isChecked ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255,255,255,0.02)',
+                            borderRadius: 3, transition: 'all 0.2s ease',
+                            border: isChecked ? `1px solid ${themeColors.blue}` : '1px solid transparent',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            '&:hover': { bgcolor: isChecked ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.08)', borderColor: isChecked ? themeColors.blue : 'rgba(255,255,255,0.2)' }
                         }}>
-                            
-                            {/* --- CLOSED BANNER (Top Left Slanted Ribbon) --- */}
+
+                            {/* --- CLOSED BANNER --- */}
                             {isWon && (
-                                <Box sx={{ 
-                                    position: 'absolute', 
-                                    top: '12px', 
-                                    left: '-32px', 
+                                <Box sx={{
+                                    position: 'absolute',
+                                    top: '12px',
+                                    left: '-32px',
                                     width: '120px',
                                     textAlign: 'center',
-                                    bgcolor: '#10b981', 
-                                    color: '#fff', 
-                                    fontSize: '9px', 
-                                    fontWeight: 900, 
-                                    py: 0.5, 
+                                    bgcolor: lead.stage === 'Won' ? '#10b981' : '#ef4444',
+                                    color: '#fff',
+                                    fontSize: '9px',
+                                    fontWeight: 900,
+                                    py: 0.5,
                                     letterSpacing: '1px',
                                     textTransform: 'uppercase',
                                     transform: 'rotate(-45deg)',
                                     boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                                     zIndex: 10,
-                                    pointerEvents: 'none' 
+                                    pointerEvents: 'none'
                                 }}>
-                                    Closed
+                                    {lead.stage}
+                                </Box>
+                            )}
+
+                            {/* --- PO CONFIRMED BANNER (takes precedence over Follow-Up, not over Won/Lost) --- */}
+                            {isPoConfirmed && !isWon && (
+                                <Box sx={{
+                                    position: 'absolute',
+                                    top: '12px',
+                                    left: '-32px',
+                                    width: '120px',
+                                    textAlign: 'center',
+                                    bgcolor: themeColors.purple,
+                                    color: '#fff',
+                                    fontSize: '9px',
+                                    fontWeight: 900,
+                                    py: 0.5,
+                                    letterSpacing: '1px',
+                                    textTransform: 'uppercase',
+                                    transform: 'rotate(-45deg)',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                    zIndex: 10,
+                                    pointerEvents: 'none'
+                                }}>
+                                    PO Confirmed
+                                </Box>
+                            )}
+
+                            {/* --- FOLLOW-UP BANNER --- */}
+                            {isFollowUp && !isWon && !isPoConfirmed && (
+                                <Box sx={{
+                                    position: 'absolute',
+                                    top: '12px',
+                                    left: '-32px',
+                                    width: '120px',
+                                    textAlign: 'center',
+                                    bgcolor: '#f59e0b', // Warning/Yellow
+                                    color: '#fff',
+                                    fontSize: '9px',
+                                    fontWeight: 900,
+                                    py: 0.5,
+                                    letterSpacing: '1px',
+                                    textTransform: 'uppercase',
+                                    transform: 'rotate(-45deg)',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                    zIndex: 10,
+                                    pointerEvents: 'none'
+                                }}>
+                                    Follow-Up
                                 </Box>
                             )}
 
                             <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'center' }, zIndex: 11 }}>
-                              <Checkbox 
+                              <Checkbox
                                 size="small"
                                 sx={{ color: 'rgba(255,255,255,0.3)', '&.Mui-checked': { color: themeColors.blue } }}
                                 checked={isChecked}
@@ -503,20 +873,20 @@ export default function MasterLeads() {
                             </Box>
 
                             <Box>
-                                <Button 
-                                  variant="outlined" 
-                                  size="small" 
-                                  onClick={() => openAssign(lead)} 
-                                  disabled={isWon} 
-                                  sx={{ 
-                                    color: themeColors.blue, 
-                                    borderColor: 'rgba(59,130,246,0.3)', 
-                                    textTransform: 'none', 
-                                    borderRadius: 2, 
-                                    whiteSpace: 'nowrap', 
-                                    py: 0.5, 
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => openAssign(lead)}
+                                  disabled={disableAssign}
+                                  sx={{
+                                    color: themeColors.blue,
+                                    borderColor: 'rgba(59,130,246,0.3)',
+                                    textTransform: 'none',
+                                    borderRadius: 2,
+                                    whiteSpace: 'nowrap',
+                                    py: 0.5,
                                     px: 1,
-                                    '&.Mui-disabled': { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' } 
+                                    '&.Mui-disabled': { borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.3)' }
                                   }}
                                 >
                                     Assign Dept

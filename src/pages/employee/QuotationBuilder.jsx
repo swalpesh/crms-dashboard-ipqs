@@ -437,7 +437,7 @@ export default function QuotationBuilder() {
           headers: { Authorization: `Bearer ${token}` }
         });
         const json = await res.json();
-        
+
         if (res.ok && json.data) {
           const sorted = [...json.data].sort((a, b) => a.id - b.id);
           setSolutions(sorted);
@@ -1016,9 +1016,14 @@ export default function QuotationBuilder() {
                           borderRadius: '12px', 
                           border: '1px solid rgba(59, 130, 246, 0.2)' 
                        }}>
-                         {sol.message && (
+                         {(sol.title || sol.role) && (
+                           <Typography variant="caption" sx={{ color: theme.accentBlue, fontWeight: 700, display: 'block', mb: 0.5 }}>
+                             {[sol.title, sol.role].filter(Boolean).join(" • ")}
+                           </Typography>
+                         )}
+                         {sol.note && (
                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: sol.attachments?.length > 0 ? 1.5 : 0 }}>
-                             {sol.message}
+                             {sol.note}
                            </Typography>
                          )}
                          {sol.attachments && sol.attachments.length > 0 && (
@@ -1747,7 +1752,7 @@ function TermsPagesOption2({ bannerSrc, footerLine, paymentTerms, quote }) {
       `<b>Offer Validity & Acceptance</b><ul><li>The quotation shall remain valid for ${quote.validityDays || 30} days from the date of issue, unless withdrawn earlier.</li><li>All orders are subject to final written acceptance by IPQS.</li><li>IPQS reserves the right to correct any clerical, typographical, or calculation errors in the quotation at any time prior to acceptance.</li></ul>`,
       `<b>Prices</b><ul><li>Prices quoted are based on prevailing costs at the time of quotation.</li><li>Unless otherwise stated, prices are Ex-Works and 100 % in advance.</li><li>GST, duties, levies, packing, transportation, insurance, and any statutory charges shall be charged extra at actuals as applicable.</li><li>Any increase or decrease in statutory taxes or duties after the quotation date shall be adjusted in the contract price accordingly.</li></ul>`,
       `<b>Payment Terms</b><ul><li>${adv}% Basic Amount Advance with Techno-commercially Cleared Purchase Order.</li><li>${bal}% Basic Amount against Proforma invoice and material readiness before Dispatch.</li><li>Both advance and Final payments will be subject to 100% taxes as applicable.</li><li>In case of delayed payment, IPQS reserves the right to levy interest at 2% per month or part thereof on the outstanding amount from the due date until realization, without prejudice to other legal remedies available.</li></ul>`,
-      `<b>Delivery</b><ul><li>Delivery period shall be as mentioned in the quotation (Ex-Stock / 4–6 weeks) and shall commence from the receipt of confirmed purchase order and advance payment.</li><li>Delivery timelines are indicative and not of the essence of the contract. IPQS shall not be liable for delays caused due to force majeure, logistics issues, statutory delays, or reasons beyond its reasonable control.</li><li>Partial dispatches may be made at IPQS’s discretion.</li><li>If delivery includes transportation to site, unloading shall be the responsibility of the customer.</li></ul>`,
+      `<b>Delivery</b><ul><li>Delivery period shall be as mentioned in the quotation (Ex-Stock / 4–6 weeks) and shall commence from the receipt of confirmed purchase order and advance payment.</li><li>Delivery timelines are indicative and not of the essence of the contract. IPQS shall not be liable for delays caused due to force majeure, logistics issues, statutory delays, or reasons beyond its reasonable control.</li><li>Partial dispatches may be made at IPQS's discretion.</li><li>If delivery includes transportation to site, unloading shall be the responsibility of the customer.</li></ul>`,
       `<b>Transfer of Risk & Title</b><ul><li>Risk in the equipment shall pass to the customer upon dispatch from IPQS works or as otherwise specified.</li><li>Ownership and title of the supplied goods shall remain with IPQS until full payment is received.</li><li>In case of resale by the customer prior to full payment, the sale proceeds shall be held in trust for IPQS to the extent of unpaid dues.</li></ul>`,
       `<b>Storage</b><br/>If the customer fails to take delivery or provide dispatch instructions within 30 days of intimation that the material is ready, IPQS may arrange storage and insurance at the customer's risk and cost. In such cases, full payment shall become immediately due.`,
       `<b>Inspection & Testing</b><ul><li>Standard visual inspection shall be carried out prior to dispatch.</li><li>FAT / simulation testing, if applicable, shall be conducted at IPQS works.</li><li>Customer or third-party inspection can be arranged upon request and mutual agreement.</li></ul>`,
