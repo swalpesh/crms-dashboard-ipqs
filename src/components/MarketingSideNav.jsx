@@ -361,13 +361,23 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
   ];
 
   // --- CUSTOM QUOTATION TEAM ITEMS ---
-  const quotationTeamItems = [
-    { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Quotation Dashboard" },
-    { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
-    { path: "/purchase-orders", icon: <ReceiptLongOutlinedIcon />, label: "Purchase Order" },
-    { path: "/saved-quotations", icon: <RequestQuoteOutlinedIcon />, label: "Saved Quotations" },
-    { path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" }
-  ];
+  const quotationTeamItems = (isHeadView) => {
+    const items = [
+      { path: "/dashboard", icon: <SpaceDashboardOutlinedIcon />, label: "Quotation Dashboard" },
+      { path: "/leads", icon: <AssignmentTurnedInOutlinedIcon />, label: "Leads" },
+      { path: "/purchase-orders", icon: <ReceiptLongOutlinedIcon />, label: "Purchase Order" },
+      { path: "/saved-quotations", icon: <RequestQuoteOutlinedIcon />, label: "Saved Quotations" },
+    ];
+    
+    // Add Quote Followup's specifically for Quotation Team Head
+    if (isHeadView) {
+      items.push({ path: "/quote-followups", icon: <LightbulbOutlinedIcon />, label: "Quote Followup's" });
+    }
+    
+    items.push({ path: "/reimbursement", icon: <ReceiptLongOutlinedIcon />, label: "Reimbursement" });
+    
+    return items;
+  };
 
   return (
     <Box 
@@ -427,7 +437,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
         {userSlug === "quotation-team" && (
           <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
                  open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
-                 onNavigate={onNavigate} items={quotationTeamItems} />
+                 onNavigate={onNavigate} items={quotationTeamItems(userIsHead)} />
         )}
 
         {isIpqsHead(user) ? (
@@ -477,7 +487,7 @@ export default function MarketingSideNav({ onNavigate = () => {} }) {
 
             <Group title="Quotation Team" icon={<DescriptionOutlinedIcon />} basePath="/marketing/quotation-team"
                   open={openQTeam} setOpen={setOpenQTeam} selected={pathname.startsWith("/marketing/quotation-team/")}
-                  onNavigate={onNavigate} items={quotationTeamItems} />
+                  onNavigate={onNavigate} items={quotationTeamItems(userIsHead)} />
                   
             {/* --- HIDDEN AS REQUESTED --- 
             <Group title="Nagpur Associates" icon={<GroupsOutlinedIcon />} basePath="/marketing/nagpur"

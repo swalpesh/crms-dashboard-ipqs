@@ -451,6 +451,10 @@ export default function App() {
                 <Route path="quotation-team/purchase-orders" element={<PurchaseOrder />} />
                 <Route path="quotation-team/saved-quotations" element={<SavedQuotations />} />
                 <Route path="quotation-team/reimbursement" element={<TechnicalReimbursement />} />
+                {/* --- ADDED THIS LINE FOR THE SIDEBAR FIX --- */}
+                <Route element={<RequireHead redirectTo="/marketing/quotation-team/dashboard" />}>
+                  <Route path="quotation-team/quote-followups" element={<SolarRequests />} />
+                </Route>
               </Route>
 
               {/* Payments Team */}
@@ -459,37 +463,6 @@ export default function App() {
                 <Route path="payments-team/q-invoices" element={<PaymentsTeamQInvoices />} />
               </Route>
 
-              {/* --- Nagpur Associates (HIDDEN AS REQUESTED) --- */}
-              {/* <Route element={<RequireDeptAccess slug="nagpur" />}>
-                <Route path="nagpur/dashboard" element={<NagpurDashboard />} />
-                <Route path="nagpur/leadinfo" element={<NagpurMyLeads />} />
-                <Route path="nagpur/my-leads" element={<NagpurMyLeads />} />
-                <Route path="nagpur/my-activity" element={<NagpurMyActivity />} />
-                <Route path="nagpur/pending-followup" element={<NagpurPendingFollowUp />} />
-                <Route path="nagpur/reimbursement" element={<TechnicalReimbursement />} />
-                <Route element={<RequireHead redirectTo="/marketing/nagpur/dashboard" />}>
-                  <Route path="nagpur/lead-manager" element={<NagpurLeadManager />} />
-                  <Route path="nagpur/my-team" element={<NagpurMyTeam />} />
-                </Route>
-              </Route>
-              */}
-
-              {/* --- Silverline Associates (HIDDEN AS REQUESTED) --- */}
-              {/*
-              <Route element={<RequireDeptAccess slug="silverline" />}>
-                <Route path="silverline/dashboard" element={<SilverlineDashboard />} />
-                <Route path="silverline/leadinfo" element={<SilverlineMyLeads />} />
-                <Route path="silverline/my-leads" element={<SilverlineMyLeads />} />
-                <Route path="silverline/my-activity" element={<SilverlineMyActivity />} />
-                <Route path="silverline/pending-followup" element={<SilverlinePendingFollowUp />} />
-                <Route path="silverline/reimbursement" element={<TechnicalReimbursement />} />
-                <Route element={<RequireHead redirectTo="/marketing/silverline/dashboard" />}>
-                  <Route path="silverline/lead-manager" element={<SilverlineLeadManager />} />
-                  <Route path="silverline/my-team" element={<SilverlineMyTeam />} />
-                </Route>
-              </Route>
-              */}
-              
               {/* --- Trafo Associates --- */}
               <Route element={<RequireDeptAccess slug="trafo" />}>
                 <Route path="trafo/dashboard" element={<TrafoDashboard />} />
@@ -503,22 +476,6 @@ export default function App() {
                   <Route path="trafo/my-team" element={<TrafoMyTeam />} />
                 </Route>
               </Route>
-
-              {/* --- YK Associates (HIDDEN AS REQUESTED) --- */}
-              {/*
-              <Route element={<RequireDeptAccess slug="yk" />}>
-                <Route path="yk/dashboard" element={<YKDashboard />} />
-                <Route path="yk/leadinfo" element={<YKMyLeads />} />
-                <Route path="yk/my-leads" element={<YKMyLeads />} />
-                <Route path="yk/my-activity" element={<YKMyActivity />} />
-                <Route path="yk/pending-followup" element={<YKPendingFollowUp />} />
-                <Route path="yk/reimbursement" element={<TechnicalReimbursement />} />
-                <Route element={<RequireHead redirectTo="/marketing/yk/dashboard" />}>
-                  <Route path="yk/lead-manager" element={<YKLeadManager />} />
-                  <Route path="yk/my-team" element={<YKMyTeam />} />
-                </Route>
-              </Route>
-              */}
 
               {/* --- NEW: Kolhapur Associates --- */}
               <Route element={<RequireDeptAccess slug="kolhapur" />}>
