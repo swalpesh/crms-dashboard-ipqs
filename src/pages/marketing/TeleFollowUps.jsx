@@ -87,7 +87,7 @@ const styles = {
   },
   gridRow: {
     display: 'grid',
-    gridTemplateColumns: { xs: '1fr', md: '2.5fr 0.8fr 0.8fr 1.2fr 2fr 1.8fr' },
+    gridTemplateColumns: { xs: '1fr', md: '2.3fr 0.8fr 0.8fr 1.1fr 2fr 2.4fr' },
     alignItems: 'center',
     gap: 2,
     p: 2.5,
@@ -368,7 +368,7 @@ const TelePendingFollowups = () => {
         </Box>
 
         {/* --- List Header --- */}
-        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: '2.5fr 0.8fr 0.8fr 1.2fr 2fr 1.8fr', px: 3, py: 1.5, mb: 1, color: theme.textSecondary, fontSize: '0.85rem', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: '2.3fr 0.8fr 0.8fr 1.1fr 2fr 2.4fr', px: 3, py: 1.5, mb: 1, color: theme.textSecondary, fontSize: '0.85rem', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>
           <Box>Lead / Contact Person</Box>
           <Box>Priority</Box>
           <Box>Lead Type</Box>
@@ -449,10 +449,26 @@ const TelePendingFollowups = () => {
 
                   {/* Actions */}
                   <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-                    
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
+
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => handleViewClick(lead.lead_id)}
+                      startIcon={<VisibilityIcon />}
+                      sx={{
+                        minWidth: 0,
+                        borderColor: 'rgba(59, 130, 246, 0.4)',
+                        color: theme.accent,
+                        textTransform: 'none',
+                        borderRadius: '8px',
+                        '&:hover': { borderColor: theme.accent, color: 'white', bgcolor: 'rgba(59, 130, 246, 0.15)' }
+                      }}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
                       onClick={() => handleOpenReschedule(lead)}
                       startIcon={<AccessTimeIcon />} 
                       sx={{ 
